@@ -74,7 +74,7 @@ lit_dir_shared = obsidian_vault_dir / 'lit'
 lit_attachment_dir_shared = lit_dir_shared / 'lit_sources'
 
 # markdown literature notes writting by obsidian, accessible from zotero using MarkDB-Connect plugin
-lit_notes_dir_shared = lit_dir_shared / 'lit_sources'
+lit_notes_obsidian_dir = lit_dir_shared / 'lit_notes'
 
 merged_RAG_source_dir = refwrangle_dat_dir / 'orig' / 'proc' / 'Merged RAG Political Sources'
 
@@ -107,21 +107,27 @@ def is_ignorable_child(child):
     
     return False
 
+def zotero_item_link(zotero_item_key, link_text):
+    return f'[{link_text}](zotero://select/library/items/{zotero_item_key})'
+
 def normalize_url(url):
     """Convert a URL to a standard form, so the it can be string-compared to the same URL
     written by a different program, but which is also normalized by this function."""
     parsed = urlparse(url.lower())
     return urlunparse(parsed._replace(path=parsed.path.rstrip('/')))
 
-def replace_perplexity_citations(markdown_file, url_to_citekey, output_file):
+def replace_perplexity_citations_from_perplexity(markdown_file, zot_db_items, output_file):
     """Replace numeric citations in a perplexity dialog with any obsidian literature note links that are
     given either as a dict or a file."""
 
     # Read the CSV file and create a dictionary of normalized URL to citekey mappings
-    if not isinstance(url_to_citekey, dict):
-        df = pd.read_csv(url_to_citekey) # assume it has url and citekey columns
-        url_to_citekey = {normalize_url(url): citekey for url, citekey in zip(df.url, df.citekey)}
+    if not isinstance(zot_db_items, pd.DataFrame):
+        raise Exception('Expected a dataframe.  Reading url_to_citekey from file does not yet handle new dataframe column')
+        df = pd.read_csv(zot_db_items) # assume it has url and citekey columns
+        zot_db_items = {normalize_url(url): citekey for url, citekey in zip(df.url, df.citekey)}
 
+    zot_db_items['url'] = zot_db_items['url'].apply(normalize_url)
+    
     # Read the Markdown file
     with open(markdown_file, 'r') as mdfile:
         content = mdfile.read()
@@ -135,14 +141,19 @@ def replace_perplexity_citations(markdown_file, url_to_citekey, output_file):
 
     # Extract citations and their corresponding normalized URLs
     citation_urls = re.findall(r'\[(\d+)\]\s+(https?://\S+)', citations)
-    url_to_number = {normalize_url(url): num for num, url in citation_urls}
+    doc_url_to_number = {normalize_url(url): num for num, url in citation_urls}
 
-    # Replace citations in the body text with wikilinks or add space
+    # Replace citations in the body text with a wikilinks to an obsidian note, or to or zotero item
     def replace_citation(match):
         num = match.group(1)
-        normalized_url = next((url for url, cite_num in url_to_number.items() if cite_num == num), None)
-        if normalized_url and normalized_url in url_to_citekey:
-            return f' [[{url_to_citekey[normalized_url]}]]'
+        doc_url = next((url for url, cite_num in doc_url_to_number.items() if cite_num == num), None)
+        if doc_url:
+            itemInfo = zot_db_items[zot_db_items.url == doc_url]
+            if itemInfo:
+                if itemInfo.hasLitNote:
+                    return f' [[{itemInfo.citekey}]]'
+                link_text = f'{itemInfo.zotkey}={itemInfo.citekey}'
+                return f' {zotero_item_link(itemInfo.zotkey, link_text)}'
         return f' [{num}]'
 
     body = re.sub(r'\[(\d+)\]', replace_citation, body)
@@ -152,8 +163,8 @@ def replace_perplexity_citations(markdown_file, url_to_citekey, output_file):
         num = match.group(1)
         url = match.group(2)
         normalized_url = normalize_url(url)
-        if normalized_url in url_to_citekey:
-            return f'[[{url_to_citekey[normalized_url]}]] {url}'
+        if normalized_url in zot_db_items:
+            return f'[[{zot_db_items[normalized_url]}]] {url}'
         return f'[{num}] {url}'
 
     citations = re.sub(r'\[(\d+)\]\s+(https?://\S+)', replace_citation_in_references, citations)
@@ -164,8 +175,9 @@ def replace_perplexity_citations(markdown_file, url_to_citekey, output_file):
     # Write the modified content to the output file
     with open(output_file, 'w') as outfile:
         outfile.write(modified_content)
-        
-# def replace_perplexity_citations(markdown_file, url_to_citekey, output_file):
+
+# # works on md directly from perplexity
+# def ORIG_replace_perplexity_citations_from_perplexity(markdown_file, url_to_citekey, output_file):
 #     """Replace numeric citations in a perplexity dialog with any obsidian literature note links that are
 #     given either as a dict or a file."""
 
@@ -199,49 +211,24 @@ def replace_perplexity_citations(markdown_file, url_to_citekey, output_file):
 
 #     body = re.sub(r'\[(\d+)\]', replace_citation, body)
 
-#     # Write the modified content to the output file
-#     with open(output_file, 'w') as outfile:
-#         outfile.write(body)
-
-# def replace_perplexity_citations(markdown_file, url_to_citekey, output_file):
-#     """Replace numeric citations an a perplexity dialog with any obsidian literature note links that are
-#     given either as a dict or a file."""
-
-#     # Read the CSV file and create a dictionary of normalized URL to citekey mappings
-#     if not isinstance(url_to_citekey, dict):
-#         df = pd.read_csv(url_to_citekey) # assume it has url and citekey columns
-#         url_to_citekey = {normalize_url(url): citekey for url, citekey in zip(df.url, df.citekey)}
-
-#     # Read the Markdown file
-#     with open(markdown_file, 'r') as mdfile:
-#         content = mdfile.read()
-
-#     # Split the content into body and citations
-#     parts = content.split("\nCitations:\n")
-#     if len(parts) != 2:
-#         raise Exception("Couldn't find Citations section")
-    
-#     body, citations = parts
-
-#     # Extract citations and their corresponding normalized URLs
-#     citation_urls = re.findall(r'\[(\d+)\]\s+(https?://\S+)', citations)
-#     url_to_number = {normalize_url(url): num for num, url in citation_urls}
-
-#     # Replace citations in the body text with wikilinks
-#     def replace_citation(match):
+#     # Replace citations in the Citations section
+#     def replace_citation_in_references(match):
 #         num = match.group(1)
-#         normalized_url = next((url for url, cite_num in url_to_number.items() if cite_num == num), None)
-#         if normalized_url and normalized_url in url_to_citekey:
-#             return f' [[{url_to_citekey[normalized_url]}]]'
-#         return match.group(0)
+#         url = match.group(2)
+#         normalized_url = normalize_url(url)
+#         if normalized_url in url_to_citekey:
+#             return f'[[{url_to_citekey[normalized_url]}]] {url}'
+#         return f'[{num}] {url}'
 
-#     body = re.sub(r'\[(\d+)\]', replace_citation, body)
+#     citations = re.sub(r'\[(\d+)\]\s+(https?://\S+)', replace_citation_in_references, citations)
+
+#     # Combine modified body and citations
+#     modified_content = body + "\nCitations:\n" + citations
 
 #     # Write the modified content to the output file
 #     with open(output_file, 'w') as outfile:
-#         outfile.write(body)
-
-
+#         outfile.write(modified_content)
+        
 def get_my_zotero_collections(top_collection_name=None):
     """Returns the list of collections in my zotero DB. 
      top_collection_name: return only collections hierarchically below this collection. """
