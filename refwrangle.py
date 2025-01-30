@@ -1,0 +1,1510 @@
+"""Utility functions for reference wrangling."""
+
+import pathlib
+import pathlib as pl
+from icecream import ic
+import urllib.parse
+import os
+from pyzotero import zotero
+from bs4 import BeautifulSoup
+from playwright.sync_api import sync_playwright
+import pickle
+import pandas as pd
+from pypdf import PdfWriter, PdfReader
+from reportlab.pdfgen import canvas
+from reportlab.lib.pagesizes import letter
+from reportlab.lib import colors
+from datetime import datetime
+import chardet
+import io
+import subprocess
+import sys
+import re
+import unicodedata
+import re
+
+import plotly.graph_objects as go
+from readability import Document
+from markdownify import markdownify
+import pymupdf4llm
+from youtube_transcript_api import YouTubeTranscriptApi
+import markdown
+import xml.etree.ElementTree as ET
+from reportlab.platypus import SimpleDocTemplate, Paragraph
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib.pagesizes import letter
+
+refdir = obsidian_vault_dir = pl.Path(r"C:\Users\scott\OneDrive\share\ref")
+
+# path to obsidian vault  (MACHINE SPECIFIC)
+obsidian_vault_dir = refdir / "obsidian/Obsidian Share Vault"
+
+# entry info extracted from Zotero DB
+refwrangle_dir = refdir / 'refwrangle'
+extractedZoteroEntriesFNm = refwrangle_dir / 'dat/zotero_entries.pkl'
+
+refwrangle_test_dir = refwrangle_dir / 'test'
+refwrangle_dat_dir = refwrangle_dir / 'dat'
+
+# After high quality html to markdown conversion, the md but be at least this big
+# Otherwise, more cautious quality conversion will be done
+min_bytes_for_high_quality_html2md = 4000
+
+# My Zotero API credentials
+library_id = '60638'
+library_type = 'user'  # or 'group' if using a group library
+api_key = 'VFJnuXqeaJPcVjCQHQAELCuu'
+
+procDir = refwrangle_dir / 'dat' / 'proc'
+# html2pdf_cachedir = procDir / 'h2p_cache'
+# html2pdf_cachedir.mkdir(parents=True, exist_ok=True)
+
+# processed_source_cachedir = procDir / 'processed_source_cache'
+# processed_source_cachedir.mkdir(parents=True, exist_ok=True)
+
+attachments_as_md_cachedir = procDir / 'attachments_as_md_cache'
+attachments_as_md_cachedir.mkdir(parents=True, exist_ok=True)
+
+# where both zotero and obsidian look for literature notes and attachments
+lit_dir_shared = obsidian_vault_dir / 'lit'
+
+# where zotero-linked pdfs, etc are stored (zotero setting: "linked attachment base directory"). It's shared by obsidan.
+lit_attachment_dir_shared = lit_dir_shared / 'lit_sources'
+
+# markdown literature notes writting by obsidian, accessible from zotero using MarkDB-Connect plugin
+lit_notes_dir_shared = lit_dir_shared / 'lit_sources'
+
+merged_RAG_source_dir = refwrangle_dat_dir / 'orig' / 'proc' / 'Merged RAG Political Sources'
+
+# the desired attachment file extension for each child contentType
+desiredFileExtention = {'application/pdf':'pdf', 'text/html':'html', 
+                        'application/vnd.openxmlformats-officedocument.presentationml.presentation':'pptx'}
+
+# def get_children(parentZoteroKey, zot):
+#     """ Puts children of parent w/ this key into a list.
+#     zot.children(parentZoteroKey) fails a lot for some reason, and breaks loops.
+#     Idea try/accept this this call and loop over the result, if any, in order to 
+#     avoid killing a whole processing loop.  zot is an opened pyzotero db handle."""
+
+#     return [child for child in zot.children(parentZoteroKey)]
+
+
+def is_ignorable_child(child):
+    """Returns True if a child is not something that attachment processing 
+    would need to deal with."""
+    
+    cdat = child['data']
+    if cdat['itemType'] != 'attachment':
+        return True # e.g. a zotero note of type type 'note'
+
+    if cdat['title'] in ['PubMed entry', 'Semantic Scholar Link']:
+        return True
+    
+    if 'path' not in cdat:
+        return True # must not be a note then but I'm not sure what it is
+    
+    return False
+
+
+def get_my_zotero_collections(top_collection_name=None):
+    """Returns the list of collections in my zotero DB. 
+     top_collection_name: return only collections hierarchically below this collection. """
+    
+    zot = zotero.Zotero(library_id, library_type, api_key)
+
+    if top_collection_name is None:
+        return [c['data']['name'] for c in zot.collections()]
+
+    top_collection_data = next((c for c in zot.collections() if c['data']['name'] == top_collection_name), None)
+
+    if top_collection_data:
+        top_collection_key = top_collection_data['key']
+        
+        # Get all subcollections under 'Politics'
+        return [c['data']['name'] for c in zot.all_collections(top_collection_key)]
+    else:
+        raise ValueError(f"'{top_collection_name}' collection not found")
+
+def plot_my_zotero_collections(top_collection_name=None):
+    """Hierarchically plots the collections in my zotero DB. 
+     top_collection_name: plot only collections hierarchically below this collection. """
+    
+    zot = zotero.Zotero(library_id, library_type, api_key)
+
+    all_collections = zot.all_collections()
+
+    # Build hierarchy
+    hierarchy = {}
+    for collection in all_collections:
+        key = collection['key']
+        name = collection['data']['name']
+        parent = collection['data'].get('parentCollection', '')
+        hierarchy[key] = {'name': name, 'parent': parent, 'children': []}
+
+    # Populate children
+    for key, data in hierarchy.items():
+        if data['parent']:
+            hierarchy[data['parent']]['children'].append(key)
+
+    # Find the key of the top collection if specified
+    top_collection_key = None
+    if top_collection_name:
+        for key, data in hierarchy.items():
+            if data['name'] == top_collection_name:
+                top_collection_key = key
+                break
+        if not top_collection_key:
+            print(f"Collection '{top_collection_name}' not found.")
+            return
+
+    # Create a recursive function to build the tree
+    def build_tree(key):
+        node = hierarchy[key]
+        children = [build_tree(child) for child in node['children']]
+        return {'name': node['name'], 'children': children}
+
+    # Build the tree structure
+    if top_collection_key:
+        tree_data = [build_tree(top_collection_key)]
+    else:
+        root_collections = [key for key, data in hierarchy.items() if not data['parent']]
+        tree_data = [build_tree(root) for root in root_collections]
+
+    # Create lists to hold the labels and parents
+    labels = []
+    parents = []
+
+    # Function to flatten the tree structure
+    def flatten_tree(node, parent=""):
+        labels.append(node['name'])
+        parents.append(parent)
+        for child in node.get('children', []):
+            flatten_tree(child, node['name'])
+
+    # Flatten the tree structure
+    for root in tree_data:
+        flatten_tree(root)
+
+    # Create the treemap
+    fig = go.Figure(go.Treemap(
+        labels=labels,
+        parents=parents,
+        root_color="lightgrey"
+    ))
+
+    # Update the layout
+    title = f"Zotero Collection Hierarchy: {top_collection_name}" if top_collection_name else "Zotero Collection Hierarchy"
+    fig.update_layout(
+        title=title,
+        width=1000,
+        height=800
+    )
+
+    # Show the plot
+    fig.show()
+
+def extra2dict(extra):
+    """Converts zotero extra field string into dict of keys and values"""
+    dictionary = {}
+    for line in extra.splitlines():
+        if ': ' in line:
+            key, value = line.split(': ', 1)
+            dictionary[key] = value
+    return dictionary
+
+def get_citation_key(parent_dat):
+    """Gets the BBT citekey from the data dict of a zotero parent entry"""
+    try:
+        return extra2dict(parent_dat['extra'])['Citation Key']
+    except:
+        return None
+
+
+def is_youtube_video(item):
+    """Returns True i a zotero DB item is a youtube video"""
+    if item['data']['itemType'] == 'videoRecording':
+        url = item['data'].get('url', '')
+        return 'youtube.com' in url or 'youtu.be' in url
+    return False
+
+def get_youtube_video_id(url):
+    """Extract video ID from YouTube URL"""
+    video_id_match = re.search(r"(?:v=|\/)([0-9A-Za-z_-]{11}).*", url)
+    if video_id_match:
+        return video_id_match.group(1)
+    return None
+
+def youtube2md(video_url, output_file):
+    """Gets a youtube transcript and saves it in a timestamped markdown file"""
+    video_id = get_youtube_video_id(video_url)
+    if not video_id:
+        print("Invalid YouTube URL")
+        return
+
+    try:
+        transcript = YouTubeTranscriptApi.get_transcript(video_id)
+
+        with open(output_file, 'w', encoding='utf-8') as file:
+            for entry in transcript:
+                timestamp = int(entry['start'])
+                text = entry['text']
+                minutes, seconds = divmod(timestamp, 60)
+                timestamp_formatted = f"{minutes:02d}:{seconds:02d}"
+                link = f"https://www.youtube.com/watch?v={video_id}&t={timestamp}s"
+                # A blank line between chunks makes a more readable pdfXchange Editor conversion to pdf.
+                # I'm not sure what happens after merge, though.
+                file.write(f"[{timestamp_formatted}]({link}) {text}\n\n")
+    except Exception as e:
+        raise Exception(f"An error occurred: {e}")
+
+
+def read_html_file(html_file):
+    """Returns the html in an html file, with (hopefully) correct decoding."""
+    with open(html_file, 'rb') as f:
+        raw_data = f.read()
+        try:
+            detected = chardet.detect(raw_data)
+            html = raw_data.decode(detected['encoding'] or 'utf-8')
+        except UnicodeDecodeError:
+            html = raw_data.decode('iso-8859-1')
+
+    return html
+
+# supposed to work on both cascade PBS and AP sites but it doesn't work well
+def clean_html(html_file_path):
+    """
+    Enhanced HTML cleaner handling both AP News and Cascade PBS articles.
+    But it's not great.
+    """
+    with open(html_file_path, 'r', encoding='utf-8') as file:
+        html_content = file.read()
+
+    soup = BeautifulSoup(html_content, 'html.parser')
+
+    # Try multiple content containers in order of specificity
+    article = (
+        # AP News specific containers
+        soup.find('div', {'class': 'Article'}) or
+        soup.find('div', {'data-key': 'article'}) or
+        soup.find('div', {'class': 'article-body'}) or
+        
+        # Cascade PBS specific containers
+        soup.find('div', {'class': 'pbs_email_body'}) or
+        soup.find('div', {'id': 'email_body'}) or
+        soup.find('div', {'class': 'content-area'}) or
+        
+        # Generic article containers
+        soup.find('article') or
+        soup.find('main')
+    )
+    
+    # Additional fallback for Cascade PBS structure
+    if not article:
+        # Look for nested content structures common in PBS sites
+        article = soup.find('div', {'class': ['body-content', 'main-content', 'content']})
+    
+    # Broader fallback with text length check
+    if not article:
+        potential_divs = soup.find_all('div')
+        for div in potential_divs:
+            text_content = div.get_text(strip=True)
+            if len(text_content) > 500 and not div.find_parent('header'):
+                article = div
+                break
+
+    if not article:
+        print("Main article content not found!")
+        return ""
+
+    # Preserve specific PBS content structures before cleaning
+    preserved_content = []
+    if article:
+        # Find and preserve all paragraph-like content
+        preserved_content.extend(article.find_all(['p', 'div'], class_='paragraph'))
+        preserved_content.extend(article.find_all('p'))
+        
+    # Clean unwanted elements
+    unwanted_classes = [
+        'RelatedStories', 'Advertisement', 'ShareBar', 'Header',
+        'footer', 'nav', 'sidebar', 'menu'
+    ]
+    
+    for class_name in unwanted_classes:
+        for element in article.find_all(class_=lambda x: x and class_name.lower() in x.lower()):
+            element.decompose()
+
+    # Remove non-content elements
+    for tag in article(['script', 'style', 'img', 'button', 'svg', 'iframe']):
+        tag.decompose()
+
+    # Special handling for links
+    for link in article.find_all('a'):
+        if link.string and len(link.string.strip()) > 0:
+            link.replace_with(link.string)
+        else:
+            # Keep the most meaningful text content
+            text_content = link.get_text(strip=True)
+            if text_content:
+                link.replace_with(text_content)
+            else:
+                link.unwrap()
+
+    # If we preserved content earlier, reconstruct the article
+    if preserved_content:
+        new_article = soup.new_tag('div')
+        for content in preserved_content:
+            if content.get_text(strip=True):  # Only add non-empty content
+                new_article.append(content)
+        if new_article.get_text(strip=True):
+            article = new_article
+
+    # Final cleanup of empty elements
+    for tag in article.find_all():
+        if not tag.get_text(strip=True):
+            tag.decompose()
+
+    return str(article)
+
+def html_to_pdf_wkhtmltopdf(input_file, output_file):
+    """Converts and html_file into and html_file"""
+    wkhtmltopdf_exe = pl.Path(r"C:\Program Files\wkhtmltopdf\bin\wkhtmltopdf.exe")
+    subprocess.run([str(wkhtmltopdf_exe), str(input_file), str(output_file)], check=False)
+
+def html_to_pdf_playwright(input_html, output_pdf_path):
+    """
+    Converts an HTML string to a PDF file.
+    Args:
+        input_html (str): HTML content as a string.
+        output_pdf_path (str): Path to save the generated PDF.
+
+    Notes:
+        - Requires Playwright's `sync_playwright`.
+        - Does not work in Jupyter Notebook or VSCode Interactive Window.
+
+    Example: html_to_pdf_playwright("<h1>Hello</h1>", "output.pdf")
+    """
+
+    ic(pl.Path(output_pdf_path).exists() and not os.access(output_pdf_path, os.W_OK))
+    if pl.Path(output_pdf_path).exists() and not os.access(output_pdf_path, os.W_OK):
+        print(f"Error: File '{output_pdf_path}' is not writable", file=sys.stderr)
+        sys.exit(1)
+
+    with sync_playwright() as p:
+        browser = p.chromium.launch()
+        page = browser.new_page()
+        page.set_content(input_html)
+        page.emulate_media(media="screen")
+        page.pdf(path=output_pdf_path, format="A4",
+                landscape=True, margin={"top": "2cm"})
+        browser.close()
+
+def convert_html_to_pdf_subproc(html_file, pdf_file, cleaning=True):
+    """Converts an html file to a pdf file, calling the converter in a subprocess. 
+       Conversion uses the playwright lib, which doesn't work in an jupyter notebook or 
+       vscode interactive cell.  So this function runs playwright by calling a 
+       a standalone command line python script which uses playwright."""
+
+
+    cleaning_arg = 'clean' if cleaning == True else 'noclean'
+
+    result = subprocess.run(['python', str(refwrangle_dir / 'pdf_to_html_playwright_cleaned.py'), 
+                             html_file, pdf_file, cleaning_arg],
+                            capture_output=True, text=True, check=False)
+    if result.returncode != 0:
+        print(f"Subprocess Error: {result.stderr}")
+
+def load_pickle_data(fNm):
+    """Returns the data stored in a pickle file"""
+    print(f'Reading from {fNm}...')
+    with open(fNm, 'rb') as file:
+        data = pickle.load(file)
+    return data
+
+def save_pickle_data(fNm, data):
+    """Saves data to a pickle file"""
+    print(f'Writing to {fNm}...')
+    with open(fNm, 'wb') as file:
+        pickle.dump(data, file)
+
+def create_title_page(writer, pdf_files):
+    packet = io.BytesIO()
+    c = canvas.Canvas(packet, pagesize=letter)
+    
+    # Add timestamp and PDF count header
+    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    c.setFont("Helvetica-Bold", 14)
+    header = f"{len(pdf_files)} PDFs merged on {timestamp}"
+    c.drawString(72, 750, header)
+    
+    # Add separator line
+    c.line(72, 735, 540, 735)
+    
+    # List of articles
+    c.setFont("Helvetica", 12)
+    y_position = 700
+    
+    for i, pdf_path in enumerate(pdf_files, 1):
+        pdf_basename = os.path.basename(pdf_path).split('.')[0]
+        title = f"Article {i}: {pdf_basename}"
+        c.drawString(72, y_position, title)
+        y_position -= 20
+        
+        if y_position < 50:
+            c.showPage()
+            c.setFont("Helvetica", 12)
+            y_position = 750
+    
+    c.showPage()
+    c.save()
+    packet.seek(0)
+    title_pdf = PdfReader(packet)
+    writer.add_page(title_pdf.pages[0])
+
+def add_separator_page(writer, pdf_basename, full_path, metadata):
+    packet = io.BytesIO()
+    c = canvas.Canvas(packet, pagesize=letter)
+    
+    c.setFont("Helvetica-Bold", 16)
+    c.setFillColorRGB(0, 0, 1)  # Blue
+    
+    text = pdf_basename
+    x, y = 100, 600
+    c.linkURL(full_path, (x, y-5, x+200, y+20), relative=1)
+    c.drawString(x, y, text)
+    
+    c.setFont("Helvetica", 12)
+    c.setFillColorRGB(0, 0, 0)  # Black
+    y_position = 500
+    for key, value in metadata.items():
+        c.drawString(100, y_position, f"{key}: {value}")
+        y_position -= 30
+    
+    c.showPage()
+    c.save()
+    packet.seek(0)
+    separator_pdf = PdfReader(packet)
+    writer.add_page(separator_pdf.pages[0])
+
+def add_margin_text(page, basename):
+    packet = io.BytesIO()
+    c = canvas.Canvas(packet, pagesize=letter)
+    
+    # Add vertical margin text
+    c.saveState()
+    c.setFont("Helvetica", 12)  # legible when small
+    # c.setFont("Helvetica-Bold", 12)    
+    c.setFillColor(colors.darkgreen)
+    # st arg is right shift.  Max for letter page is 612 pts (8.5")
+    c.translate(600, 400)
+    # c.translate(580, 400) # previous
+    c.rotate(90)
+    c.drawString(0, 0, basename)
+    c.restoreState()
+    
+    c.showPage()
+    c.save()
+    packet.seek(0)
+    
+    margin_pdf = PdfReader(packet)
+    margin_page = margin_pdf.pages[0]
+    margin_page.merge_page(page)
+    return margin_page
+
+def check_pdf_integrity(pdf_path):
+    """Catches errors and returns them.  
+       Does not capture errors like 'Ignoring wrong pointing object 255 0 (offset 0)'
+       They're not exceptions."""
+    try:
+        reader = PdfReader(pdf_path)
+        for page in reader.pages:
+            pass
+        return True, None
+    except Exception as e:
+        return False, str(e)
+    
+
+def total_size(obj, seen=None):
+    """Returns the total recursive size of an object"""
+    if seen is None:
+        seen = set()
+
+    obj_id = id(obj)
+    if obj_id in seen:
+        return 0
+
+    seen.add(obj_id)
+
+    size = sys.getsizeof(obj)
+
+    if isinstance(obj, dict):
+        size += sum(total_size(k, seen) + total_size(v, seen) for k, v in obj.items())
+    elif isinstance(obj, (list, tuple, set, frozenset)):
+        size += sum(total_size(i, seen) for i in obj)
+
+    return size
+
+def is_file_big(file_path, min_bytes_for_big):
+    """Returns True if the size of the file pointed to by file_path is >= min_bytes_for_big bytes.
+    Returns False if the file is smaller or doesn't exist."""
+
+    if not isinstance(file_path, pl.Path):
+        raise ValueError(f'file_path is not of type {str(pl.Path)}: {file_path}')
+    
+    nbytes_dest = file_path.stat().st_size if file_path.exists() else 0
+    
+    return nbytes_dest >= min_bytes_for_big
+
+def heirarch_shift_markdown_headers(markdown_text, top_level=None):
+    """Hierarchically shifts headers so that the highest level is top_level.
+    (no shift if top_level==None)
+    Any levels > 6 are set to ordinary text."""
+    if top_level is not None:
+        if not (0 < top_level < 7):
+            raise ValueError("top_level must be greater than 0 and less than 7")
+
+    headers = re.findall(r'^(#+)\s', markdown_text, re.MULTILINE)
+
+    if not headers or top_level is None:
+        return markdown_text
+
+    current_highest = min(len(h) for h in headers)
+    shift = current_highest - top_level
+
+    def replace_header(match):
+        if (old_level := len(match.group(1))) > 6:
+            return "" # fix bogus original level > 7
+                             
+        if (new_level := old_level - shift) > 6:
+            return ""
+
+        return '#' * new_level + ' '
+
+    return re.sub(r'^(#+)\s', replace_header, markdown_text, flags=re.MULTILINE)
+
+def html2md_cautious(html_input_file, md_output_file, verbose=False):
+    """Converts an html file to a cleaned markdown file, trying for maximum quality first,
+     but if the markdown result is too short, it tries again with a more lenient cleaner."""
+    
+    # High qualty first
+    html2md_readability(html_input_file, md_output_file, verbose)
+    if is_file_big(md_output_file, min_bytes_for_high_quality_html2md):
+        return
+    
+    if verbose:
+        print(f'Reverting to cautious html2md for file: {str(html_input_file)}')
+
+    html2md_BS_html_to_markdown(html_input_file, md_output_file)
+    
+def html2md_readability(html_input_file, md_output_file, verbose=False):
+    """Converts an html file to a markdown file with readability, 
+    post processed with markdownify.  This produces the cleanest and best markdown results 
+    I've seen on most html files.  But occasionally, it deletes lot of the
+    meaningful text, sometimes removing it entirely."""
+
+    with open(html_input_file, 'r', encoding='utf-8') as file:
+        html_content = file.read()
+    if verbose:
+        print(f'html_content after read: {total_size(html_content)}')
+
+    # # Pre-process HTML
+    # soup = BeautifulSoup(html_content, 'lxml')
+    # for element in soup(['script', 'style', 'nav', 'footer']):
+    #     element.decompose()
+    # html_content = str(soup)
+    # if verbose:
+    #     print(f'html_content after BS: {total_size(html_content)}')
+
+    # Extract main content using readability
+    # these settings are bad on Klein25bidenWhatWentWrong (nearly blank)
+    # doc = Document(html_content, min_text_length=25, retry_length=250)
+    # still bad on Anonymous24RealMedianEarnings (blank), and Mark25unhappyEcon7charts (nearly blank) even though extremely friendly
+    # doc = Document(html_content, min_text_length=150, retry_length=100)
+
+    # # Reasonable settings compromise?:  Good on Klein25bidenWhatWentWrong, still bad on Anonymous24RealMedianEarnings (blank)
+    doc = Document(html_content, min_text_length=100, retry_length=150)
+    main_html_content = doc.summary()
+    if verbose:
+        print(f'main_html_content after readability doc.summary(): {total_size(main_html_content)}')
+
+    # Extract main content using readability: This leaves too much junk in
+    # doc = Document(html_content, min_text_length=25, retry_length=250)
+    # main_html_content = doc.content()
+    # if verbose:
+    #     print(f'main_html_content after readability doc.content (what is returned): {total_size(main_html_content)}')
+
+    # Remove images
+    main_html_content = re.sub(r'<img[^>]*>', '', main_html_content)
+    if verbose:
+        print(f'main_html_content after img tag removal: {total_size(main_html_content)}')
+
+    # # Post-process: Include additional content if needed
+    # soup = BeautifulSoup(main_html_content, 'lxml')
+    # additional_content = soup.find_all('div', class_='important-text')
+    # for content in additional_content:
+    #     main_html_content += str(content)
+
+    # Convert to markdown
+    markdown_content = markdownify(main_html_content)
+    if verbose:
+        print(f'markdown_content after markdownify {total_size(markdown_content)}')
+
+    markdown_content = fix_markdown_errors(markdown_content)
+    if verbose:
+        print(f'markdown_content after fix_markdown_errors {total_size(markdown_content)}')
+
+    with open(md_output_file, 'w', encoding='utf-8') as file:
+        file.write(markdown_content)
+
+# def html2md_readability_OLD(html_input_file, md_output_file, verbose=False):
+#     "Reads an html file and writes it as utf-8 markdown.  Uses readability"
+#     # Read the local HTML file
+#     with open(html_input_file, 'r', encoding='utf-8') as file:
+#         html_content = file.read()
+
+#     if verbose:
+#         print(f'html after read: {total_size(html_content)}')
+
+#     # extract main content using readability
+#     doc = Document(html_content)
+#     main_html_content = doc.summary()
+#     if verbose:
+#         print(f'main_html_content after readability: {total_size(main_html_content)}')
+
+#     # Remove images
+#     main_html_content = re.sub(r'<img[^>]*>', '', main_html_content)
+#     if verbose:
+#         print(f'main_html_content after rem images {total_size(main_html_content)}')
+
+#     # doesn't help w/ no newlines in Klein25demsLoseAttentionWar
+#     # main_html_content = re.sub(r'</p>|<br\s*/?>', '\n', main_html_content)
+#     #
+#     # debugging intermediate file
+#     # debugFNm = refwrangle_dir / 'test' / 'tmp_debug_html2md_readability.html'
+#     # print(f'Writing debug file {debugFNm}')
+#     # with open(debugFNm, 'w', encoding='utf-8') as file:
+#     #         file.write(main_html_content)
+
+#     # go to markdown
+#     markdown_content = markdownify(main_html_content)
+#     if verbose:
+#         print(f'markdown_content after markdownify {total_size(markdown_content)}')
+  
+#     markdown_content = fix_markdown_errors(markdown_content)
+#     if verbose:
+#         print(f'markdown_content after fix markdown errors {total_size(markdown_content)}')
+
+#     # Save the Markdown content to a file
+#     with open(md_output_file, 'w', encoding='utf-8') as file:
+#         file.write(markdown_content)
+
+def normalize_odd_chars(text):
+    """Normalize chars like in utf8 to NFKD form (compatibility decomposition).  
+    Good for functions that don't handle utf8 chars, like the Johannes Kaufmann html2markdown CLI"""
+
+    text = unicodedata.normalize('NFKD', text)
+    
+    # Replace common problematic characters
+    replacements = {
+        ''': "'",
+        ''': "'",
+        '"': '"',
+        '"': '"',
+        '…': '...',
+        '—': '-',
+        '–': '-',
+    }
+    for old, new in replacements.items():
+        text = text.replace(old, new)
+    
+    # Remove remaining non-ASCII characters
+    text = re.sub(r'[^\x00-\x7F]+', '', text)
+    
+    return text
+
+def preproc_BS4_lenient(html):
+    """Preprocesses HTML content, removing images and extracting text while preserving structure.
+    I haven't seen this delete meaninful text, but it sometimes leaves sequences 
+    of leading and trailing link sequences and junk in the middle of some WA post articles."""
+
+    soup = BeautifulSoup(html, features="html.parser")
+
+    # Remove unwanted elements, including images
+    for element in soup(['style', 'script', 'head', 'title', 'meta', '[document]', 'img']):
+        element.decompose()
+
+    def extract_text(element):
+        """Extracts text, while preserving important structural elements"""
+        if element.name in ['h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'a']:
+            return str(element)
+        elif element.name == 'p':
+            return element.get_text() + '\n\n'
+        else:
+            return element.get_text()
+
+    # Extract text while preserving heading and paragraph structure
+    extracted_text = ''
+    for element in soup.find_all(['h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'p', 'a']):
+        extracted_text += extract_text(element)
+
+    # Clean up extra whitespace (does this remove too much whitespace?)
+    # extracted_text = ' '.join(extracted_text.split())
+
+    return extracted_text
+
+
+# didn't expllcitly remove images
+# 
+# def preproc_BS4_lenient(html):
+#     """I haven't seen this delete meaninful text, but it sometimes leaves sequences 
+#     of leading and trailing link sequences and junk in the middle of some WA post articles."""
+
+#     soup = BeautifulSoup(html, features="html.parser")
+
+#     # Remove unwanted elements 
+#     # I also tried also removing , 'buttons', 'toolbar', 'editor-container' in WA post article, but didn't matter
+#     for element in soup(['style', 'script', 'head', 'title', 'meta', '[document]']):
+#         element.decompose()
+
+#     def extract_text(element):
+#         """Extracts text, while preserving important strutural elements"""
+#         if element.name in ['h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'a']:
+#             return str(element)
+#         elif element.name == 'p':
+#             return element.get_text() + '\n\n'
+#         else:
+#             return element.get_text()
+
+#     # Extract text while preserving heading and paragraph structure
+#     extracted_text = ''
+#     for element in soup.find_all(['h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'p', 'a']):
+#         extracted_text += extract_text(element)
+
+#     # Clean up extra whitespace (does this remove too much whitespace?)
+#     extracted_text = ' '.join(extracted_text.split())
+
+#     return extracted_text
+
+def html2md_BS_html_to_markdown(input_html_file, output_md_file):
+    """Converts an html file into a markdown file, using lenient BeautifulSoup html
+    preprocessing, then converting to markdown with Johannes Kaufmann's html2markdown CLI.
+    The result is usually fairly clean markdown text, occasionally with some leftover junk.
+    I haven't seen it delete any meaninful text.
+    
+    Requires commandline install:
+    - [repo](https://github.com/JohannesKaufmann/html-to-markdown)
+    - install: `winget install html-to-markdown`
+    """
+
+    with open(input_html_file, 'r', encoding='utf-8') as infile:
+        input_data = infile.read()
+
+    input_data = preproc_BS4_lenient(input_data)
+
+    # html2markdown doesn't like some utf8 chars
+    processed_input = normalize_odd_chars(input_data)
+
+    process = subprocess.Popen(['html2markdown'],
+                            stdin=subprocess.PIPE,
+                            stdout=subprocess.PIPE,
+                            stderr=subprocess.PIPE)
+
+    # If htmlmarkdown doesn't handle utf8 (what I've seen), I don't know why
+    # utf8'ing it on input and output is necessary.  But it's recommended by some.
+    stdout, stderr = process.communicate(processed_input.encode('utf-8'))
+
+    if stderr:
+        raise Exception("html2markdown encountered an error", stderr.decode('utf-8'))
+
+    output = stdout.decode('utf-8')
+
+    # Write the output to the file
+    with open(output_md_file, 'w', encoding='utf-8') as outfile:
+        outfile.write(output)
+
+def remove_weird_len_md_headers(markdown_text):
+    """Remove out-of-range length headers in markdown text."""
+
+    lines = markdown_text.split('\n')
+    corrected_lines = []
+    for line in lines:
+        line_len = len(line.split())
+        if re.match(r'^#+\s', line) and not 3 <= line_len <= 13:
+            corrected_lines.append(line.lstrip('#').strip())
+        else:
+            corrected_lines.append(line)
+    return '\n'.join(corrected_lines)
+
+def fix_markdown_errors(content):
+    """
+    Fix the following markdown errors:
+    1. Unclosed '*'
+    2. Unclosed '**'
+    3. weird length markdown headers
+    4. Skipped header levels
+    5. Unclosed inline code blocks
+    """
+    # Fix unclosed '*' and '**'
+    def fix_emphasis(content):
+        lines = content.split("\n")
+        fixed_lines = []
+        open_single = False
+        open_double = False
+
+        for line in lines:
+            # Handle '**' first to avoid interfering with single '*'
+            if line.count("**") % 2 != 0:
+                if open_double:
+                    line += "**"  # Close double asterisks
+                    open_double = False
+                else:
+                    line = line + "**"  # Open double asterisks
+                    open_double = True
+
+            # Handle single '*', but exclude cases where '**' is present
+            if line.count("*") % 2 != 0 and "**" not in line:
+                if open_single:
+                    line += "*"  # Close single asterisk
+                    open_single = False
+                else:
+                    line = line + "*"  # Open single asterisk
+                    open_single = True
+
+            fixed_lines.append(line)
+
+        return "\n".join(fixed_lines)
+
+    # Fix skipped header levels
+    def fix_header_levels(content):
+        lines = content.split("\n")
+        fixed_lines = []
+        last_header_level = 0
+
+        for line in lines:
+            if line.startswith("#"):
+                current_level = line.count("#")
+                if last_header_level and current_level > last_header_level + 1:
+                    line = "#" * (last_header_level + 1) + " " + line.lstrip("#").strip()
+                last_header_level = current_level
+
+            fixed_lines.append(line)
+
+        return "\n".join(fixed_lines)
+
+    # Fix unclosed inline code blocks
+    def fix_inline_code(content):
+        lines = content.split("\n")
+        fixed_lines = []
+        open_backtick = False
+
+        for line in lines:
+            if line.count("`") % 2 != 0:
+                if open_backtick:
+                    line += "`"  # Close backtick
+                    open_backtick = False
+                else:
+                    line += "`"  # Open backtick (added at the end for simplicity)
+                    open_backtick = True
+
+            fixed_lines.append(line)
+
+        return "\n".join(fixed_lines)
+
+    # Apply all fixes in sequence
+    content = fix_emphasis(content)
+    content = remove_weird_len_md_headers(content)
+    content = fix_header_levels(content)
+    content = fix_inline_code(content)
+
+    return content
+
+def pdf2md_pymupdf4llm(input_pdf, output_md):
+    "Reads a pdf file and writes it as utf-8 markdown"    
+
+    md_text = pymupdf4llm.to_markdown(input_pdf, write_images=False,
+                                      show_progress=False)
+    
+    md_text = fix_markdown_errors(md_text)
+    
+    pl.Path(output_md).write_bytes(md_text.encode()) # encode w/ no args uses utf-8
+
+def bin_items_FFD(item_weights, max_bin_weight):
+    """
+    Allocates items to bins, with the goal of the most equal bin packing with no bin exceeding max_bin_weight
+    Uses the First-Fit Decreasing (FFD) bin packing algorithm.
+
+    Parameters:
+    - item_weights: List of item weights to be packed.
+    - max_bin_weight: Maximum weight capacity of each bin.
+
+    Returns:
+    - bins: A dataframe, with a row for each allocated bin
+
+    Raises:
+    - ValueError: If any item's weight exceeds the max_bin_weight.
+    """
+
+    if any(item_weight > max_bin_weight for item_weight in item_weights):
+        raise ValueError("A item's weight exceeds the maximum allowed weight limit.")
+
+    # Sort in descending order by weight, returned tuples are (orig_index, weight)
+    sorted_weights = sorted(enumerate(item_weights), key=lambda x: x[1], reverse=True)
+
+    # Place each item into the first available bin that can accommodate it
+    item_index_bins = []  # each bin contains original item indices
+    total_weight_bin = [] # total weight of items in bin
+
+    for item_index_orig, item_weight in sorted_weights:  # Heaviest item first
+        # Put item in the 1st bin that fits
+        placed = False
+        for binIx, bin_weight in enumerate(total_weight_bin):  
+            if bin_weight + item_weight <= max_bin_weight:
+                item_index_bins[binIx].append(item_index_orig) # Fits: add it to this bin
+                total_weight_bin[binIx] += item_weight
+                placed = True
+                break
+
+        if not placed:
+            # Doesn't fit: put it in a newly made bin
+            item_index_bins.append([item_index_orig])
+            total_weight_bin.append(item_weight)
+
+    return pd.DataFrame(dict(item_indices=item_index_bins, weights=total_weight_bin))    
+
+def count_words_in_markdown(content):
+    """Count the words in the content (string) of a markdown file"""
+    # Remove markdown syntax to focus on the text content
+    import re
+    text_only = re.sub(r'[\*\#\[\]\(\)\!\`\>\-]', '', content)
+    # Split the text into words and count them
+    words = text_only.split()
+    return len(words)    
+
+# an attempt to do bookmarks but it screws up on Nizharadze23PredictingGapDayAhead
+#
+# from reportlab.pdfgen import canvas
+# from reportlab.lib.pagesizes import letter
+# from bs4 import BeautifulSoup
+# import markdown
+
+# def md2pdf_reportlab(input_data, output_file, is_file=False):
+#     """Generate a PDF with bookmarked headings, ensuring no level jumps cause errors."""
+#     if is_file:
+#         raise ValueError(f"{is_file=} but files don't work in this function")
+
+#     md_content = input_data
+
+#     # Convert Markdown to HTML
+#     html = markdown.markdown(md_content)
+
+#     # Parse HTML for headings
+#     soup = BeautifulSoup(html, 'html.parser')
+#     headings = []
+#     for tag in soup.find_all(['h1', 'h2', 'h3', 'h4', 'h5', 'h6']):
+#         level = int(tag.name[1])   # 'h1' -> 1, 'h2' -> 2, etc.
+#         text = tag.get_text()
+#         headings.append((level, text))
+
+#     # Convert output_file (Path object) to string if necessary
+#     if isinstance(output_file, (str, bytes)):
+#         output_file_str = output_file
+#     else:
+#         output_file_str = str(output_file)
+
+#     c = canvas.Canvas(output_file_str, pagesize=letter)
+#     width, height = letter
+#     y = height - 72
+
+#     # Keep track of the previous outline level
+#     previous_outline_level = -1
+
+#     for (md_level, heading_text) in headings:
+#         # Convert Markdown's level to PDF outline levels (H1->0, H2->1, etc.)
+#         outline_level = md_level - 1
+
+#         # Ensure we never jump more than one level upward at a time
+#         if outline_level > previous_outline_level + 1:
+#             outline_level = previous_outline_level + 1
+
+#         # Write heading text for demonstration
+#         c.drawString(50 + outline_level * 20, y, heading_text)
+#         y -= 20
+
+#         # Create bookmark and outline entry
+#         c.bookmarkPage(heading_text)
+#         c.addOutlineEntry(heading_text, heading_text, level=outline_level)
+
+#         previous_outline_level = outline_level
+
+#     c.save()
+
+
+# Version 1: has problems writing some files, either because it couldn't convert some utf-8 
+# markdown file, or because it tried to write a pdf in a font that's not utf-8 compatible
+# So, there's a new version that always writes in utf-8 compatible verdana
+# from bs4 import BeautifulSoup
+# import markdown
+#
+# def md2pdf_markdown(input_data, output_file, is_file=False):
+#     "Writes input_data (markdown text or a filename) to utf-8 pdf"        
+#     if is_file:
+#         raise ValueError(f"{is_file=} but files don't work in this function")
+#     else:
+#         md_content = input_data
+
+#     # Convert Markdown to HTML
+#     html = markdown.markdown(md_content)
+
+#     # Parse HTML using BeautifulSoup
+#     soup = BeautifulSoup(html, 'html.parser')
+
+#     # Create PDF
+#     doc = SimpleDocTemplate(str(output_file), pagesize=letter)
+#     styles = getSampleStyleSheet()
+#     story = []
+
+#     # Create custom styles for headings
+#     for i in range(1, 7):
+#         style_name = f'CustomHeading{i}'
+#         styles.add(ParagraphStyle(style_name, 
+#                                   parent=styles['Heading1'], 
+#                                   fontSize=20-2*i, 
+#                                   spaceAfter=12))
+
+#     # Function to process elements and build story
+#     def process_element(element):
+#         if element.name and element.name.startswith('h') and element.name[1:].isdigit():
+#             heading_level = int(element.name[1:])
+#             para = Paragraph(element.get_text(), styles[f'CustomHeading{heading_level}'])
+#             story.append(para)
+#         elif element.name == 'p':
+#             para = Paragraph(element.get_text(), styles['Normal'])
+#             story.append(para)
+#         elif element.name == 'hr':
+#             # Handle horizontal rule if needed
+#             pass
+#         # Add handling for other HTML elements as needed
+#         for child in element.children:
+#             if child.name:
+#                 process_element(child)
+
+#     # Process all elements
+#     for element in soup.find_all(recursive=False):
+#         process_element(element)
+
+#     # Build PDF
+#     doc.build(story)
+
+
+# Version 2. writes verdana, so s/b utf-8 always.  BUT DOESN'T DO BOOKMARKS
+# and screws up on Cognitive_merged_RAG.md
+# from reportlab.pdfbase import pdfmetrics
+# from reportlab.pdfbase.ttfonts import TTFont
+# from reportlab.rl_config import defaultEncoding
+# from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+# from reportlab.lib.units import inch
+# from reportlab.platypus import SimpleDocTemplate, Paragraph
+# from reportlab.lib.pagesizes import letter
+# from bs4 import BeautifulSoup
+# import markdown
+
+# # Register Verdana font. Ensure "Verdana.ttf" is available on your system.
+# pdfmetrics.registerFont(TTFont('Verdana', 'Verdana.ttf'))
+# #defaultEncoding = 'utf-8'
+
+# def md2pdf_reportlab(input_data, output_file, is_file=False):
+#     if is_file:
+#         raise ValueError(f"{is_file=} but files don't work in this function")
+#     else:
+#         md_content = input_data
+
+#     # Convert Markdown to HTML
+#     html = markdown.markdown(md_content)
+
+#     # Parse HTML using BeautifulSoup
+#     soup = BeautifulSoup(html, 'html.parser')
+
+#     # Create PDF
+#     doc = SimpleDocTemplate(str(output_file), pagesize=letter)
+#     styles = getSampleStyleSheet()
+
+#     # Use Verdana for normal paragraphs
+#     styles['Normal'].fontName = 'Verdana'
+
+#     # Create custom styles for headings
+#     for i in range(1, 7):
+#         style_name = f'CustomHeading{i}'
+#         styles.add(
+#             ParagraphStyle(
+#                 style_name,
+#                 parent=styles['Heading1'],
+#                 fontName='Verdana',
+#                 fontSize=20 - 2*i,
+#                 spaceAfter=12
+#             )
+#         )
+
+#     story = []
+
+#     def process_element(element):
+#         if element.name and element.name.startswith('h') and element.name[1:].isdigit():
+#             heading_level = int(element.name[1:])
+#             para = Paragraph(element.get_text(), styles[f'CustomHeading{heading_level}'])
+#             story.append(para)
+#         elif element.name == 'p':
+#             para = Paragraph(element.get_text(), styles['Normal'])
+#             story.append(para)
+#         for child in element.children:
+#             if child.name:
+#                 process_element(child)
+
+#     for element in soup.find_all(recursive=False):
+#         process_element(element)
+
+#     doc.build(story)
+
+# from bs4 import BeautifulSoup
+# from reportlab.platypus import SimpleDocTemplate, Paragraph
+# from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+# from reportlab.lib.pagesizes import letter
+# import markdown
+
+# def md2pdf_markdown(input_data, output_file, is_file=False):
+#     """Converts Markdown content in memory into a pdf output file, using the markdown lib and BeautifulSoup."""
+
+#     if is_file:
+#         raise ValueError(f"{is_file=} but files don't work in this function")
+#     else:
+#         md_content = input_data
+
+#     # Convert Markdown to HTML
+#     html = markdown.markdown(md_content)
+
+#     # Parse HTML using BeautifulSoup
+#     soup = BeautifulSoup(html, 'html.parser')
+
+#     # Create PDF
+#     doc = SimpleDocTemplate(str(output_file), pagesize=letter)
+#     styles = getSampleStyleSheet()
+#     story = []
+
+#     # Create custom styles for headings
+#     for i in range(1, 7):
+#         style_name = f'CustomHeading{i}'
+#         styles.add(ParagraphStyle(style_name, 
+#                                   parent=styles['Heading1'], 
+#                                   fontSize=20-2*i, 
+#                                   spaceAfter=12))
+
+#     # Function to process elements and build story
+#     def process_element(element):
+#         if element.name and element.name.startswith('h') and element.name[1:].isdigit():
+#             heading_level = int(element.name[1:])
+#             para = Paragraph(element.get_text(), styles[f'CustomHeading{heading_level}'])
+#             story.append(para)
+#         elif element.name == 'p':
+#             para = Paragraph(element.get_text(), styles['Normal'])
+#             story.append(para)
+#         elif element.name == 'hr':
+#             # Handle horizontal rule if needed
+#             pass
+#         # Add handling for other HTML elements as needed
+#         for child in element.children:
+#             if child.name:
+#                 process_element(child)
+
+#     # Process all elements
+#     for element in soup.find_all(recursive=False):
+#         process_element(element)
+
+#     # Build PDF
+#     doc.build(story)
+
+### Version 3: extra debugging
+
+from reportlab.pdfbase import pdfmetrics
+from reportlab.pdfbase.ttfonts import TTFont
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib.units import inch
+from reportlab.platypus import SimpleDocTemplate, Paragraph
+from reportlab.lib.pagesizes import letter
+from bs4 import BeautifulSoup
+import markdown
+import traceback
+
+from reportlab.pdfbase import pdfmetrics
+from reportlab.pdfbase.ttfonts import TTFont
+
+pdfmetrics.registerFont(TTFont('Verdana', 'Verdana.ttf'))
+pdfmetrics.registerFont(TTFont('VerdanaItalic', 'Verdanai.ttf'))
+pdfmetrics.registerFont(TTFont('VerdanaBold', 'Verdanab.ttf'))
+pdfmetrics.registerFont(TTFont('VerdanaBoldItalic', 'Verdanaz.ttf'))
+
+pdfmetrics.registerFontFamily('Verdana',
+    normal='Verdana',
+    bold='VerdanaBold',
+    italic='VerdanaItalic',
+    boldItalic='VerdanaBoldItalic'
+)
+
+import re
+from bs4 import BeautifulSoup
+
+def sanitize_markdown_before_reportlab(md_text):
+    """
+    Fixes Markdown content to ensure compatibility with ReportLab's paragraph parser.
+    This includes rewriting problematic Markdown syntax, escaping special characters,
+    and sanitizing unsupported HTML tags or attributes.
+    """
+
+    # 1. Convert setext headings (underlined with === or ---) into ATX (#) headings
+    lines = md_text.split("\n")
+    out_lines = []
+    i = 0
+    while i < len(lines):
+        line = lines[i]
+        if i < len(lines) - 1:
+            next_line = lines[i + 1]
+            if re.match(r"^=+\s*$", next_line):  # Level-1 heading
+                out_lines.append("# " + line.strip())
+                i += 2
+                continue
+            elif re.match(r"^-+\s*$", next_line):  # Level-2 heading
+                out_lines.append("## " + line.strip())
+                i += 2
+                continue
+        out_lines.append(line)
+        i += 1
+
+    fixed_md = "\n".join(out_lines)
+
+    # 2. Escape special characters (<, >, &) to prevent parsing issues
+    fixed_md = fixed_md.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+
+    # 3. Use BeautifulSoup to sanitize HTML content
+    soup = BeautifulSoup(fixed_md, "html.parser")
+
+    # Remove unsupported tags (e.g., <img>, <script>)
+    for tag in soup.find_all(["img", "script"]):
+        tag.decompose()
+
+    # Remove or rewrite invalid attributes (e.g., rel="nofollow", onerror)
+    for tag in soup.find_all(True):  # True matches all tags
+        attrs_to_remove = []
+        for attr in tag.attrs:
+            if attr not in ["href", "src", "alt", "title", "style"]:  # Whitelisted attributes
+                attrs_to_remove.append(attr)
+        for attr in attrs_to_remove:
+            del tag[attr]
+
+    # Ensure proper nesting of tags (BeautifulSoup handles this automatically)
+
+    # Convert back to a string and return the sanitized Markdown
+    sanitized_html = str(soup)
+    
+    # Optional: Convert remaining HTML back to Markdown if needed (requires markdownify)
+    # sanitized_md = markdownify(sanitized_html)
+    
+    return sanitized_html
+
+from reportlab.pdfbase import pdfmetrics
+from reportlab.pdfbase.ttfonts import TTFont
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.platypus import SimpleDocTemplate, Paragraph
+from reportlab.lib.pagesizes import letter
+from bs4 import BeautifulSoup
+import markdown
+import traceback
+from xml.sax.saxutils import escape
+
+def remove_unsupported_html_tags(html_content):
+    """Clean HTML to only include supported tags and attributes"""
+    soup = BeautifulSoup(html_content, 'html.parser')
+    
+    # Define allowed tags and their allowed attributes
+    ALLOWED_TAGS = {
+        'p': [],
+        'h1': [], 'h2': [], 'h3': [], 'h4': [], 'h5': [], 'h6': [],
+        'b': [], 'strong': [],
+        'i': [], 'em': [],
+        'u': [],
+        'br': []
+    }
+    
+    def clean_tag(tag):
+        if tag.name not in ALLOWED_TAGS:
+            # Convert unsupported tags to paragraph
+            tag.name = 'p'
+        else:
+            # Remove unsupported attributes
+            allowed_attrs = ALLOWED_TAGS[tag.name]
+            attrs = dict(tag.attrs)
+            for attr in attrs:
+                if attr not in allowed_attrs:
+                    del tag.attrs[attr]
+        
+        # Clean children
+        for child in tag.children:
+            if hasattr(child, 'name') and child.name:
+                clean_tag(child)
+    
+    # Clean all tags
+    for tag in soup.find_all(True):
+        clean_tag(tag)
+    
+    return str(soup)
+
+
+def md2pdf_markdown_reportlab(markdown_data, output_file, verbose=False):
+    """Convert markdown to PDF with debug information""" 
+    try:
+        # Register Verdana font family
+        pdfmetrics.registerFont(TTFont('Verdana', 'Verdana.ttf'))
+        pdfmetrics.registerFont(TTFont('VerdanaItalic', 'Verdanai.ttf'))
+        pdfmetrics.registerFont(TTFont('VerdanaBold', 'Verdanab.ttf'))
+        pdfmetrics.registerFont(TTFont('VerdanaBoldItalic', 'Verdanaz.ttf'))
+        
+        pdfmetrics.registerFontFamily('Verdana',
+            normal='Verdana',
+            bold='VerdanaBold',
+            italic='VerdanaItalic',
+            boldItalic='VerdanaBoldItalic'
+        )
+        
+        if verbose:
+            print("Converting markdown to HTML...")
+        sanitized_markdown_data = sanitize_markdown_before_reportlab(markdown_data)
+        html = markdown.markdown(sanitized_markdown_data)
+        
+        if verbose:
+            print("Cleaning HTML of unsupported tags...")
+        cleaned_html = remove_unsupported_html_tags(html)
+        
+        if verbose:
+            print("Parsing cleaned HTML...")
+        soup = BeautifulSoup(cleaned_html, 'html.parser')
+        
+        if verbose:
+            print("Creating PDF document...")
+        doc = SimpleDocTemplate(str(output_file), pagesize=letter)
+        styles = getSampleStyleSheet()
+        
+        # Configure styles
+        styles['Normal'].fontName = 'Verdana'
+        for i in range(1, 7):
+            style_name = f'CustomHeading{i}'
+            styles.add(
+                ParagraphStyle(
+                    style_name,
+                    parent=styles['Heading1'],
+                    fontName='Verdana',
+                    fontSize=20 - 2*i,
+                    spaceAfter=12
+                )
+            )
+        
+        story = []
+        
+        def process_element(element):
+            if verbose:
+                print(f"Processing element: {element.name if element.name else 'text'}")
+            
+            try:
+                if element.name and element.name.startswith('h') and element.name[1:].isdigit():
+                    heading_level = int(element.name[1:])
+                    text = escape(element.get_text())
+                    para = Paragraph(text, styles[f'CustomHeading{heading_level}'])
+                    story.append(para)
+                elif element.name == 'p':
+                    text = escape(''.join(str(child) for child in element.contents))
+                    para = Paragraph(text, styles['Normal'])
+                    story.append(para)
+                
+                for child in element.children:
+                    if hasattr(child, 'name') and child.name:
+                        process_element(child)
+                        
+            except Exception as e:
+                if verbose:
+                    print(f"Error processing element {element.name}: {str(e)}")
+                    traceback.print_exc()
+                raise
+        
+        if verbose:
+            print("Processing HTML elements...")
+        for element in soup.find_all(recursive=False):
+            process_element(element)
+            
+        if verbose:
+            print(f"Building PDF with {len(story)} elements...")
+        doc.build(story)
+        
+        if verbose:
+            print(f"PDF successfully created at {output_file}")
+            
+    except Exception as e:
+        if verbose:
+            print(f"Error creating PDF: {str(e)}")
+            print("Full traceback:")
+            traceback.print_exc()
+        raise
+
+
+def merge_pdfs_with_structure(pdfs_info, output_path):
+    """Merge pdfs into a single pdf, intended to have RAG-friendly page and bookmark structure
+    Perplexity:
+      https://www.perplexity.ai/search/fix-the-bug-in-the-code-below-plw_2PR4TUWH6xqSZ7M_nQ#27"""
+
+    writer = PdfWriter()
+    c1
+    # Add title page first
+    pdf_files = [pdf_info['file'] for pdf_info in pdfs_info]
+    
+    create_title_page(writer, pdf_files)
+        
+    current_page = 1
+    problematic_pdfs = []
+    
+    for i, pdf_path in enumerate(pdf_files, 1):
+        is_valid, error_message = check_pdf_integrity(pdf_path)
+        if not is_valid:
+            print(f"Skipping {pdf_path} Error: {error_message}")
+            problematic_pdfs.append(dict(pdf_path=pdf_path, error_message=error_message))
+            continue
+
+        pdf_basename = os.path.basename(pdf_path).split('.')[0]
+        full_path = os.path.abspath(pdf_path)
+        
+        add_separator_page(writer, pdf_basename, full_path, pdfs_info[i-1]['metainfo'])
+#        add_separator_page(writer, pdf_basename, full_path, sample_metadata[i-1])
+        article_title = f"Article {i}: {pdf_basename}"
+        separator_bookmark = writer.add_outline_item(article_title, current_page)
+        current_page += 1
+        
+        pdf = PdfReader(pdf_path)
+        page_offset = current_page
+        
+        # Add pages with margin text
+        for page in pdf.pages:
+            modified_page = add_margin_text(page, pdf_basename)
+            writer.add_page(modified_page)
+            
+        if pdf.outline:
+            seen_bookmarks = set()
+            for item in pdf.outline:
+                if isinstance(item, dict) and '/Page' in item:
+                    title = item['/Title']
+                    if title not in seen_bookmarks:
+                        seen_bookmarks.add(title)
+                        page_num = pdf.get_destination_page_number(item)
+                        writer.add_outline_item(
+                            title,
+                            page_offset + page_num,
+                            parent=separator_bookmark
+                        )
+        
+        current_page += len(pdf.pages)
+    
+    with open(output_path, 'wb') as output:
+        writer.write(output)
+
+    return problematic_pdfs
