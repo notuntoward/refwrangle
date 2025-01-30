@@ -33,6 +33,8 @@ import xml.etree.ElementTree as ET
 from reportlab.platypus import SimpleDocTemplate, Paragraph
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.pagesizes import letter
+from urllib.parse import urlparse, urlunparse
+
 
 refdir = obsidian_vault_dir = pl.Path(r"C:\Users\scott\OneDrive\share\ref")
 
@@ -104,6 +106,12 @@ def is_ignorable_child(child):
         return True # must not be a note then but I'm not sure what it is
     
     return False
+
+def normalize_url(url):
+    """Convert a URL to a standard form, so the it can be string-compared to the same URL
+    written by a different program, but which is also normalized by this function."""
+    parsed = urlparse(url.lower())
+    return urlunparse(parsed._replace(path=parsed.path.rstrip('/')))
 
 
 def get_my_zotero_collections(top_collection_name=None):
