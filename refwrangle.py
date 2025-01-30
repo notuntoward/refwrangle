@@ -147,9 +147,61 @@ def replace_perplexity_citations(markdown_file, url_to_citekey, output_file):
 
     body = re.sub(r'\[(\d+)\]', replace_citation, body)
 
+    # Replace citations in the Citations section
+    def replace_citation_in_references(match):
+        num = match.group(1)
+        url = match.group(2)
+        normalized_url = normalize_url(url)
+        if normalized_url in url_to_citekey:
+            return f'[[{url_to_citekey[normalized_url]}]] {url}'
+        return f'[{num}] {url}'
+
+    citations = re.sub(r'\[(\d+)\]\s+(https?://\S+)', replace_citation_in_references, citations)
+
+    # Combine modified body and citations
+    modified_content = body + "\nCitations:\n" + citations
+
     # Write the modified content to the output file
     with open(output_file, 'w') as outfile:
-        outfile.write(body)
+        outfile.write(modified_content)
+        
+# def replace_perplexity_citations(markdown_file, url_to_citekey, output_file):
+#     """Replace numeric citations in a perplexity dialog with any obsidian literature note links that are
+#     given either as a dict or a file."""
+
+#     # Read the CSV file and create a dictionary of normalized URL to citekey mappings
+#     if not isinstance(url_to_citekey, dict):
+#         df = pd.read_csv(url_to_citekey) # assume it has url and citekey columns
+#         url_to_citekey = {normalize_url(url): citekey for url, citekey in zip(df.url, df.citekey)}
+
+#     # Read the Markdown file
+#     with open(markdown_file, 'r') as mdfile:
+#         content = mdfile.read()
+
+#     # Split the content into body and citations
+#     parts = content.split("\nCitations:\n")
+#     if len(parts) != 2:
+#         raise Exception("Couldn't find Citations section")
+    
+#     body, citations = parts
+
+#     # Extract citations and their corresponding normalized URLs
+#     citation_urls = re.findall(r'\[(\d+)\]\s+(https?://\S+)', citations)
+#     url_to_number = {normalize_url(url): num for num, url in citation_urls}
+
+#     # Replace citations in the body text with wikilinks or add space
+#     def replace_citation(match):
+#         num = match.group(1)
+#         normalized_url = next((url for url, cite_num in url_to_number.items() if cite_num == num), None)
+#         if normalized_url and normalized_url in url_to_citekey:
+#             return f' [[{url_to_citekey[normalized_url]}]]'
+#         return f' [{num}]'
+
+#     body = re.sub(r'\[(\d+)\]', replace_citation, body)
+
+#     # Write the modified content to the output file
+#     with open(output_file, 'w') as outfile:
+#         outfile.write(body)
 
 # def replace_perplexity_citations(markdown_file, url_to_citekey, output_file):
 #     """Replace numeric citations an a perplexity dialog with any obsidian literature note links that are
