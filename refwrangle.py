@@ -21,7 +21,7 @@ import subprocess
 import sys
 import re
 import unicodedata
-import re
+from fuzzywuzzy import fuzz
 
 import plotly.graph_objects as go
 from readability import Document
@@ -34,7 +34,7 @@ from reportlab.platypus import SimpleDocTemplate, Paragraph
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.pagesizes import letter
 from urllib.parse import urlparse, urlunparse
-
+from typing import Optional, Tuple, List, Any, Dict
 
 refdir = obsidian_vault_dir = pl.Path(r"C:\Users\scott\OneDrive\share\ref")
 
@@ -317,12 +317,25 @@ def get_title(item):
     # If no title found, return a placeholder
     return "Untitled Item"
 
-import re
-from fuzzywuzzy import fuzz
+def normalize_url(url):
+    """Converts to lowercase and strips trailing slashes from path."""
+    parsed = urlparse(url.lower())
+    return urlunparse(parsed._replace(path=parsed.path.rstrip('/')))
+
+def normalize_string(string):
+    """Lowercases, removes common words e.g. articles, and non-alphanumeric characters. """
+    common_words = ['the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'of', 'with', 'by']
+    string = string.lower()
+    string = ''.join(c for c in string if c.isalnum() or c.isspace())
+    words = string.split()
+    words = [word for word in words if word not in common_words]
+    return ' '.join(words)
+
 
 def extract_main_title(full_title):
     """
-    Extracts the main title from a full title string by splitting at the first occurrence of specific delimiters.
+    Extracts the main title from a full title string, attempting to remove trailing subtitles, authors, 
+    publishers etc. by removing any substring beyond the first occurrence of typical delimiters.
 
     Args:
     full_title (str): The full title string to process.
@@ -330,7 +343,7 @@ def extract_main_title(full_title):
     Returns:
     str: The extracted main title, stripped of leading and trailing whitespace.
 
-    The function uses the following delimiters in order: '|', ':', '--', and '. ' (period followed by a capital letter).
+    The following delimiters are tested in order: '|', ':', '--', and '. ' (period followed by a capital letter).
     It splits the title at the first occurrence of any of these delimiters.
     """
     full_title = full_title.strip()
@@ -338,46 +351,73 @@ def extract_main_title(full_title):
     parts = re.split(delimiters, full_title, 1)
     return parts[0].strip()
 
-def match_titles(title1, title2, threshold=70):
-    """
-    Compares two title strings and determines if they match based on a similarity threshold.
+def match_titles(title1, title2, main_title_only=True, normalize=True, order_dependent=True):
+    """Returns a score of similarity between two title strings
 
     Args:
     title1 (str): The first title to compare.
     title2 (str): The second title to compare.
-    threshold (int, optional): The minimum similarity score for titles to be considered a match. Defaults to 70.
+    main_title_only (bool): try remove subtitles, authors, ... before comparison
+    normalize (bool): do standard string normalization before compare e.g. lower casing, etc.
+    order_dependent (bool): word order dependent similarity 
 
-    Returns:
-    tuple: A tuple containing:
-        - bool: True if the titles match (similarity >= threshold), False otherwise.
-        - int: The calculated similarity score.
+    Return:
+    int: The calculated similarity score (0,100), bigger is better
 
-    The function first extracts the main title from both inputs, then preprocesses them by removing common words
-    and punctuation. It then uses fuzzywuzzy's token_set_ratio to calculate the similarity between the processed titles.
+    By default, first extracts the main title from both inputs, then preprocesses them by removing common words
+    and punctuation. It then uses fuzzywuzzy's partial token_set_ratio to calculate the similarity between the processed titles. """
 
-    The nested preprocess_title function performs the following steps:
-    1. Converts the title to lowercase.
-    2. Removes all characters except alphanumeric and spaces.
-    3. Splits the title into words.
-    4. Removes common words like articles and prepositions.
-    5. Joins the remaining words back into a string.
-    """
+    if main_title_only:
+        title1 = extract_main_title(title1)
+        title2 = extract_main_title(title2)
 
-    def preprocess_title(title):
-        """Preprocesses a title string by removing common words and non-alphanumeric characters. """
-        common_words = ['the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'of', 'with', 'by']
-        title = title.lower()
-        title = ''.join(c for c in title if c.isalnum() or c.isspace())
-        words = title.split()
-        words = [word for word in words if word not in common_words]
-        return ' '.join(words)
+    if normalize:
+        title1 = normalize_string(title1)
+        title2 = normalize_string(title2)
 
-    processed_title1 = preprocess_title(extract_main_title(title1))
-    processed_title2 = preprocess_title(extract_main_title(title2))
-    ratio = fuzz.token_set_ratio(processed_title1, processed_title2)
-    return ratio >= threshold, ratio
+    if order_dependent:
+        return fuzz.partial_ratio(title1, title2) # somewhat word order dependent
+    
+    return fuzz.token_set_ratio(title1, title2) # word order independent
 
-        
+def best_zotero_title_match(target_title: str, zotero_items:  List[Dict[str, Any]]) -> Tuple[Optional[dict], int]:
+    """Find the title in a list of zotero items that best matches a target title, 
+    return (item, score)."""
+
+    best_score = 0
+    best_match = None
+
+    for item in zotero_items.items():
+        item_title = item['data'].get('title', '')
+        score = match_titles(target_title, item_title)
+
+        if score > best_score:
+            best_score = score
+            best_match = item
+
+    return best_match, best_score
+
+# includes threshold check, makes outer loop tuning awkward
+# def best_zotero_title_match(target_title: str, zotero_items:  List[Dict[str, Any]], 
+#                             quality_threshold: int = 70) -> Tuple[Optional[dict], int]:
+#     """Find the title in a list of zotero items that best matches a target title, 
+#     return (item, score)."""
+
+#     best_match = None
+#     best_score, best_quality_score = 0, 0
+
+#     for item in zotero_items.items():
+#         item_title = item['data'].get('title', '')
+#         score = match_titles(target_title, item_title)
+
+#         if score > best_score:
+#             best_score = score
+#             if score > best_quality_score and score > quality_threshold:
+#                 best_quality_score = score
+#                 best_match = item
+
+#     return best_match, best_score
+
 def is_youtube_video(item):
     """Returns True i a zotero DB item is a youtube video"""
     if item['data']['itemType'] == 'videoRecording':
