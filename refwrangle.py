@@ -106,128 +106,6 @@ def is_ignorable_child(child):
         return True # must not be a note then but I'm not sure what it is
     
     return False
-
-def zotero_item_link(zotero_item_key, link_text):
-    return f'[{link_text}](zotero://select/library/items/{zotero_item_key})'
-
-def normalize_url(url):
-    """Convert a URL to a standard form, so the it can be string-compared to the same URL
-    written by a different program, but which is also normalized by this function."""
-    parsed = urlparse(url.lower())
-    return urlunparse(parsed._replace(path=parsed.path.rstrip('/')))
-
-def replace_perplexity_citations_from_perplexity(markdown_file, zot_db_items, output_file):
-    """Replace numeric citations in a perplexity dialog with any obsidian literature note links that are
-    given either as a dict or a file."""
-
-    # Read the CSV file and create a dictionary of normalized URL to citekey mappings
-    if not isinstance(zot_db_items, pd.DataFrame):
-        raise Exception('Expected a dataframe.  Reading url_to_citekey from file does not yet handle new dataframe column')
-        df = pd.read_csv(zot_db_items) # assume it has url and citekey columns
-        zot_db_items = {normalize_url(url): citekey for url, citekey in zip(df.url, df.citekey)}
-
-    zot_db_items['url'] = zot_db_items['url'].apply(normalize_url)
-    
-    # Read the Markdown file
-    with open(markdown_file, 'r') as mdfile:
-        content = mdfile.read()
-
-    # Split the content into body and citations
-    parts = content.split("\nCitations:\n")
-    if len(parts) != 2:
-        raise Exception("Couldn't find Citations section")
-    
-    body, citations = parts
-
-    # Extract citations and their corresponding normalized URLs
-    citation_urls = re.findall(r'\[(\d+)\]\s+(https?://\S+)', citations)
-    doc_url_to_number = {normalize_url(url): num for num, url in citation_urls}
-
-    # Replace citations in the body text with a wikilinks to an obsidian note, or to or zotero item
-    def replace_citation(match):
-        num = match.group(1)
-        doc_url = next((url for url, cite_num in doc_url_to_number.items() if cite_num == num), None)
-        if doc_url:
-            itemInfo = zot_db_items[zot_db_items.url == doc_url]
-            if itemInfo:
-                if itemInfo.hasLitNote:
-                    return f' [[{itemInfo.citekey}]]'
-                link_text = f'{itemInfo.zotkey}={itemInfo.citekey}'
-                return f' {zotero_item_link(itemInfo.zotkey, link_text)}'
-        return f' [{num}]'
-
-    body = re.sub(r'\[(\d+)\]', replace_citation, body)
-
-    # Replace citations in the Citations section
-    def replace_citation_in_references(match):
-        num = match.group(1)
-        url = match.group(2)
-        normalized_url = normalize_url(url)
-        if normalized_url in zot_db_items:
-            return f'[[{zot_db_items[normalized_url]}]] {url}'
-        return f'[{num}] {url}'
-
-    citations = re.sub(r'\[(\d+)\]\s+(https?://\S+)', replace_citation_in_references, citations)
-
-    # Combine modified body and citations
-    modified_content = body + "\nCitations:\n" + citations
-
-    # Write the modified content to the output file
-    with open(output_file, 'w') as outfile:
-        outfile.write(modified_content)
-
-# # works on md directly from perplexity
-# def ORIG_replace_perplexity_citations_from_perplexity(markdown_file, url_to_citekey, output_file):
-#     """Replace numeric citations in a perplexity dialog with any obsidian literature note links that are
-#     given either as a dict or a file."""
-
-#     # Read the CSV file and create a dictionary of normalized URL to citekey mappings
-#     if not isinstance(url_to_citekey, dict):
-#         df = pd.read_csv(url_to_citekey) # assume it has url and citekey columns
-#         url_to_citekey = {normalize_url(url): citekey for url, citekey in zip(df.url, df.citekey)}
-
-#     # Read the Markdown file
-#     with open(markdown_file, 'r') as mdfile:
-#         content = mdfile.read()
-
-#     # Split the content into body and citations
-#     parts = content.split("\nCitations:\n")
-#     if len(parts) != 2:
-#         raise Exception("Couldn't find Citations section")
-    
-#     body, citations = parts
-
-#     # Extract citations and their corresponding normalized URLs
-#     citation_urls = re.findall(r'\[(\d+)\]\s+(https?://\S+)', citations)
-#     url_to_number = {normalize_url(url): num for num, url in citation_urls}
-
-#     # Replace citations in the body text with wikilinks or add space
-#     def replace_citation(match):
-#         num = match.group(1)
-#         normalized_url = next((url for url, cite_num in url_to_number.items() if cite_num == num), None)
-#         if normalized_url and normalized_url in url_to_citekey:
-#             return f' [[{url_to_citekey[normalized_url]}]]'
-#         return f' [{num}]'
-
-#     body = re.sub(r'\[(\d+)\]', replace_citation, body)
-
-#     # Replace citations in the Citations section
-#     def replace_citation_in_references(match):
-#         num = match.group(1)
-#         url = match.group(2)
-#         normalized_url = normalize_url(url)
-#         if normalized_url in url_to_citekey:
-#             return f'[[{url_to_citekey[normalized_url]}]] {url}'
-#         return f'[{num}] {url}'
-
-#     citations = re.sub(r'\[(\d+)\]\s+(https?://\S+)', replace_citation_in_references, citations)
-
-#     # Combine modified body and citations
-#     modified_content = body + "\nCitations:\n" + citations
-
-#     # Write the modified content to the output file
-#     with open(output_file, 'w') as outfile:
-#         outfile.write(modified_content)
         
 def get_my_zotero_collections(top_collection_name=None):
     """Returns the list of collections in my zotero DB. 
@@ -343,6 +221,163 @@ def get_citation_key(parent_dat):
         return None
 
 
+def get_creator(item):
+    """ Get a zotero parent item's "creator"
+
+    This function extracts and formats the creator information from a Zotero item,
+    which is typically retrieved using the pyzotero library.
+
+    Args:
+        item (dict): A Zotero item dictionary containing metadata.
+
+    Returns:
+        str: A formatted string representing the creator's name or "Unknown Author" if no creator is found.
+
+    The function handles different creator types and formatting scenarios:
+    1. If no creators are found, it returns "Unknown Author".
+    2. For creator types like author, artist, editor, or director:
+       - If a 'name' field is present, it returns that.
+       - Otherwise, it formats as "LastName, FirstName".
+    3. For institution or organization creator types, it returns the name or "Unknown Organization".
+    4. For other creator types, it follows the same logic as point 2. """
+    creators = item['data'].get('creators', [])
+    if not creators:
+        return "Unknown Author"
+
+    first_creator = creators[0]
+    creator_type = first_creator.get('creatorType', '').lower()
+
+    if creator_type in ['author', 'artist', 'editor', 'director']:
+        if 'name' in first_creator:
+            return first_creator['name']
+        else:
+            return f"{first_creator.get('lastName', '')}, {first_creator.get('firstName', '')}"
+    elif creator_type in ['institution', 'organization']:
+        return first_creator.get('name', 'Unknown Organization')
+    else:
+        if 'name' in first_creator:
+            return first_creator['name']
+        else:
+            return f"{first_creator.get('lastName', '')}, {first_creator.get('firstName', '')}"
+        
+def get_title(item):
+    """Get the title from a Zotero item.
+
+    This function attempts to find the most appropriate title for a given Zotero item,
+    considering various item types and their specific fields.
+
+    Parameters:
+    item (dict): A Zotero item retrieved using the pyzotero library.
+
+    Returns:
+    str: The extracted title or "Untitled Item" if no suitable title is found.
+
+    The function checks for titles in the following order:
+    1. 'title' field
+    2. 'shortTitle' field
+    3. Item type-specific fields:
+       - Case: 'caseName'
+       - Statute: 'nameOfAct'
+       - Email: 'subject'
+       - Interview/Podcast: 'title' or 'abstractNote'
+       - Presentation: 'presentationTitle'
+       - Letter: Constructs a title using 'recipient'
+       - Map: 'mapTitle'
+
+    If none of the above fields contain a title, "Untitled Item" is returned.
+    """    
+    data = item.get('data', {})
+    
+    # Check for 'title' directly
+    if 'title' in data:
+        return data['title']
+    
+    # Check for 'shortTitle'
+    if 'shortTitle' in data:
+        return data['shortTitle']
+    
+    # Check for specific item types
+    item_type = data.get('itemType', '').lower()
+    
+    if item_type == 'case':
+        return data.get('caseName', '')
+    elif item_type == 'statute':
+        return data.get('nameOfAct', '')
+    elif item_type == 'email':
+        return data.get('subject', '')
+    elif item_type in ['interview', 'podcast']:
+        return data.get('title', data.get('abstractNote', ''))
+    elif item_type == 'presentation':
+        return data.get('presentationTitle', '')
+    elif item_type == 'letter':
+        return f"Letter to {data.get('recipient', 'Unknown')}"
+    elif item_type == 'map':
+        return data.get('mapTitle', '')
+    
+    # If no title found, return a placeholder
+    return "Untitled Item"
+
+import re
+from fuzzywuzzy import fuzz
+
+def extract_main_title(full_title):
+    """
+    Extracts the main title from a full title string by splitting at the first occurrence of specific delimiters.
+
+    Args:
+    full_title (str): The full title string to process.
+
+    Returns:
+    str: The extracted main title, stripped of leading and trailing whitespace.
+
+    The function uses the following delimiters in order: '|', ':', '--', and '. ' (period followed by a capital letter).
+    It splits the title at the first occurrence of any of these delimiters.
+    """
+    full_title = full_title.strip()
+    delimiters = r'\||:|--|\.(?=\s[A-Z])'
+    parts = re.split(delimiters, full_title, 1)
+    return parts[0].strip()
+
+def match_titles(title1, title2, threshold=70):
+    """
+    Compares two title strings and determines if they match based on a similarity threshold.
+
+    Args:
+    title1 (str): The first title to compare.
+    title2 (str): The second title to compare.
+    threshold (int, optional): The minimum similarity score for titles to be considered a match. Defaults to 70.
+
+    Returns:
+    tuple: A tuple containing:
+        - bool: True if the titles match (similarity >= threshold), False otherwise.
+        - int: The calculated similarity score.
+
+    The function first extracts the main title from both inputs, then preprocesses them by removing common words
+    and punctuation. It then uses fuzzywuzzy's token_set_ratio to calculate the similarity between the processed titles.
+
+    The nested preprocess_title function performs the following steps:
+    1. Converts the title to lowercase.
+    2. Removes all characters except alphanumeric and spaces.
+    3. Splits the title into words.
+    4. Removes common words like articles and prepositions.
+    5. Joins the remaining words back into a string.
+    """
+
+    def preprocess_title(title):
+        """Preprocesses a title string by removing common words and non-alphanumeric characters. """
+        common_words = ['the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'of', 'with', 'by']
+        title = title.lower()
+        title = ''.join(c for c in title if c.isalnum() or c.isspace())
+        words = title.split()
+        words = [word for word in words if word not in common_words]
+        return ' '.join(words)
+
+    processed_title1 = preprocess_title(extract_main_title(title1))
+    processed_title2 = preprocess_title(extract_main_title(title2))
+    ratio = fuzz.token_set_ratio(processed_title1, processed_title2)
+    return ratio >= threshold, ratio
+
+        
 def is_youtube_video(item):
     """Returns True i a zotero DB item is a youtube video"""
     if item['data']['itemType'] == 'videoRecording':
