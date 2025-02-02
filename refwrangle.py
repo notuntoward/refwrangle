@@ -21,7 +21,8 @@ import subprocess
 import sys
 import re
 import unicodedata
-from fuzzywuzzy import fuzz
+#from fuzzywuzzy import fuzz
+from rapidfuzz import fuzz  # faster, more accurate than fuzzywuzzy
 
 import plotly.graph_objects as go
 from readability import Document
@@ -351,6 +352,7 @@ def extract_main_title(full_title):
     parts = re.split(delimiters, full_title, 1)
     return parts[0].strip()
 
+
 def match_titles(title1, title2, main_title_only=True, normalize=True, order_dependent=True):
     """Returns a score of similarity between two title strings
 
@@ -362,10 +364,10 @@ def match_titles(title1, title2, main_title_only=True, normalize=True, order_dep
     order_dependent (bool): word order dependent similarity 
 
     Return:
-    int: The calculated similarity score (0,100), bigger is better
+    float: The calculated similarity score (0,100), bigger is better
 
     By default, first extracts the main title from both inputs, then preprocesses them by removing common words
-    and punctuation. It then uses fuzzywuzzy's partial token_set_ratio to calculate the similarity between the processed titles. """
+    and punctuation. It then uses RapidFuzz's partial_ratio or token_set_ratio to calculate the similarity between the processed titles. """
 
     if main_title_only:
         title1 = extract_main_title(title1)
@@ -376,11 +378,42 @@ def match_titles(title1, title2, main_title_only=True, normalize=True, order_dep
         title2 = normalize_string(title2)
 
     if order_dependent:
-        score = fuzz.partial_ratio(title1, title2) # somewhat word order dependent
-        ic(title1, title2, score)
+        score = fuzz.partial_ratio(title1, title2)  # somewhat order dependant
+        # ic(title1, title2, score)
         return score
     
-    return fuzz.token_set_ratio(title1, title2) # word order independent
+    return fuzz.token_set_ratio(title1, title2) # order indepenent
+
+# def match_titles(title1, title2, main_title_only=True, normalize=True, order_dependent=True):
+#     """Returns a score of similarity between two title strings
+
+#     Args:
+#     title1 (str): The first title to compare.
+#     title2 (str): The second title to compare.
+#     main_title_only (bool): try remove subtitles, authors, ... before comparison
+#     normalize (bool): do standard string normalization before compare e.g. lower casing, etc.
+#     order_dependent (bool): word order dependent similarity 
+
+#     Return:
+#     int: The calculated similarity score (0,100), bigger is better
+
+#     By default, first extracts the main title from both inputs, then preprocesses them by removing common words
+#     and punctuation. It then uses fuzzywuzzy's partial token_set_ratio to calculate the similarity between the processed titles. """
+
+#     if main_title_only:
+#         title1 = extract_main_title(title1)
+#         title2 = extract_main_title(title2)
+
+#     if normalize:
+#         title1 = normalize_string(title1)
+#         title2 = normalize_string(title2)
+
+#     if order_dependent:
+#         score = fuzz.partial_ratio(title1, title2) # somewhat word order dependent
+#         ic(title1, title2, score)
+#         return score
+    
+#     return fuzz.token_set_ratio(title1, title2) # word order independent
 
 def best_zotero_title_match(target_title: str, zotero_items:  List[Dict[str, Any]]) -> Tuple[Optional[dict], int]:
     """Find the title in a list of zotero items that best matches a target title, 
