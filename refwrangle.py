@@ -376,7 +376,9 @@ def match_titles(title1, title2, main_title_only=True, normalize=True, order_dep
         title2 = normalize_string(title2)
 
     if order_dependent:
-        return fuzz.partial_ratio(title1, title2) # somewhat word order dependent
+        score = fuzz.partial_ratio(title1, title2) # somewhat word order dependent
+        ic(title1, title2, score)
+        return score
     
     return fuzz.token_set_ratio(title1, title2) # word order independent
 
