@@ -150,6 +150,8 @@ class ZoteroCache:
 
 if __name__ == "__main__":
 
+    #%%
+
     import pathlib as pl
     from collections import defaultdict
     import pandas as pd
