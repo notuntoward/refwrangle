@@ -787,6 +787,51 @@ def is_file_big(file_path, min_bytes_for_big):
     
     return nbytes_dest >= min_bytes_for_big
 
+
+def convert_to_atx_header(text, header_level):
+    """
+    Converts the given text into an ATX-style markdown header of the specified level.
+
+    Args:
+        text (str): The input text to be converted into a header.
+        header_level (int): The desired header level (1 to 6).
+
+    Returns:
+        str: The text formatted as an ATX-style header.
+    """
+    if 1 <= header_level <= 6:  # Ensure valid heading level
+        return f"{'#' * header_level} {text}"
+    else:
+        raise ValueError("header_level must be between 1 and 6.")
+
+def setext_headers_to_atx(markdown_text, min_header_level):
+    """
+    Converts Setext-style headers in the given Markdown text to ATX-style headers.
+
+    Args:
+        markdown_text (str): The input Markdown text.
+
+    Returns:
+        str: The Markdown text with Setext-style headers converted to ATX-style headers.
+    """
+    # Convert first-level Setext headers (underlined with '-')
+    markdown_text = re.sub(
+        r'^(.*)\n-{2,}$',
+        lambda match: convert_to_atx_header(match.group(1), min_header_level),
+        markdown_text,
+        flags=re.MULTILINE
+    )
+
+    # Convert second-level Setext headers (underlined with '=')
+    markdown_text = re.sub(
+        r'^(.*)\n={2,}$',
+        lambda match: convert_to_atx_header(match.group(1), min_header_level+1),
+        markdown_text,
+        flags=re.MULTILINE
+    )
+
+    return markdown_text
+
 def heirarch_shift_markdown_headers(markdown_text, top_level=None):
     """Hierarchically shifts headers so that the highest level is top_level.
     (no shift if top_level==None)
