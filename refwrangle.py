@@ -97,7 +97,7 @@ def zotero_item_link(zotero_item_key: str, link_text: str) -> str:
 
 class ZoteroCache:
     """Caches the result of the pyzotero command:  parent_items = self.zot.everything(self.zot.top())"""
-    
+
     HEADER_FORMAT = "I"  # Format for an unsigned integer (serial number)
     HEADER_SIZE = struct.calcsize(HEADER_FORMAT)
 
@@ -864,7 +864,7 @@ def is_file_big(file_path, min_bytes_for_big):
     return nbytes_dest >= min_bytes_for_big
 
 
-def convert_to_atx_header(text, header_level):
+def make_atx_header(text, header_level):
     """
     Converts the given text into an ATX-style markdown header of the specified level.
 
@@ -880,7 +880,7 @@ def convert_to_atx_header(text, header_level):
     else:
         raise ValueError("header_level must be between 1 and 6.")
 
-def setext_headers_to_atx(markdown_text, min_header_level):
+def setext_headers_to_atx(markdown_text, top_header_level):
     """
     Converts Setext-style headers in the given Markdown text to ATX-style headers.
 
@@ -893,7 +893,7 @@ def setext_headers_to_atx(markdown_text, min_header_level):
     # Convert first-level Setext headers (underlined with '-')
     markdown_text = re.sub(
         r'^(.*)\n-{2,}$',
-        lambda match: convert_to_atx_header(match.group(1), min_header_level),
+        lambda match: make_atx_header(match.group(1), top_header_level),
         markdown_text,
         flags=re.MULTILINE
     )
@@ -901,7 +901,7 @@ def setext_headers_to_atx(markdown_text, min_header_level):
     # Convert second-level Setext headers (underlined with '=')
     markdown_text = re.sub(
         r'^(.*)\n={2,}$',
-        lambda match: convert_to_atx_header(match.group(1), min_header_level+1),
+        lambda match: make_atx_header(match.group(1), top_header_level+1),
         markdown_text,
         flags=re.MULTILINE
     )
