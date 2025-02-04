@@ -36,6 +36,11 @@ from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.pagesizes import letter
 from urllib.parse import urlparse, urlunparse
 from typing import Optional, Tuple, List, Any, Dict
+import struct
+
+
+
+
 
 refdir = obsidian_vault_dir = pl.Path(r"C:\Users\scott\OneDrive\share\ref")
 
@@ -94,7 +99,77 @@ desiredFileExtention = {'application/pdf':'pdf', 'text/html':'html',
 
 #     return [child for child in zot.children(parentZoteroKey)]
 
+class ZoteroCache:
+    HEADER_FORMAT = "I"  # Format for an unsigned integer (serial number)
+    HEADER_SIZE = struct.calcsize(HEADER_FORMAT)
 
+    def __init__(self, filename=zoterodb_cache_file, library_id=library_id, 
+                 library_type=library_type, api_key=api_key):
+        """
+        Initialize the ZoteroCache with the given filename and Zotero API credentials.
+        """
+        self.filename = filename
+        self.zot = zotero.Zotero(library_id, library_type, api_key)
+
+    def download_and_save_cache(self):
+        """
+        Fetch data from Zotero and write it to the cache file along with the current version.
+        """
+        # Fetch data from Zotero
+        parent_items = self.zot.everything(self.zot.top())
+        current_version = self.zot.last_modified_version()
+
+        with open(self.filename, 'wb') as f:
+            # Write the current version as a fixed-size header
+            f.write(struct.pack(self.HEADER_FORMAT, current_version))
+            # Serialize and write the parent items
+            pickle.dump(parent_items, f)
+
+    def read_version(self):
+        """
+        Read only the version number from the cache file.
+        """
+        try:
+            with open(self.filename, 'rb') as f:
+                # Read and unpack the fixed-size header
+                header_data = f.read(self.HEADER_SIZE)
+                return struct.unpack(self.HEADER_FORMAT, header_data)[0]
+        except FileNotFoundError:
+            return None  # Cache file does not exist
+
+    def read_cache(self):
+        """
+        Read the cached data from the file.
+        """
+        try:
+            with open(self.filename, 'rb') as f:
+                # Skip the fixed-size header
+                f.seek(self.HEADER_SIZE)
+                # Load and deserialize the parent items
+                return pickle.load(f)
+        except FileNotFoundError:
+            return None  # Cache file does not exist
+
+    def is_cache_valid(self):
+        """
+        Check if the cached version matches the current version from Zotero.
+        """
+        cached_version = self.read_version()
+        current_version = self.zot.last_modified_version()
+        return cached_version == current_version
+
+    def get_data(self):
+        """
+        Retrieve data from cache if valid; otherwise update cache and fetch fresh data.
+        """
+        if self.is_cache_valid():
+            print("Cache is valid. Reading data from cache.")
+            return self.read_cache()
+        else:
+            print("Cache is outdated or missing. Fetching fresh data.")
+            self.download_and_save_cache()
+            return self.read_cache()
+        
 def is_ignorable_child(child):
     """Returns True if a child is not something that attachment processing 
     would need to deal with."""
