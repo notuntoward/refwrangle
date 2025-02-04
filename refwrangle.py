@@ -1,65 +1,42 @@
 """Utility functions for reference wrangling."""
 
-import pathlib
-import pathlib as pl
-from icecream import ic
-import urllib.parse
-import os
-from pyzotero import zotero
-from bs4 import BeautifulSoup
-from playwright.sync_api import sync_playwright
-import pickle
-import pandas as pd
-from pypdf import PdfWriter, PdfReader
-from reportlab.pdfgen import canvas
-from reportlab.lib.pagesizes import letter
-from reportlab.lib import colors
-from datetime import datetime
-import chardet
 import io
+import pathlib as pl
+import pickle
+import re
+import struct
 import subprocess
 import sys
-import re
+import traceback
 import unicodedata
-#from fuzzywuzzy import fuzz
-from rapidfuzz import fuzz  # faster, more accurate than fuzzywuzzy
-
-import plotly.graph_objects as go
-from readability import Document
-from markdownify import markdownify
-import pymupdf4llm
-from youtube_transcript_api import YouTubeTranscriptApi
-import markdown
 import xml.etree.ElementTree as ET
-from reportlab.platypus import SimpleDocTemplate, Paragraph
-from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-from reportlab.lib.pagesizes import letter
+from datetime import datetime
+from typing import Any, Dict, List, Optional, Tuple
 from urllib.parse import urlparse, urlunparse
-from typing import Optional, Tuple, List, Any, Dict
-import struct
-
-from reportlab.pdfbase import pdfmetrics
-from reportlab.pdfbase.ttfonts import TTFont
-from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-from reportlab.lib.units import inch
-from reportlab.platypus import SimpleDocTemplate, Paragraph
-from reportlab.lib.pagesizes import letter
-from bs4 import BeautifulSoup
-import markdown
-import traceback
-
-from reportlab.pdfbase import pdfmetrics
-from reportlab.pdfbase.ttfonts import TTFont
-from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-from reportlab.platypus import SimpleDocTemplate, Paragraph
-from reportlab.lib.pagesizes import letter
-from bs4 import BeautifulSoup
-import markdown
-import traceback
 from xml.sax.saxutils import escape
 
+import chardet
+import markdown
+import pandas as pd
+import plotly.graph_objects as go
+import pymupdf4llm
+from bs4 import BeautifulSoup
+from icecream import ic
+from markdownify import markdownify
+from playwright.sync_api import sync_playwright
+from pypdf import PdfReader, PdfWriter
+from pyzotero import zotero
+from rapidfuzz import fuzz  # faster, more accurate than fuzzywuzzy
+from readability import Document
+from reportlab.lib import colors
+from reportlab.lib.pagesizes import letter
+from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
+from reportlab.lib.units import inch
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
+from reportlab.pdfgen import canvas
+from reportlab.platypus import Paragraph, SimpleDocTemplate
+from youtube_transcript_api import YouTubeTranscriptApi
 
 pdfmetrics.registerFont(TTFont('Verdana', 'Verdana.ttf'))
 pdfmetrics.registerFont(TTFont('VerdanaItalic', 'Verdanai.ttf'))
@@ -72,9 +49,6 @@ pdfmetrics.registerFontFamily('Verdana',
     italic='VerdanaItalic',
     boldItalic='VerdanaBoldItalic'
 )
-
-import re
-from bs4 import BeautifulSoup
 
 refdir = obsidian_vault_dir = pl.Path(r"C:\Users\scott\OneDrive\share\ref")
 
