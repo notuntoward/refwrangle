@@ -91,15 +91,13 @@ zoterodb_cache_file = orig_proc_dir / 'ZoteroDBcache.bin'
 desiredFileExtention = {'application/pdf':'pdf', 'text/html':'html', 
                         'application/vnd.openxmlformats-officedocument.presentationml.presentation':'pptx'}
 
-# def get_children(parentZoteroKey, zot):
-#     """ Puts children of parent w/ this key into a list.
-#     zot.children(parentZoteroKey) fails a lot for some reason, and breaks loops.
-#     Idea try/accept this this call and loop over the result, if any, in order to 
-#     avoid killing a whole processing loop.  zot is an opened pyzotero db handle."""
-
-#     return [child for child in zot.children(parentZoteroKey)]
+def zotero_item_link(zotero_item_key: str, link_text: str) -> str:
+    """Makes a link to a zoter item, given key and text."""
+    return f'[{link_text}](zotero://select/library/items/{zotero_item_key})'
 
 class ZoteroCache:
+    """Caches the result of the pyzotero command:  parent_items = self.zot.everything(self.zot.top())"""
+    
     HEADER_FORMAT = "I"  # Format for an unsigned integer (serial number)
     HEADER_SIZE = struct.calcsize(HEADER_FORMAT)
 
