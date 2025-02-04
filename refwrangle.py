@@ -77,7 +77,10 @@ lit_attachment_dir_shared = lit_dir_shared / 'lit_sources'
 # markdown literature notes writting by obsidian, accessible from zotero using MarkDB-Connect plugin
 lit_notes_obsidian_dir = lit_dir_shared / 'lit_notes'
 
-merged_RAG_source_dir = refwrangle_dat_dir / 'orig' / 'proc' / 'Merged RAG Political Sources'
+orig_proc_dir = refwrangle_dat_dir / 'orig' / 'proc'
+merged_RAG_source_dir = orig_proc_dir / 'Merged RAG Political Sources'
+
+zoterodb_cache_file = orig_proc_dir / 'ZoteroDBcache.bin'
 
 # the desired attachment file extension for each child contentType
 desiredFileExtention = {'application/pdf':'pdf', 'text/html':'html', 
