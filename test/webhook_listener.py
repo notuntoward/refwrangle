@@ -23,7 +23,7 @@ def webhook():
         # get and save the expected payload
 
         form_data = request.form.to_dict()
-        print("Form Data:", form_data)
+        #print("Form Data:", form_data)
 
         files = request.files
         fileix=0
@@ -37,7 +37,7 @@ def webhook():
 
         if write_log_file:
             file_path = f'{file_name_head}.log'
-            print(f'writing webhook log to {file_path}')
+            print(f'Writing webhook log to {file_path}')
             with open(file_path, "w", encoding='utf-8') as log_file:
                 log_file.write(f"Form Data:\n{form_data}\n")
                 log_file.write(f"Files:\n{list(files.keys())}\n")
