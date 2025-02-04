@@ -29,7 +29,8 @@ def webhook():
         fileix=0
         for filename, file in files.items():
             print(f"File Received: {filename}")
-            file_path = f'{file_name_head}_data_{fileix}.md'
+            file_counter = f'_{fileix}' if len(files) > 1 else ''
+            file_path = f'{file_name_head}_data{file_counter}.md'
             print(f"Saving data: {file_path}")
             file.save(file_path)
             fileix += 1
