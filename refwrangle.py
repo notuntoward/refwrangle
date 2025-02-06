@@ -61,6 +61,7 @@ extractedZoteroEntriesFNm = refwrangle_dir / 'dat/zotero_entries.pkl'
 
 refwrangle_test_dir = refwrangle_dir / 'test'
 refwrangle_dat_dir = refwrangle_dir / 'dat'
+refwrangle_tmp_dir = refwrangle_dir / 'tmp'
 
 # After high quality html to markdown conversion, the md but be at least this big
 # Otherwise, more cautious quality conversion will be done
