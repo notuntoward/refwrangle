@@ -8,9 +8,11 @@ import datetime as dt
 from flask import Flask, request, Response
 import sys
 from icecream import ic
-import datetime as dt
 import tkinter as tk
 from tkinter import filedialog
+import threading
+import queue
+
 
 refwrangle_dir = pl.Path('~/ref/refwrangle').expanduser() # can't reliably get dir of an .ipynb 
 sys.path.append(str(refwrangle_dir))
@@ -24,48 +26,49 @@ write_log_file = True
 watcher_dir = rfw.refwrangle_tmp_dir / 'watchter'
 raw_inputs_dir = watcher_dir / 'raw'
 raw_inputs_dir.mkdir(parents=True, exist_ok=True)
-relinked_output_dir = watcher_dir / 'relinked'
-relinked_output_dir.mkdir(parents=True, exist_ok=True)
+default_relinked_output_dir = watcher_dir / 'relinked'
+default_relinked_output_dir.mkdir(parents=True, exist_ok=True)
 
-ic(raw_inputs_dir.exists(), relinked_output_dir.exists())
+ic(raw_inputs_dir.exists(), default_relinked_output_dir.exists())
 
-def save_file_dialog(initial_dir, default_filename):
-    """
-    Opens a save file dialog with specified initial directory and default filename.
-    
-    Args:
-        initial_dir (str): The directory to start the dialog in.
-        default_filename (str): The initial filename to suggest in the dialog.
 
-    Returns:
-        str: The full path to the selected file, or None if the user cancels.
-    """
-    # Hide the root window
+# Create a queue for communication between threads
+gui_queue = queue.Queue()
+
+def get_output_file_thread():
+    """Gets the relinked output file name from the user."""
     root = tk.Tk()
-    root.withdraw()
+    root.withdraw()  # Hide the root window
 
-    # Open the save file dialog
-    file_path = filedialog.asksaveasfilename(
-        initialdir=initial_dir,
-        initialfile=default_filename,
-        defaultextension=".md",
-        filetypes=[("Markdown files", "*.md"), ("All files", "*.*")]
-    )
+    while True:
+        try:
+            # Check for tasks in the queue
+            task = gui_queue.get(block=False)
+            if task == "exit":
+                break
+            # Process save file dialog task
+            
+            output_file_path = filedialog.asksaveasfilename(
+                initialdir=task["initial_output_dir"],
+                initialfile=task["default_output_filename"],
+                defaultextension=".md",
+                filetypes=[("Markdown files", "*.md"), ("All files", "*.*")]
+            )
+            task["callback"](output_file_path)
+        except queue.Empty:
+            root.update_idletasks()
+            root.update()
 
-    # Return the selected file path or None if canceled
-    return file_path
-
+# Start Tkinter in a separate thread
+threading.Thread(target=get_output_file_thread, daemon=True).start()
 
 app = Flask(__name__)
-@app.route('/webhook', methods=['POST'])
 
+@app.route('/webhook', methods=['POST'])
 def webhook():
     """Stores perplexity file extracted by the Save my Chatbot browser plugin"""
 
-    base_name = f'perplexity_{dt.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")}'
-
-    input_file_name_head = raw_inputs_dir / base_name
-    output_file = relinked_output_dir / f'{base_name}.md'
+    file_basename = f'perplexity_{dt.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")}'
 
     if 'multipart/form-data' in request.content_type:
         # get and save the expected payload
@@ -74,52 +77,52 @@ def webhook():
         #print("Form Data:", form_data)
 
         files = request.files
-        input_files = []
+        input_smc_files = []
         for filename, file in files.items():
             print(f"File Received: {filename}")
-            file_counter = f'_{len(input_files)}' if len(files) > 1 else ''
-            file_path = f'{input_file_name_head}_data{file_counter}.md'
-            print(f"Saving data: {file_path}")
-            file.save(file_path)
-            input_files.append(file_path)
+            file_counter = f'_{len(input_smc_files)}' if len(files) > 1 else ''
+            file_raw_path = raw_inputs_dir / f'{file_basename}_data{file_counter}.md'
+            print(f"Saving data: {file_raw_path}")
+            file.save(file_raw_path)
+            input_smc_files.append(file_raw_path)
 
         logstr = ''         
-        if (nGotFiles := len(input_files)) > 1:
+        if (nGotFiles := len(input_smc_files)) > 1:
             logstr = f'Expected to receive only one file, got {nGotFiles}: Converting only the first.'
             print(logstr)
 
         if write_log_file:
-            file_path = f'{input_file_name_head}.log'
-            print(f'Writing webhook log to {file_path}')
-            with open(file_path, "w", encoding='utf-8') as log_file:
+            file_raw_path = raw_inputs_dir / f'{file_basename}.log'
+            print(f'Writing webhook log to {file_raw_path}')
+            with open(file_raw_path, "w", encoding='utf-8') as log_file:
                 if logstr:
                     log_file.write(logstr)
                 log_file.write(f"Form Data:\n{form_data}\n")
                 log_file.write(f"Files:\n{list(files.keys())}\n")
 
-        zot_db_items = lpz.get_zotero_data()
+        input_smc_file = input_smc_files[0]
 
-        output_file = save_file_dialog(relinked_output_dir, f'{base_name}.md')
+        def relink_smc_file(output_relinked_file):
+            zot_db_items = lpz.get_zotero_data()
 
-        if output_file:
-            input_file = input_files[0]
-            print(f'{input_file}\n-->\n{output_file}')
-            lpz.relink_perplexity_export_SmC(input_file, output_file, zot_db_items)
-            print('Done.')
-        else:
-            print('Save operation cancelled')
+            if output_relinked_file:
+                print(f'{input_smc_file}\n-->\n{output_relinked_file}')
+                lpz.relink_perplexity_export_SmC(input_smc_file, output_relinked_file, zot_db_items)
+                print('Done.')
+            else:
+                print('Save operation cancelled')
 
+        # Send task to Tkinter thread
+        gui_queue.put({"initial_output_dir": default_relinked_output_dir,
+                       "default_output_filename": f'{file_basename}.md',
+                       "callback": relink_smc_file})
     else:
-        # fallback for an uexpected content type
+        # Fallback for an unexpected content type
         raw_data = request.data.decode('utf-8')
         print("Received unexpected webhook content.  Raw Data:", raw_data)
-        if write_log_file:
-            file_path = f'{input_file_name_head}.log'
-            print(f'writing webhook log to {file_path}')
-            with open(file_path, "w", encoding='utf-8') as log_file:
-                log_file.write(f"Raw Data:\n{raw_data}\n")
 
-    return Response(status=200)
+    # return "File dialog opened", 200 # R1 recomendation:  https://www.perplexity.ai/search/explain-what-this-code-does-an-p_8QpQwCQm2BZsM7iu_bbg#1
+    return Response(status=200) # what working, I think from perplexity's own engine
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000)
