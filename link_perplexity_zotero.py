@@ -70,7 +70,7 @@ def get_zotero_data(verbose=False):
         print(f"Found {len(repeated_urls)} URLs with > 1 parent (citekey)")
         for url, citekeys in repeated_urls.items():
             print(f"{', '.join(citekeys)}\n\t{url}")
-        raise Exception(f'Not written for repeated URLs')
+        raise Exception('Not written for repeated URLs')
 
     citekey_to_url = {citekeys[0]: url for url, citekeys in citekeysForURL.items()}
     # url_to_citekey = {url: citekey for citekey, url in citekey_to_url.items()}
@@ -79,12 +79,12 @@ def get_zotero_data(verbose=False):
     zot_db_items['url'] = pd.Series(citekey_to_url)
     zot_db_items = zot_db_items.reset_index()
 
-    if sum(hasNoURL := zot_db_items.url.isna()):
-        print(f"Dropping {sum(hasNoURL)} of {len(zot_db_items)} zotero entries with no URL:")
-        zot_db_items = zot_db_items[~hasNoURL]
+    if sum(has_no_url := zot_db_items.url.isna()):
+        print(f"Dropping {sum(has_no_url)} of {len(zot_db_items)} zotero entries with no URL:")
+        zot_db_items = zot_db_items[~has_no_url]
 
         if verbose:
-            zot_db_items_no_url = zot_db_items[hasNoURL]
+            zot_db_items_no_url = zot_db_items[has_no_url]
             display(zot_db_items_no_url.head())
 
     return zot_db_items # , citekey_to_url, url_to_citekey # not needed? 
@@ -96,7 +96,7 @@ def find_zotero_item_by_url(url: str, zot_db_items: pd.DataFrame) -> Optional[Di
     normalized_url = rfw.normalize_url(url)
     matches = zot_db_items[zot_db_items['url'] == normalized_url]
     if not matches.empty:
-        return matches.iloc[0].to_dict()  # Return as a dictionary
+        return matches.iloc[0].to_dict()  # Return df row as dictionary
     return None
 
 def find_zotero_item_by_title(target_title: str, zot_db_items: pd.DataFrame) -> Optional[Dict]:
@@ -173,7 +173,7 @@ def replace_links_with_zotero_items(
         """Replace a body section link with one pointing to zotero/obsidian, if possible.
         Otherwise highlight it so it's clear there was no match
         
-        Arg: doc_match: a regexp match object to a documenent body section link"""
+        Arg: doc_match: a regexp match object to a document body section link"""
          
         url_body_link = rfw.normalize_url(doc_match.group(2))
         body_link_num = doc_match.group(1)
@@ -212,7 +212,7 @@ def replace_links_with_zotero_items(
     return relinked_body_content, relinked_sources_content, unsourced_body_links
 
 
-def relink_perplexity_export_SmC(input_file: str, output_file: str, zot_db_items: pd.DataFrame):
+def relink_perplexity_export_smc(input_file: str, output_file: str, zot_db_items: pd.DataFrame):
     """Process a markdown file to replace links with Zotero references."""
     
     with open(input_file, 'r',  encoding='utf-8') as infile:
@@ -233,7 +233,7 @@ def relink_perplexity_export_SmC(input_file: str, output_file: str, zot_db_items
             return text  # Return the original string if the first word has capitals
         else:
             return text[0].upper() + text[1:] if text else text
-    
+ 
     def get_first_n_words(text, n, stop_phrase=None):
         if stop_phrase and stop_phrase in text:
             text = text.split(stop_phrase)[0]
@@ -261,9 +261,11 @@ def relink_perplexity_export_SmC(input_file: str, output_file: str, zot_db_items
         body = rfw.setext_headers_to_atx(body, TOP_HEADING_LEVEL_IN_AI+1) # AI subheaders are all setext
         
         if unsourced_body_links:
-            log_missing_links.append(
-                f"Section {section_idx}: Body links not in source: " +
-                ", ".join([f"{url} (count: {count})" for url, count in unsourced_body_links.items()]))
+            pass
+            # TODO: Need to fix this so that the reference numbers are correctly parsed from the source links
+            # log_missing_links.append(
+            #     f"Section {section_idx}: Body links not in source: " +
+            #     ", ".join([f"{url} (count: {count})" for url, count in unsourced_body_links.items()]))
 
         processed_sections += [user_header, body, sources_header, sources]
 
@@ -279,13 +281,3 @@ def relink_perplexity_export_SmC(input_file: str, output_file: str, zot_db_items
         print("Log of missing links:")
         for log_entry in log_missing_links:
             print(log_entry)
-
-# %%
-# ic(savemychatbot_perplexity_dialog_file, output_file_savemychatbot)
-# relink_perplexity_export_SmC(savemychatbot_perplexity_dialog_file, output_file_savemychatbot, zot_db_items)
-# print('Done.')
-
-# %%
-
-
-
