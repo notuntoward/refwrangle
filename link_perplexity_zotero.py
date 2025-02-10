@@ -5,31 +5,18 @@
 
 # %%
 import pathlib as pl
-from pyzotero import zotero
 from collections import defaultdict, Counter
-import pandas as pd
 import sys
-from urllib.parse import urlparse, urlunparse
-from icecream import ic
 import re
 from typing import Optional, Dict, List, Tuple
 import datetime as dt
+import pandas as pd
 
 refwrangle_dir = pl.Path('~/ref/refwrangle').expanduser() # can't reliably get dir of an .ipynb 
 sys.path.append(str(refwrangle_dir))
 # import refwrangle as rfw
 import refwrangle as rfw
 import re
-
-# %load_ext autoreload
-# %autoreload 2
-
-# %%
-# tmp_dir = rfw.refwrangle_test_dir / 'tmp'
-
-# savemychatbot_perplexity_dialog_file = rfw.refwrangle_test_dir / "dat" / 'perplexity_multi_prompt_savemychatbot_example.md'
-# #savemychatbot_perplexity_dialog_file = pl.Path(r"C:\Users\scott\tmp\Second 2025-02-03_11-37-09_Perplexity.ai_Loading a zotero database using pyzotero is very slow. What....md")
-# output_file_savemychatbot = tmp_dir / 'tmp_savemychatbot_multiprompt_perplexity_example.md'
 
 # %%
 TOP_HEADING_LEVEL_IN_AI = 2
@@ -40,40 +27,37 @@ MAX_WORDS_USER_HEADER = 10
 
 # %% [markdown]
 # ##### get the URLs of all parent items in the zotero db, and find out which have obsidian literature notes
-# 
-
 # %%
-
 def get_zotero_data(verbose=False):
+    """"""
     zotero_cache = rfw.ZoteroCache()
-    parentItems = zotero_cache.get_data()
+    parent_items = zotero_cache.get_data()
 
     # %%
     # Collect info about each zotero DB item that has a URL
     lit_note_file_stems = {fNm.stem for fNm in rfw.lit_notes_obsidian_dir.glob('*.md')}
 
     zot_db_items = []
-    citekeysForURL = defaultdict(list)
-    for parent in parentItems:
+    url_to_citekey = defaultdict(list)
+    for parent in parent_items:
         pdat = parent['data']
         if not (title := pdat.get('title')):
             continue
 
-        citekeyThis = rfw.get_citation_key(pdat)
-        zot_db_items.append(dict(citekey=citekeyThis, zotkey=parent['key'], title=title, hasLitNote=citekeyThis in lit_note_file_stems))
+        citekey_this = rfw.get_citation_key(pdat)
+        zot_db_items.append(dict(citekey=citekey_this, zotkey=parent['key'], title=title, hasLitNote=citekey_this in lit_note_file_stems))
 
         if url := pdat.get('url'):
             if normalized_url :=rfw.normalize_url(url):
-                citekeysForURL[normalized_url].append(citekeyThis)
+                url_to_citekey[normalized_url].append(citekey_this)
 
-    if repeated_urls := {url:citekeysForURL[url] for url in citekeysForURL.keys() if len(citekeysForURL[url])>1}:
+    if repeated_urls := {url:url_to_citekey[url] for url in url_to_citekey.keys() if len(url_to_citekey[url])>1}:
         print(f"Found {len(repeated_urls)} URLs with > 1 parent (citekey)")
         for url, citekeys in repeated_urls.items():
             print(f"{', '.join(citekeys)}\n\t{url}")
         raise Exception('Not written for repeated URLs')
 
-    citekey_to_url = {citekeys[0]: url for url, citekeys in citekeysForURL.items()}
-    # url_to_citekey = {url: citekey for citekey, url in citekey_to_url.items()}
+    citekey_to_url = {citekeys[0]: url for url, citekeys in url_to_citekey.items()}
 
     zot_db_items = pd.DataFrame(zot_db_items).set_index('citekey')
     zot_db_items['url'] = pd.Series(citekey_to_url)
@@ -88,7 +72,6 @@ def get_zotero_data(verbose=False):
             display(zot_db_items_no_url.head())
 
     return zot_db_items # , citekey_to_url, url_to_citekey # not needed? 
-
 
 # %%
 def find_zotero_item_by_url(url: str, zot_db_items: pd.DataFrame) -> Optional[Dict]:
@@ -113,12 +96,12 @@ def find_zotero_item_by_title(target_title: str, zot_db_items: pd.DataFrame) -> 
 
     if best_score > MIN_SCORE_TITLE_MATCH:
         return best_match_item 
-    
+  
     return None
 
 def build_source_url_to_title(sources_content: str) -> Dict[str, str]:
     """Build a dictionary mapping URLs to titles from the sources section."""
-    
+   
     source_url_to_title = {}
     matches = re.findall(r'- \[(.*?)\]\((https?://\S+)\)', sources_content)
     for title, url in matches:
@@ -261,19 +244,19 @@ def relink_perplexity_export_smc(input_file: str, output_file: str, zot_db_items
         body = rfw.setext_headers_to_atx(body, TOP_HEADING_LEVEL_IN_AI+1) # AI subheaders are all setext
         
         if unsourced_body_links:
-            pass
             # TODO: Need to fix this so that the reference numbers are correctly parsed from the source links
             # log_missing_links.append(
             #     f"Section {section_idx}: Body links not in source: " +
             #     ", ".join([f"{url} (count: {count})" for url, count in unsourced_body_links.items()]))
+            pass
 
         processed_sections += [user_header, body, sources_header, sources]
 
     # Strip empty lines: lines are mostly separated in separate strings in the list but not totally
     # This compaction might be a little too much.  Try it for a while and see.
-    processed_sections = ''.join(processed_sections)
     processed_sections = "\n".join(line for line in processed_sections.split("\n") if line.strip())    
-
+    processed_sections = ''.join(processed_sections)
+    
     with open(output_file, 'w',  encoding='utf-8') as outfile:
         outfile.write(''.join(processed_sections))
 

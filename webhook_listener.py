@@ -5,14 +5,13 @@ To run it:  python webhook_listener.py"""
 
 import pathlib as pl
 import datetime as dt
-from flask import Flask, request, Response
-import sys
-from icecream import ic
 import tkinter as tk
-from tkinter import filedialog
 import threading
 import queue
-
+import sys
+from tkinter import filedialog
+from flask import Flask, request, Response
+from icecream import ic
 
 refwrangle_dir = pl.Path('~/ref/refwrangle').expanduser() # can't reliably get dir of an .ipynb 
 sys.path.append(str(refwrangle_dir))
@@ -21,7 +20,7 @@ import refwrangle as rfw
 
 import link_perplexity_zotero as lpz
 
-write_log_file = True
+WRITE_LOG_FILE = True
 
 watcher_dir = rfw.refwrangle_tmp_dir / 'watchter'
 raw_inputs_dir = watcher_dir / 'raw'
@@ -30,7 +29,6 @@ default_relinked_output_dir = watcher_dir / 'relinked'
 default_relinked_output_dir.mkdir(parents=True, exist_ok=True)
 
 ic(raw_inputs_dir.exists(), default_relinked_output_dir.exists())
-
 
 # Create a queue for communication between threads
 gui_queue = queue.Queue()
@@ -91,7 +89,7 @@ def webhook():
             logstr = f'Expected to receive only one file, got {nGotFiles}: Converting only the first.'
             print(logstr)
 
-        if write_log_file:
+        if WRITE_LOG_FILE:
             file_raw_path = raw_inputs_dir / f'{file_basename}.log'
             print(f'Writing webhook log to {file_raw_path}')
             with open(file_raw_path, "w", encoding='utf-8') as log_file:
@@ -107,7 +105,7 @@ def webhook():
 
             if output_relinked_file:
                 print(f'{input_smc_file}\n-->\n{output_relinked_file}')
-                lpz.relink_perplexity_export_SmC(input_smc_file, output_relinked_file, zot_db_items)
+                lpz.relink_perplexity_export_smc(input_smc_file, output_relinked_file, zot_db_items)
                 print('Done.')
             else:
                 print('Save operation cancelled')

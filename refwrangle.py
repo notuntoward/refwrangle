@@ -96,6 +96,8 @@ merged_RAG_source_dir = orig_proc_dir / 'Merged RAG Political Sources'
 
 zoterodb_cache_file = orig_proc_dir / 'ZoteroDBcache.bin'
 
+perplexity_api_key = "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"
+
 # the desired attachment file extension for each child contentType
 desiredFileExtention = {'application/pdf':'pdf', 'text/html':'html', 
                         'application/vnd.openxmlformats-officedocument.presentationml.presentation':'pptx'}
