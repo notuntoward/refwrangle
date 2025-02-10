@@ -9,12 +9,10 @@ import subprocess
 import sys
 import traceback
 import unicodedata
-import xml.etree.ElementTree as ET
 from datetime import datetime
 from typing import Any, Dict, List, Optional, Tuple
 from urllib.parse import urlparse, urlunparse
 from xml.sax.saxutils import escape
-
 import chardet
 import markdown
 import pandas as pd
@@ -31,7 +29,6 @@ from readability import Document
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import letter
 from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
-from reportlab.lib.units import inch
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
 from reportlab.pdfgen import canvas
@@ -402,6 +399,17 @@ def get_title(item):
     
     # If no title found, return a placeholder
     return "Untitled Item"
+
+def build_source_url_to_title_smc(sources_content: str) -> Dict[str, str]:
+    """Build a dictionary mapping URLs to titles from the sources section of a "Save my Chatbot" output."""
+    
+    source_url_to_title = {}
+    matches = re.findall(r'- \[(.*?)\]\((https?://\S+)\)', sources_content)
+    for title, url in matches:
+        normalized_url = normalize_url(url)
+        title = re.sub(r'^\s*\(\d+\)\s*', '', title) # remove ref num
+        source_url_to_title[normalized_url] = title.strip()
+    return source_url_to_title
 
 def normalize_url(url):
     """Converts to lowercase and strips trailing slashes from path."""
@@ -1437,3 +1445,45 @@ def merge_pdfs_with_structure(pdfs_info, output_path):
         writer.write(output)
 
     return problematic_pdfs
+
+def capitalize_first_word_if_needed(text: str) -> str:
+    """
+    Capitalizes the first letter of the first word in the given text if it is not already capitalized.
+
+    Args:
+        text (str): The input string to process.
+
+    Returns:
+        str: The original string if the first word contains any uppercase letters,
+             otherwise a new string with the first letter of the first word capitalized.
+    """
+    first_word = text.split()[0] if text.strip() else ""
+    if any(char.isupper() for char in first_word):
+        return text  # Return the original string if the first word has capitals
+    else:
+        return text[0].upper() + text[1:] if text else text
+
+
+def get_first_n_words(text: str, n: int, stop_phrase: Optional[str] = None) -> str:
+    """
+    Extracts the first n words from the given text, optionally stopping at a specified phrase.
+
+    Args:
+        text (str): The input text to process.
+        n (int): The number of words to extract.
+        stop_phrase (str, optional): A phrase at which to stop extraction if encountered.
+
+    Returns:
+        str: The first n words of the text, or the text up to the stop phrase if encountered.
+    """
+    if stop_phrase and stop_phrase in text:
+        text = text.split(stop_phrase)[0]
+    
+    words = text.split()
+    return ' '.join(words[:n])
+
+def summarize_prompt(prompt: str, num_words: int, stop_phrase: str, heading_level) -> str:
+    """Makes a heading that summarizes a prompt string."""
+    prompt = get_first_n_words(prompt, num_words, stop_phrase)
+    return make_atx_header(f'User: "{capitalize_first_word_if_needed(prompt)}..."', heading_level)
+

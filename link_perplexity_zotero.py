@@ -99,17 +99,6 @@ def find_zotero_item_by_title(target_title: str, zot_db_items: pd.DataFrame) -> 
   
     return None
 
-def build_source_url_to_title(sources_content: str) -> Dict[str, str]:
-    """Build a dictionary mapping URLs to titles from the sources section."""
-   
-    source_url_to_title = {}
-    matches = re.findall(r'- \[(.*?)\]\((https?://\S+)\)', sources_content)
-    for title, url in matches:
-        normalized_url = rfw.normalize_url(url)
-        title = re.sub(r'^\s*\(\d+\)\s*', '', title) # remove ref num
-        source_url_to_title[normalized_url] = title.strip()
-    return source_url_to_title
-
 def replace_links_with_zotero_items(
     body_content: str,
     sources_content: str,
@@ -123,7 +112,7 @@ def replace_links_with_zotero_items(
         - Relinked sources content.
         - A Counter of URLs in the body that were not found in the Sources part."""
     
-    source_url_to_title = build_source_url_to_title(sources_content)
+    source_url_to_title = rfw.build_source_url_to_title_smc(sources_content)
 
     unsourced_body_links = Counter()
     body_link_num_not_in_zotero = {}
@@ -210,26 +199,7 @@ def relink_perplexity_export_smc(input_file: str, output_file: str, zot_db_items
         
     log_missing_links = []
 
-    def capitalize_first_word_if_needed(text):
-        first_word = text.split()[0] if text.strip() else ""
-        if any(char.isupper() for char in first_word):
-            return text  # Return the original string if the first word has capitals
-        else:
-            return text[0].upper() + text[1:] if text else text
- 
-    def get_first_n_words(text, n, stop_phrase=None):
-        if stop_phrase and stop_phrase in text:
-            text = text.split(stop_phrase)[0]
-        
-        words = text.split()
-        return ' '.join(words[:n])
-
-    def summarize_prompt(prompt, num_words, stop_phrase=None):
-        prompt = get_first_n_words(prompt, num_words, stop_phrase)
-        return rfw.make_atx_header(f'User: "{capitalize_first_word_if_needed(prompt)}..."', 
-                                   TOP_HEADING_LEVEL_IN_AI - 1)
-
-    for section_idx, section in enumerate(sections[1:], start=1):  # Skip anything before the first "User" section
+    for section in sections[1:]:  # Skip anything before the first "User" section
         section_parts = re.split(r'(\n---\s*\n\s*\*\*Sources:\*\*\s*\n)', section)
         if len(section_parts) < 3:
             print('Incomplete Body/Sources pair: assume no Sources for this section')
@@ -238,7 +208,7 @@ def relink_perplexity_export_smc(input_file: str, output_file: str, zot_db_items
             section_parts[1] = f"\n{rfw.make_atx_header('Sources', TOP_HEADING_LEVEL_IN_AI)}\n"
 
         body, sources_header, sources = section_parts
-        user_header = summarize_prompt(body, MAX_WORDS_USER_HEADER, ANSWER_HEADER)
+        user_header = rfw.summarize_prompt(body, MAX_WORDS_USER_HEADER, ANSWER_HEADER, TOP_HEADING_LEVEL_IN_AI - 1)
 
         body, sources, unsourced_body_links = replace_links_with_zotero_items(body, sources, zot_db_items)
         body = rfw.setext_headers_to_atx(body, TOP_HEADING_LEVEL_IN_AI+1) # AI subheaders are all setext
@@ -254,11 +224,10 @@ def relink_perplexity_export_smc(input_file: str, output_file: str, zot_db_items
 
     # Strip empty lines: lines are mostly separated in separate strings in the list but not totally
     # This compaction might be a little too much.  Try it for a while and see.
-    processed_sections = "\n".join(line for line in processed_sections.split("\n") if line.strip())    
-    processed_sections = ''.join(processed_sections)
+    processed_sections_str = "\n".join(line for line in processed_sections if line.strip())    
     
     with open(output_file, 'w',  encoding='utf-8') as outfile:
-        outfile.write(''.join(processed_sections))
+        outfile.write(''.join(processed_sections_str))
 
     if log_missing_links:
         print("Log of missing links:")
