@@ -13,48 +13,53 @@ ANSWER_HEADING = "## AI answer"
 USER_HEADING = '## User'
 MAX_WORDS_USER_HEADING = 10
 
-class ZoteroLinkConverter:
-    """Converts web links to Zotero/Obsidian links in content sections"""
+def get_zotero_item_details():
+    """Initialize with Zotero data and literature note status"""
+    zotero_cache = rfw.ZoteroCache()
+    parent_items = zotero_cache.get_data()
     
-    def __init__(self, verbose: bool = False):
-        """Initialize with Zotero data and literature note status"""
-        zotero_cache = rfw.ZoteroCache()
-        parent_items = zotero_cache.get_data()
-        
-        # Collect literature note metadata
-        lit_note_stems = {f.stem for f in rfw.lit_notes_obsidian_dir.glob('*.md')}
-        url_to_citekey = defaultdict(list)
-        zotero_items = []
+    # Collect literature note metadata
+    lit_note_stems = {f.stem for f in rfw.lit_notes_obsidian_dir.glob('*.md')}
+    url_to_citekey = defaultdict(list)
+    zotero_items = []
 
-        # Build Zotero item records with note status
-        for item in parent_items:
-            item_data = item['data']
-            if not (title := item_data.get('title')):
-                continue # messes up title search, must be malformed anyway?
-                
-            citekey = rfw.get_citation_key(item_data)
-            item_row = {
-                'citekey': citekey,
-                'zotkey': item['key'],
-                'title': title,
-                'hasLitNote': citekey in lit_note_stems
-            }
+    # Build Zotero item records with note status
+    for item in parent_items:
+        item_data = item['data']
+        if not (title := item_data.get('title')):
+            continue # messes up title search, must be malformed anyway?
             
-            if url := item_data.get('url'):
-                if norm_url := rfw.normalize_url(url):
-                    url_to_citekey[norm_url].append(citekey)
-                    item_row['url'] = norm_url
-                    
-            zotero_items.append(item_row) # items with at least a title
+        citekey = rfw.get_citation_key(item_data)
+        item_row = {
+            'citekey': citekey,
+            'zotkey': item['key'],
+            'title': title,
+            'hasLitNote': citekey in lit_note_stems
+        }
+        
+        if url := item_data.get('url'):
+            if norm_url := rfw.normalize_url(url):
+                url_to_citekey[norm_url].append(citekey)
+                item_row['url'] = norm_url
+                
+        zotero_items.append(item_row) # items with at least a title
 
-        # Create DataFrame and validate URLs
-        self.zotero_items = pd.DataFrame(zotero_items)
         if url_conflicts := {u: c for u, c in url_to_citekey.items() if len(c) > 1}:
             print(f"Found {len(url_conflicts)} URLs with multiple citekeys:")
             for url, cites in url_conflicts.items():
                 print(f"  {url}: {', '.join(cites)}")
             raise ValueError("URL collisions in Zotero database")
 
+    return pd.DataFrame(zotero_items)
+
+class ZoteroLinkConverter:
+    """Converts web links to Zotero/Obsidian links in content sections"""
+    
+    def __init__(self, verbose: bool = False):
+        """Initialize with Zotero data and literature note status"""
+
+        self.zotero_items = get_zotero_item_details()
+            
         # Initialize regex and caches
         self._note_url_zotero_cache: Dict[str, Optional[Dict]] = {}
         self._note_title_zotero_cache: Dict[str, Optional[Dict]] = {}
@@ -183,4 +188,7 @@ if __name__ == "__main__":
     #input_file = pl.Path(r"C:\Users\scott\share\ref\refwrangle\tmp\watchter\raw\perplexity_2025-02-10_20-04-06_data.md")
     output_file = tmp_dir / 'tmp_savemychatbot_multiprompt_perplexity_example.md'
     
+    print(f'{input_file=}\n-->\n{output_file=}')
+    
     relink_perplexity_export_smc(input_file, output_file)
+# %%
