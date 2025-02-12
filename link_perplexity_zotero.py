@@ -20,35 +20,31 @@ class ZoteroLinkConverter:
     def __init__(self, verbose: bool = False):
         """Initialize with Zotero data and literature note status"""
 
-        self.zotero_items = self.get_zotero_item_details(verbose)
         self._note_url_zotero_cache: Dict[str, Optional[Dict]] = {}
         self._note_title_zotero_cache: Dict[str, Optional[Dict]] = {}
+        self.zotero_items = self._get_zotero_item_details(verbose)
 
-    def get_zotero_item_details(self, verbose: bool = False):
+    def _get_zotero_item_details(self, verbose: bool = False) -> pd.DataFrame:
         """Initialize with Zotero data and literature note status"""
         zotero_cache = rfw.ZoteroCache()
         parent_items = zotero_cache.get_data()
         
-        # Collect literature note metadata
-        lit_note_stems = {f.stem for f in rfw.lit_notes_obsidian_dir.glob('*.md')}
+        lit_note_file_name_stems = {f.stem for f in rfw.lit_notes_obsidian_dir.glob('*.md')}
+
         url_to_citekey = defaultdict(list)
         zotero_items = []
-
-        # Build Zotero item records with note status
         for item in parent_items:
             item_data = item['data']
             if not (title := item_data.get('title')):
                 if verbose:
-                    print(f'{item['data']['url']}: parent with no tite')
+                    print(f'{item['key']}: skipping parent with no title')
                 continue # messes up title search, must be malformed anyway?
                 
             citekey = rfw.get_citation_key(item_data)
-            item_row = {
-                'citekey': citekey,
-                'zotkey': item['key'],
-                'title': title,
-                'hasLitNote': citekey in lit_note_stems
-            }
+            item_row = {'citekey': citekey,
+                        'zotkey': item['key'],
+                        'title': title,
+                        'hasLitNote': citekey in lit_note_file_name_stems }
             
             if url := item_data.get('url'):
                 if norm_url := rfw.normalize_url(url):
@@ -88,22 +84,16 @@ class ZoteroLinkConverter:
 
     def create_obsidian_or_zotero_link(self, item: Dict) -> str:
         """Create Obsidian wikilink if literature note exists, otherwise Zotero URL link"""
+        
         if item.get('hasLitNote'):
             return f'[[{item["citekey"]}|{item["citekey"]}]]'
-        
-        return rfw.zotero_item_link(
-            item["zotkey"], 
-            f'{item["citekey"]}\u2794{item["zotkey"]}'
-        )
 
+        return rfw.zotero_item_link(item["zotkey"], f'{item["citekey"]}\u2794{item["zotkey"]}')
 
 def relink_perplexity_export_smc(input_file: str, output_file: str):
     """Replace links in "Save my Chatbot" Perplexity output with links to Zotero items or Obsidian lit notes."""
     relinker = ZoteroLinkConverter()
     
-    body_link_re = re.compile(r'\[(.*?)\]\((https?://\S+)\)')
-    source_link_re = re.compile(r'\[\((\d+)\)\s*(.*?)\]\((https?://\S+)\)')
-
     def relink_body_source_smc(body_text: str, sources_text: str) -> Tuple[str, str, Counter]:
         """Replace URLs with Zotero/Obsidian links in both content sections"""
         source_url_to_title = rfw.build_source_url_to_title_smc(sources_text)
@@ -152,6 +142,9 @@ def relink_perplexity_export_smc(input_file: str, output_file: str):
     chat_source = " ".join(sections[0].split("\n")[1:])  # Remove redundant header
     processed_sections = [front_matter + f'{chat_source.lstrip()}\n']
     log_missing_links = []
+
+    body_link_re = re.compile(r'\[(.*?)\]\((https?://\S+)\)')
+    source_link_re = re.compile(r'\[\((\d+)\)\s*(.*?)\]\((https?://\S+)\)')
 
     for section in sections[1:]:  # Process each user section
         section_parts = re.split(r'(\n---\s*\n\s*\*\*Sources:\*\*\s*\n)', section)
