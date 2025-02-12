@@ -67,6 +67,7 @@ class ZoteroLinkConverter:
         if norm_url not in self._note_url_zotero_cache:
             matches = self.zotero_items[self.zotero_items['url'] == norm_url]
             self._note_url_zotero_cache[norm_url] = matches.iloc[0].to_dict() if not matches.empty else None
+            
         return self._note_url_zotero_cache[norm_url]
 
     def find_zotero_item_via_title(self, target_title: str) -> Optional[Dict]:
@@ -94,11 +95,18 @@ def relink_perplexity_export_smc(input_file: str, output_file: str):
     """Replace links in "Save my Chatbot" Perplexity output with links to Zotero items or Obsidian lit notes."""
     relinker = ZoteroLinkConverter()
     
-    def relink_body_source_smc(body_text: str, sources_text: str) -> Tuple[str, str, Counter]:
+    def relink_body_source(body_text: str, sources_text: str) -> Tuple[str, str, Counter]:
         """Replace URLs with Zotero/Obsidian links in both content sections"""
-        source_url_to_title = rfw.build_source_url_to_title_smc(sources_text)
-        body_link_urls_not_in_source = Counter()
-        link_nums_not_in_zotero = {}
+        def build_source_url_to_title(sources_content: str) -> Dict[str, str]:
+            """Build a dictionary mapping URLs to titles from the sources section of a "Save my Chatbot" output."""
+            
+            source_url_to_title = {}
+            matches = re.findall(r'- \[(.*?)\]\((https?://\S+)\)', sources_content)
+            for title, url in matches:
+                normalized_url = rfw.normalize_url(url)
+                title = re.sub(r'^\s*\(\d+\)\s*', '', title) # remove ref num
+                source_url_to_title[normalized_url] = title.strip()
+            return source_url_to_title
 
         def _replace_body_link(match: re.Match) -> str:
             url = rfw.normalize_url(match.group(2))
@@ -129,6 +137,10 @@ def relink_perplexity_export_smc(input_file: str, output_file: str):
             
             return match.group(0) # a source never used in the body
 
+        source_url_to_title = build_source_url_to_title(sources_text)
+        body_link_urls_not_in_source = Counter()
+        link_nums_not_in_zotero = {}
+
         processed_body = body_link_re.sub(_replace_body_link, body_text)
         processed_sources = source_link_re.sub(_replace_source_link, sources_text)
         
@@ -156,7 +168,7 @@ def relink_perplexity_export_smc(input_file: str, output_file: str):
         user_header = rfw.summarize_prompt(body, MAX_WORDS_USER_HEADING,
                                            ANSWER_HEADING, TOP_HEADING_LEVEL_IN_AI)
         
-        processed_body, processed_sources, unsourced_links = relink_body_source_smc(body, sources)
+        processed_body, processed_sources, unsourced_links = relink_body_source(body, sources)
         processed_body = rfw.setext_headers_to_atx(processed_body,
                                                    TOP_HEADING_LEVEL_IN_AI + 1)
 

@@ -409,17 +409,6 @@ def get_title(item):
     # If no title found, return a placeholder
     return "Untitled Item"
 
-def build_source_url_to_title_smc(sources_content: str) -> Dict[str, str]:
-    """Build a dictionary mapping URLs to titles from the sources section of a "Save my Chatbot" output."""
-    
-    source_url_to_title = {}
-    matches = re.findall(r'- \[(.*?)\]\((https?://\S+)\)', sources_content)
-    for title, url in matches:
-        normalized_url = normalize_url(url)
-        title = re.sub(r'^\s*\(\d+\)\s*', '', title) # remove ref num
-        source_url_to_title[normalized_url] = title.strip()
-    return source_url_to_title
-
 def normalize_url(url):
     """Converts to lowercase and strips trailing slashes from path."""
     parsed = urlparse(url.lower())
