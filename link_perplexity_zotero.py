@@ -1,235 +1,186 @@
-# %% [markdown]
-# ### Zoteroize and Obsidianize a Perplexity Dialogue from `Save my Chatbot`
-# 
-# Replace the citation numbers in a saved Save my Chatbot Perplexity dialogue with matching literature note or zotero item links
-
 # %%
-import pathlib as pl
-from collections import defaultdict, Counter
-import sys
 import re
-from typing import Optional, Dict, List, Tuple
-import datetime as dt
+from zoneinfo import ZoneInfoNotFoundError
 import pandas as pd
-
-refwrangle_dir = pl.Path('~/ref/refwrangle').expanduser() # can't reliably get dir of an .ipynb 
-sys.path.append(str(refwrangle_dir))
-# import refwrangle as rfw
+import pathlib as pl
+from collections import Counter, defaultdict
+from typing import Optional, Dict, Tuple
+import datetime as dt
 import refwrangle as rfw
-import re
 
-# %%
 TOP_HEADING_LEVEL_IN_AI = 2
-MIN_SCORE_TITLE_MATCH = 95 # max==100: stringent, limit false matches
-ANSWER_HEADER = "## AI answer"
-USER_HEADER = '## User'
-MAX_WORDS_USER_HEADER = 10
+ANSWER_HEADING = "## AI answer"
+USER_HEADING = '## User'
+MAX_WORDS_USER_HEADING = 10
 
-# %% [markdown]
-# ##### get the URLs of all parent items in the zotero db, and find out which have obsidian literature notes
-# %%
-def get_zotero_data(verbose=False):
-    """"""
-    zotero_cache = rfw.ZoteroCache()
-    parent_items = zotero_cache.get_data()
-
-    # %%
-    # Collect info about each zotero DB item that has a URL
-    lit_note_file_stems = {fNm.stem for fNm in rfw.lit_notes_obsidian_dir.glob('*.md')}
-
-    zot_db_items = []
-    url_to_citekey = defaultdict(list)
-    for parent in parent_items:
-        pdat = parent['data']
-        if not (title := pdat.get('title')):
-            continue
-
-        citekey_this = rfw.get_citation_key(pdat)
-        zot_db_items.append(dict(citekey=citekey_this, zotkey=parent['key'], title=title, hasLitNote=citekey_this in lit_note_file_stems))
-
-        if url := pdat.get('url'):
-            if normalized_url :=rfw.normalize_url(url):
-                url_to_citekey[normalized_url].append(citekey_this)
-
-    if repeated_urls := {url:url_to_citekey[url] for url in url_to_citekey.keys() if len(url_to_citekey[url])>1}:
-        print(f"Found {len(repeated_urls)} URLs with > 1 parent (citekey)")
-        for url, citekeys in repeated_urls.items():
-            print(f"{', '.join(citekeys)}\n\t{url}")
-        raise Exception('Not written for repeated URLs')
-
-    citekey_to_url = {citekeys[0]: url for url, citekeys in url_to_citekey.items()}
-
-    zot_db_items = pd.DataFrame(zot_db_items).set_index('citekey')
-    zot_db_items['url'] = pd.Series(citekey_to_url)
-    zot_db_items = zot_db_items.reset_index()
-
-    if sum(has_no_url := zot_db_items.url.isna()):
-        print(f"Dropping {sum(has_no_url)} of {len(zot_db_items)} zotero entries with no URL:")
-        zot_db_items = zot_db_items[~has_no_url]
-
-        if verbose:
-            zot_db_items_no_url = zot_db_items[has_no_url]
-            display(zot_db_items_no_url.head())
-
-    return zot_db_items # , citekey_to_url, url_to_citekey # not needed? 
-
-# %%
-def find_zotero_item_by_url(url: str, zot_db_items: pd.DataFrame) -> Optional[Dict]:
-    """Find a Zotero item by its URL."""
-    normalized_url = rfw.normalize_url(url)
-    matches = zot_db_items[zot_db_items['url'] == normalized_url]
-    if not matches.empty:
-        return matches.iloc[0].to_dict()  # Return df row as dictionary
-    return None
-
-def find_zotero_item_by_title(target_title: str, zot_db_items: pd.DataFrame) -> Optional[Dict]:
-    """Find the Zotero item with the best matching title."""
-    zotero_items = zot_db_items.to_dict('records')
-    best_match_item = None
-    best_score = 0
-
-    for item in zotero_items:
-        score = rfw.match_titles(target_title, item['title'], main_title_only=False)
-        if score > best_score:
-            best_match_item = item.copy()
-            best_score = score
-
-    if best_score > MIN_SCORE_TITLE_MATCH:
-        return best_match_item 
-  
-    return None
-
-def replace_links_with_zotero_items(
-    body_content: str,
-    sources_content: str,
-    zot_db_items: pd.DataFrame,
-) -> Tuple[str, str, Counter]:
-    """
-    Replace links in body content and sources content with Zotero links or leave them as-is.
+class ZoteroLinkConverter:
+    """Converts web links to Zotero/Obsidian links in content sections"""
     
-    Returns: 
-        - Relinked body content.
-        - Relinked sources content.
-        - A Counter of URLs in the body that were not found in the Sources part."""
-    
-    source_url_to_title = rfw.build_source_url_to_title_smc(sources_content)
+    def __init__(self, verbose: bool = False):
+        """Initialize with Zotero data and literature note status"""
+        zotero_cache = rfw.ZoteroCache()
+        parent_items = zotero_cache.get_data()
+        
+        # Collect literature note metadata
+        lit_note_stems = {f.stem for f in rfw.lit_notes_obsidian_dir.glob('*.md')}
+        url_to_citekey = defaultdict(list)
+        zotero_items = []
 
-    unsourced_body_links = Counter()
-    body_link_num_not_in_zotero = {}
-
-    def link_to_obsidian_or_zotero(zotero_item):
-        """Returns link to Obsidian lit note if it exists, else to zotero item"""
-        if zotero_item.get('hasLitNote', False):
-            obsidian_citekey = zotero_item["citekey"]
-            return f'[[{obsidian_citekey}|{obsidian_citekey}]]'
-        else:
-            link_text = f'{zotero_item["citekey"]}\u2794{zotero_item["zotkey"]}'
-            return rfw.zotero_item_link(zotero_item["zotkey"], link_text)
-
-    def make_my_lit_link(url):
-        """If a zotero item has a matching url, or title that matches a source's 
-        section link title, then return a link to that item or its obsidian note."""
-
-        if zotero_item := find_zotero_item_by_url(url, zot_db_items):
-            return link_to_obsidian_or_zotero(zotero_item)
-
-        if url in source_url_to_title:
-            # try to replace matching source link title with zotero item title
-            title = source_url_to_title[url]
-            if zotero_item := find_zotero_item_by_title(title, zot_db_items):
-                return link_to_obsidian_or_zotero(zotero_item)
-
-        return None # no kind of zotero item match
+        # Build Zotero item records with note status
+        for item in parent_items:
+            item_data = item['data']
+            if not (title := item_data.get('title')):
+                continue # messes up title search, must be malformed anyway?
+                
+            citekey = rfw.get_citation_key(item_data)
+            item_row = {
+                'citekey': citekey,
+                'zotkey': item['key'],
+                'title': title,
+                'hasLitNote': citekey in lit_note_stems
+            }
             
-    def swap_my_lit_link_body(doc_match):
-        """Replace a body section link with one pointing to zotero/obsidian, if possible.
-        Otherwise highlight it so it's clear there was no match
+            if url := item_data.get('url'):
+                if norm_url := rfw.normalize_url(url):
+                    url_to_citekey[norm_url].append(citekey)
+                    item_row['url'] = norm_url
+                    
+            zotero_items.append(item_row) # items with at least a title
+
+        # Create DataFrame and validate URLs
+        self.zotero_items = pd.DataFrame(zotero_items)
+        if url_conflicts := {u: c for u, c in url_to_citekey.items() if len(c) > 1}:
+            print(f"Found {len(url_conflicts)} URLs with multiple citekeys:")
+            for url, cites in url_conflicts.items():
+                print(f"  {url}: {', '.join(cites)}")
+            raise ValueError("URL collisions in Zotero database")
+
+        # Initialize regex and caches
+        self._note_url_zotero_cache: Dict[str, Optional[Dict]] = {}
+        self._note_title_zotero_cache: Dict[str, Optional[Dict]] = {}
+        self.body_link_re = re.compile(r'\[(.*?)\]\((https?://\S+)\)')
+        self.source_link_re = re.compile(r'\[\((\d+)\)\s*(.*?)\]\((https?://\S+)\)')
+
+
+    def _find_zotero_item_via_url(self, url: str) -> Optional[Dict]:
+        """Find Zotero item using normalized URL from content"""
+        norm_url = rfw.normalize_url(url)
+        if norm_url not in self._note_url_zotero_cache:
+            matches = self.zotero_items[self.zotero_items['url'] == norm_url]
+            self._note_url_zotero_cache[norm_url] = matches.iloc[0].to_dict() if not matches.empty else None
+        return self._note_url_zotero_cache[norm_url]
+
+    def _find_zotero_item_via_title(self, target_title: str) -> Optional[Dict]:
+        """Find best title match from content using similarity scoring"""
+        if target_title not in self._note_title_zotero_cache:
+            best_match = None
+            best_score = 0
+            for item in self.zotero_items.to_dict('records'):
+                score = rfw.match_titles(target_title, item['title'], main_title_only=False)
+                if score > best_score and score > rfw.MIN_SCORE_TITLE_MATCH:
+                    best_match = item
+                    best_score = score
+            self._note_title_zotero_cache[target_title] = best_match
+        return self._note_title_zotero_cache[target_title]
+
+    def _create_obsidian_or_zotero_link(self, item: Dict) -> str:
+        """Create Obsidian wikilink if literature note exists, otherwise Zotero URL link"""
+        if item.get('hasLitNote'):
+            return f'[[{item["citekey"]}|{item["citekey"]}]]'
         
-        Arg: doc_match: a regexp match object to a document body section link"""
-         
-        url_body_link = rfw.normalize_url(doc_match.group(2))
-        body_link_num = doc_match.group(1)
+        return rfw.zotero_item_link(
+            item["zotkey"], 
+            f'{item["citekey"]}\u2794{item["zotkey"]}'
+        )
+
+    def convert_content_links(self, body_text: str, sources_text: str) -> Tuple[str, str, Counter]:
+        """Replace URLs with Zotero/Obsidian links in both content sections"""
+        source_url_map = rfw.build_source_url_to_title_smc(sources_text)
+        unsourced_links = Counter()
+        unmatched_links = {}
+
+        def _replace_body_link(match: re.Match) -> str:
+            url = rfw.normalize_url(match.group(2))
+            link_num = match.group(1)
+            
+            if url not in source_url_map:
+                unsourced_links[url] += 1
+                
+            if item := self._find_zotero_item_via_url(url):
+                return self._create_obsidian_or_zotero_link(item)
+            if title := source_url_map.get(url):
+                if item := self._find_zotero_item_via_title(title):
+                    return self._create_obsidian_or_zotero_link(item)
+            
+            unmatched_links[link_num] = True
+            return f'=={match.group(0)}=='
+
+        def _replace_source_link(match: re.Match) -> str:
+            link_num, desc, url = match.groups()
+            norm_url = rfw.normalize_url(url)
+            item = self._find_zotero_item_via_url(norm_url) or self._find_zotero_item_via_title(desc)
+            
+            if item:
+                new_link = self._create_obsidian_or_zotero_link(item)
+                return f'[({link_num}) {desc}]({url}) **{new_link}**'
+            if link_num in unmatched_links:
+                return f'==[({link_num}) {desc}]({url})=='
+            return match.group(0)
+
+        processed_body = self.body_link_re.sub(_replace_body_link, body_text)
+        processed_sources = self.source_link_re.sub(_replace_source_link, sources_text)
         
-        if url_body_link not in source_url_to_title:
-            unsourced_body_links[url_body_link] += 1 # for later error reporting
+        return processed_body, processed_sources, unsourced_links
 
-        if my_link := make_my_lit_link(url_body_link):
-            return my_link
-
-        # a link in body that wasn't in zotero: highlight it in both the body and the sources
-        body_link_num_not_in_zotero[body_link_num] = True
-        return f'=={doc_match.group(0)}=='
-
-    def append_my_lit_link_source(doc_match):
-        """Append a sources section link with a highlighted link pointing to zotero/obsidian, if possible.
-        
-        Arg: doc_match: a regexp match object to a document sources section link"""
-
-        url_source_link = rfw.normalize_url(doc_match.group(3))
-
-        source_link_num = doc_match.group(1)
-        output_link_num = f'({source_link_num})'
-        descript_source_link = doc_match.group(2)
-        if my_link := make_my_lit_link(url_source_link):
-            return f'[{output_link_num} {descript_source_link}]({url_source_link}) **{my_link}**'
-
-        if body_link_num_not_in_zotero.get(source_link_num):
-            output_link_num = f'=={output_link_num}==' # highlight it, to match body appearance
-        
-        return f'[{output_link_num} {descript_source_link}]({url_source_link})'
+def relink_perplexity_export_smc(input_file: str, output_file: str):
+    """Replace links in "Save my Chatbot" Perplexity output with links to Zotero items or Obsidian lit notes."""
+    converter = ZoteroLinkConverter()
     
-    relinked_body_content = re.sub(r'\[(.*?)\]\((https?://\S+)\)', swap_my_lit_link_body, body_content)
-
-    relinked_sources_content = re.sub(r'\[\((\d+)\)\s*(.*?)\]\((https?://\S+)\)', append_my_lit_link_source, sources_content)
-    return relinked_body_content, relinked_sources_content, unsourced_body_links
-
-
-def relink_perplexity_export_smc(input_file: str, output_file: str, zot_db_items: pd.DataFrame):
-    """Process a markdown file to replace links with Zotero references."""
-    
-    with open(input_file, 'r',  encoding='utf-8') as infile:
+    with open(input_file, 'r', encoding='utf-8') as infile:
         content = infile.read()
 
-    sections = re.split(rf'(?<=\n){USER_HEADER}', content)
-
-    # start the output with Obsidian frontmatter, and a link to original perplexity chat and date
+    sections = re.split(rf'(?<=\n){USER_HEADING}', content)
     front_matter = f'---\ncategory: aichat\ncreated date: {dt.datetime.now()}\n---\n'
-    chat_source = " ".join(sections[0].split("\n")[1:]) # remove redundant header
-    processed_sections = [front_matter + f'{chat_source.lstrip(' ')}\n']
-        
+    chat_source = " ".join(sections[0].split("\n")[1:])  # Remove redundant header
+    processed_sections = [front_matter + f'{chat_source.lstrip()}\n']
     log_missing_links = []
 
-    for section in sections[1:]:  # Skip anything before the first "User" section
+    for section in sections[1:]:  # Process each user section
         section_parts = re.split(r'(\n---\s*\n\s*\*\*Sources:\*\*\s*\n)', section)
         if len(section_parts) < 3:
-            print('Incomplete Body/Sources pair: assume no Sources for this section')
-            section_parts += ['','']
-        else:
-            section_parts[1] = f"\n{rfw.make_atx_header('Sources', TOP_HEADING_LEVEL_IN_AI)}\n"
+            print('Incomplete Body/Sources pair: assuming no Sources')
+            section_parts += ['', '']
 
         body, sources_header, sources = section_parts
-        user_header = rfw.summarize_prompt(body, MAX_WORDS_USER_HEADER, ANSWER_HEADER, TOP_HEADING_LEVEL_IN_AI - 1)
-
-        body, sources, unsourced_body_links = replace_links_with_zotero_items(body, sources, zot_db_items)
-        body = rfw.setext_headers_to_atx(body, TOP_HEADING_LEVEL_IN_AI+1) # AI subheaders are all setext
+        user_header = rfw.summarize_prompt(body, MAX_WORDS_USER_HEADING,
+                                           ANSWER_HEADING, TOP_HEADING_LEVEL_IN_AI)
         
-        if unsourced_body_links:
-            # TODO: Need to fix this so that the reference numbers are correctly parsed from the source links
-            # log_missing_links.append(
-            #     f"Section {section_idx}: Body links not in source: " +
-            #     ", ".join([f"{url} (count: {count})" for url, count in unsourced_body_links.items()]))
-            pass
+        processed_body, processed_sources, unsourced_links = converter.convert_content_links(body, sources)
+        processed_body = rfw.setext_headers_to_atx(processed_body,
+                                                   TOP_HEADING_LEVEL_IN_AI + 1)
 
-        processed_sections += [user_header, body, sources_header, sources]
+        if unsourced_links:
+            log_missing_links.append(
+                "Body links not in source: " +
+                ", ".join([f"{url} (count: {count})" for url, count in unsourced_links.items()])
+            )
 
-    # Strip empty lines: lines are mostly separated in separate strings in the list but not totally
-    # This compaction might be a little too much.  Try it for a while and see.
-    processed_sections_str = "\n".join(line for line in processed_sections if line.strip())    
-    
-    with open(output_file, 'w',  encoding='utf-8') as outfile:
-        outfile.write(''.join(processed_sections_str))
+        processed_sections += [user_header, processed_body, sources_header, processed_sources]
+
+    with open(output_file, 'w', encoding='utf-8') as outfile:
+        outfile.write('\n'.join(processed_sections))
 
     if log_missing_links:
-        print("Log of missing links:")
+        print("Missing links detected:")
         for log_entry in log_missing_links:
             print(log_entry)
+
+# Example usage
+if __name__ == "__main__":
+    tmp_dir = rfw.refwrangle_test_dir / 'tmp'
+
+    input_file = rfw.refwrangle_test_dir / "dat" / 'perplexity_multi_prompt_savemychatbot_example.md'
+    #input_file = pl.Path(r"C:\Users\scott\share\ref\refwrangle\tmp\watchter\raw\perplexity_2025-02-10_20-04-06_data.md")
+    output_file = tmp_dir / 'tmp_savemychatbot_multiprompt_perplexity_example.md'
+    
+    relink_perplexity_export_smc(input_file, output_file)

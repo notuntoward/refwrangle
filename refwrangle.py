@@ -63,6 +63,7 @@ refwrangle_tmp_dir = refwrangle_dir / 'tmp'
 # After high quality html to markdown conversion, the md but be at least this big
 # Otherwise, more cautious quality conversion will be done
 MIN_BYTES_FOR_HIGH_QUALITY_HTML2MD = 4000
+MIN_SCORE_TITLE_MATCH = 95 # max==100: stringent, limit false matches
 
 # My Zotero API credentials
 library_id = '60638'
@@ -190,11 +191,16 @@ def is_ignorable_child(child):
     
     return False
         
-def get_my_zotero_collections(top_collection_name=None):
+def get_my_zotero_collections(top_collection_name=None, zot=None):
     """Returns the list of collections in my zotero DB. 
-     top_collection_name: return only collections hierarchically below this collection. """
+     top_collection_name: return only collections hierarchically below this collection. 
+     zot is an opened pyzotero object
+     
+     TODO: make this accept a zotero cache, once this is storing that data
+     TODO: use zot.collections_sub() and zot.collections_top()"""
     
-    zot = zotero.Zotero(library_id, library_type, api_key)
+    if zot is None:
+        zot = zotero.Zotero(library_id, library_type, api_key)
 
     if top_collection_name is None:
         return [c['data']['name'] for c in zot.collections()]
@@ -322,7 +328,10 @@ def get_creator(item):
        - If a 'name' field is present, it returns that.
        - Otherwise, it formats as "LastName, FirstName".
     3. For institution or organization creator types, it returns the name or "Unknown Organization".
-    4. For other creator types, it follows the same logic as point 2. """
+    4. For other creator types, it follows the same logic as point 2.
+    
+    TODO: robustify this by using zot.item_creator_types() and zot.item_types()"""
+    
     creators = item['data'].get('creators', [])
     if not creators:
         return "Unknown Author"
@@ -1486,4 +1495,3 @@ def summarize_prompt(prompt: str, num_words: int, stop_phrase: str, heading_leve
     """Makes a heading that summarizes a prompt string."""
     prompt = get_first_n_words(prompt, num_words, stop_phrase)
     return make_atx_header(f'User: "{capitalize_first_word_if_needed(prompt)}..."', heading_level)
-

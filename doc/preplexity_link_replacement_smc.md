@@ -6,30 +6,40 @@
 
 ```mermaid
 graph TD;
-    Perplexity-->Body;
-    Perplexity-->Cites;
-    Zotero-->zotItems;
-    Obsidian-->litNotes;
-    zotItems--URLs-->zotURLtoItem
-    zotItems<--citekey-->litNotes
-    Body--URLs-->ReplaceLinkNumZotOrObs
-    Cites-->URLs-->ReplaceLinkNumZotOrObs
-    ReplaceLinkNumZotOrObs --> outputCites
-    ReplaceLinkNumZotOrObs --> outputBody
-    outputBody --> outputDoc
-    outputCites --> outputDoc
-    Cites -- Title --> zotTitleMatch
-    Cites -- Url --> zotURLmatch
-    zotURLmatch -- item --> hasURL{urlMatch}
-    hasURL -- no --> zotTitleMatch{titlematch}
-    hasURL -- yes(item)) --> makeZotOrObsLink{hasObsLink?}
-    zotTitleMatch -- no --> highlightOldLink
-    zotTitleMatch -- yes(item) --> makeZotOrObsLink{hasObsLink?}
-    makeZotOrObsLink-- yes(citekey) --> makeObsLink
-    makeZotOrObsLink-- no(item) --> makeZotLink
-    
+    Perplexity[/Perplexity Doc, SMC/] --> Splitter(Body, Source Splitter, SMC)
+    Splitter -->Body[/Body/]--text--> NewBdy[/New Body, SMC/];
+    Splitter -->Cites[/Cites/]--text--> NewSrc[/New Source, SMC/];
 
+    subgraph Lookup["**Link Maker**"]
+        Zotero[(Zotero)] -- zotItems --> Join(Join on Citekey);
+        Obsidian[(Obsidian Lit Notes)] -- citekeys --> Join;
+        Join <-- url, citekey, title --> LUT[(LUT)];
+        LUT --> URLmatch[URL to Item];
+        URLmatch -- miss --> TitleMatch[Title to Item];
+        URLmatch -- item --> MkBodyLink[Make Body Link];
+        TitleMatch -- item, miss --> MkBodyLink;
+    end
 
-    
+    TitleMatch -- item, miss --> MkSourceLink[Make Source Link, SMC];
+    URLmatch -- item --> MkSourceLink;
 
+    Body --text--> BodyRexp[Body Regexp, SMC] --matches-->URLmatch;
+    Cites --text--> SourceRexp[Source Regexp, SMC] --matches-->URLmatch;
+
+    MkBodyLink -- body link text --> NewBdy;
+    MkSourceLink -- source link text --> NewSrc;
+    NewBdy --> Merger[Body/Source Merger, SMC] --> NewDoc[/Relinked Perplexity Doc, SMC/];
+    NewSrc --> Merger
+
+    subgraph SMC["**SMC Processing**"]
+    Body
+    BodyRexp
+    Cites
+    SourceRexp
+    Splitter
+    Merger
+    NewBdy
+    NewSrc
+    MkSourceLink
+    end
 ```
