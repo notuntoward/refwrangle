@@ -20,11 +20,11 @@ class ZoteroLinkConverter:
     def __init__(self, verbose: bool = False):
         """Initialize with Zotero data and literature note status"""
 
-        self.zotero_items = self.get_zotero_item_details()
+        self.zotero_items = self.get_zotero_item_details(verbose)
         self._note_url_zotero_cache: Dict[str, Optional[Dict]] = {}
         self._note_title_zotero_cache: Dict[str, Optional[Dict]] = {}
 
-    def get_zotero_item_details(self):
+    def get_zotero_item_details(self, verbose: bool = False):
         """Initialize with Zotero data and literature note status"""
         zotero_cache = rfw.ZoteroCache()
         parent_items = zotero_cache.get_data()
@@ -38,6 +38,8 @@ class ZoteroLinkConverter:
         for item in parent_items:
             item_data = item['data']
             if not (title := item_data.get('title')):
+                if verbose:
+                    print(f'{item['data']['url']}: parent with no tite')
                 continue # messes up title search, must be malformed anyway?
                 
             citekey = rfw.get_citation_key(item_data)
