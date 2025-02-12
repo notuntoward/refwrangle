@@ -98,48 +98,50 @@ class ZoteroLinkConverter:
             f'{item["citekey"]}\u2794{item["zotkey"]}'
         )
 
-    def convert_content_links(self, body_text: str, sources_text: str) -> Tuple[str, str, Counter]:
+
+def relink_perplexity_export_smc(input_file: str, output_file: str):
+    """Replace links in "Save my Chatbot" Perplexity output with links to Zotero items or Obsidian lit notes."""
+    relinker = ZoteroLinkConverter()
+
+    def relink_body_source_smc(body_text: str, sources_text: str) -> Tuple[str, str, Counter]:
         """Replace URLs with Zotero/Obsidian links in both content sections"""
-        source_url_map = rfw.build_source_url_to_title_smc(sources_text)
-        unsourced_links = Counter()
-        unmatched_links = {}
+        source_url_to_title = rfw.build_source_url_to_title_smc(sources_text)
+        body_link_urls_not_in_source = Counter()
+        link_nums_not_in_zotero = {}
 
         def _replace_body_link(match: re.Match) -> str:
             url = rfw.normalize_url(match.group(2))
             link_num = match.group(1)
             
-            if url not in source_url_map:
-                unsourced_links[url] += 1
+            if url not in source_url_to_title:
+                body_link_urls_not_in_source[url] += 1
                 
-            if item := self._find_zotero_item_via_url(url):
-                return self._create_obsidian_or_zotero_link(item)
-            if title := source_url_map.get(url):
-                if item := self._find_zotero_item_via_title(title):
-                    return self._create_obsidian_or_zotero_link(item)
+            if item := relinker._find_zotero_item_via_url(url):
+                return relinker._create_obsidian_or_zotero_link(item)
+            if title := source_url_to_title.get(url):
+                if item := relinker._find_zotero_item_via_title(title):
+                    return relinker._create_obsidian_or_zotero_link(item)
             
-            unmatched_links[link_num] = True
+            link_nums_not_in_zotero[link_num] = True
             return f'=={match.group(0)}=='
 
         def _replace_source_link(match: re.Match) -> str:
             link_num, desc, url = match.groups()
             norm_url = rfw.normalize_url(url)
-            item = self._find_zotero_item_via_url(norm_url) or self._find_zotero_item_via_title(desc)
+            item = relinker._find_zotero_item_via_url(norm_url) or relinker._find_zotero_item_via_title(desc)
             
             if item:
-                new_link = self._create_obsidian_or_zotero_link(item)
+                new_link = relinker._create_obsidian_or_zotero_link(item)
                 return f'[({link_num}) {desc}]({url}) **{new_link}**'
-            if link_num in unmatched_links:
+            if link_num in link_nums_not_in_zotero:
                 return f'==[({link_num}) {desc}]({url})=='
-            return match.group(0)
+            
+            return match.group(0) # a source never used in the body
 
-        processed_body = self.body_link_re.sub(_replace_body_link, body_text)
-        processed_sources = self.source_link_re.sub(_replace_source_link, sources_text)
+        processed_body = relinker.body_link_re.sub(_replace_body_link, body_text)
+        processed_sources = relinker.source_link_re.sub(_replace_source_link, sources_text)
         
-        return processed_body, processed_sources, unsourced_links
-
-def relink_perplexity_export_smc(input_file: str, output_file: str):
-    """Replace links in "Save my Chatbot" Perplexity output with links to Zotero items or Obsidian lit notes."""
-    converter = ZoteroLinkConverter()
+        return processed_body, processed_sources, body_link_urls_not_in_source
     
     with open(input_file, 'r', encoding='utf-8') as infile:
         content = infile.read()
@@ -160,7 +162,7 @@ def relink_perplexity_export_smc(input_file: str, output_file: str):
         user_header = rfw.summarize_prompt(body, MAX_WORDS_USER_HEADING,
                                            ANSWER_HEADING, TOP_HEADING_LEVEL_IN_AI)
         
-        processed_body, processed_sources, unsourced_links = converter.convert_content_links(body, sources)
+        processed_body, processed_sources, unsourced_links = relink_body_source_smc(body, sources)
         processed_body = rfw.setext_headers_to_atx(processed_body,
                                                    TOP_HEADING_LEVEL_IN_AI + 1)
 
