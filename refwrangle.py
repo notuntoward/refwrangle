@@ -112,9 +112,7 @@ class ZoteroCache:
 
     def __init__(self, filename=zoterodb_cache_file, library_id=library_id, 
                  library_type=library_type, api_key=api_key):
-        """
-        Initialize the ZoteroCache with the given filename and Zotero API credentials.
-        """
+        """Initialize the ZoteroCache with the given filename and Zotero API credentials."""
         self.filename = filename
         self.zot = zotero.Zotero(library_id, library_type, api_key)
 
@@ -131,9 +129,7 @@ class ZoteroCache:
             pickle.dump(parent_items, f)
 
     def read_version(self):
-        """
-        Read only the version number from the cache file.
-        """
+        """Read only the version number from the cache file."""
         try:
             with open(self.filename, 'rb') as f:
                 # Read and unpack the fixed-size header
@@ -143,9 +139,7 @@ class ZoteroCache:
             return None  # Cache file does not exist
 
     def read_cache(self):
-        """
-        Read the cached data from the file.
-        """
+        """Read the cached data from the file."""
         try:
             with open(self.filename, 'rb') as f:
                 # Skip the fixed-size header
@@ -156,26 +150,22 @@ class ZoteroCache:
             return None  # Cache file does not exist
 
     def is_cache_valid(self):
-        """
-        Check if the cached version matches the current version from Zotero.
-        """
+        """Check if the cached version matches the current version from Zotero."""
         cached_version = self.read_version()
         current_version = self.zot.last_modified_version()
         return cached_version == current_version
 
     def get_data(self):
-        """
-        Retrieve data from cache if valid; otherwise update cache and fetch fresh data.
-        """
+        """Retrieve data from cache if valid; otherwise update cache and fetch fresh data."""
         if self.is_cache_valid():
-            print("Cache is valid. Reading data from cache.")
+            print("Reading from cache.")
             return self.read_cache()
         else:
-            print("Cache is outdated or missing. Fetching fresh data.")
+            print("Updating cache.")
             self.download_and_save_cache()
             return self.read_cache()
         
-def is_ignorable_child(child):
+def is_ignorable_child(child: Dict[str, Any]) -> bool:
     """Returns True if a child is not something that attachment processing 
     would need to deal with."""
     
@@ -191,7 +181,7 @@ def is_ignorable_child(child):
     
     return False
         
-def get_my_zotero_collections(top_collection_name=None, zot=None):
+def get_my_zotero_collections(top_collection_name: Optional[str] = None, zot: Optional[zotero.Zotero] = None) -> List[str]:
     """Returns the list of collections in my zotero DB. 
      top_collection_name: return only collections hierarchically below this collection. 
      zot is an opened pyzotero object
@@ -215,7 +205,7 @@ def get_my_zotero_collections(top_collection_name=None, zot=None):
     else:
         raise ValueError(f"'{top_collection_name}' collection not found")
 
-def plot_my_zotero_collections(top_collection_name=None):
+def plot_my_zotero_collections(top_collection_name: Optional[str] = None) -> None:
     """Hierarchically plots the collections in my zotero DB. 
      top_collection_name: plot only collections hierarchically below this collection. """
     
@@ -248,7 +238,7 @@ def plot_my_zotero_collections(top_collection_name=None):
             return
 
     # Create a recursive function to build the tree
-    def build_tree(key):
+    def build_tree(key: str):
         node = hierarchy[key]
         children = [build_tree(child) for child in node['children']]
         return {'name': node['name'], 'children': children}
@@ -293,7 +283,7 @@ def plot_my_zotero_collections(top_collection_name=None):
     # Show the plot
     fig.show()
 
-def extra2dict(extra):
+def extra2dict(extra: str) -> Dict[str, str]:
     """Converts zotero extra field string into dict of keys and values"""
     dictionary = {}
     for line in extra.splitlines():
@@ -302,7 +292,7 @@ def extra2dict(extra):
             dictionary[key] = value
     return dictionary
 
-def get_citation_key(parent_dat):
+def get_citation_key(parent_dat: Dict[str, Any]) -> Optional[str]:
     """Gets the BBT citekey from the data dict of a zotero parent entry"""
     try:
         return extra2dict(parent_dat['extra'])['Citation Key']
@@ -310,7 +300,7 @@ def get_citation_key(parent_dat):
         return None
 
 
-def get_creator(item):
+def get_creator(item: Dict[str, Any]) -> str:
     """ Get a zotero parent item's "creator"
 
     This function extracts and formats the creator information from a Zotero item,
@@ -352,7 +342,7 @@ def get_creator(item):
         else:
             return f"{first_creator.get('lastName', '')}, {first_creator.get('firstName', '')}"
         
-def get_title(item):
+def get_title(item: Dict[str, Any]) -> str:
     """Get the title from a Zotero item.
 
     This function attempts to find the most appropriate title for a given Zotero item,
@@ -409,12 +399,12 @@ def get_title(item):
     # If no title found, return a placeholder
     return "Untitled Item"
 
-def normalize_url(url):
+def normalize_url(url: str) -> str:
     """Converts to lowercase and strips trailing slashes from path."""
     parsed = urlparse(url.lower())
     return urlunparse(parsed._replace(path=parsed.path.rstrip('/')))
 
-def normalize_string(string):
+def normalize_string(string: str) -> str:
     """Lowercases, removes common words e.g. articles, and non-alphanumeric characters. """
     common_words = ['the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'of', 'with', 'by']
     string = string.lower()
@@ -424,7 +414,7 @@ def normalize_string(string):
     return ' '.join(words)
 
 
-def extract_main_title(full_title):
+def extract_main_title(full_title: str) -> str:
     """
     Extracts the main title from a full title string, attempting to remove trailing subtitles, authors, 
     publishers etc. by removing any substring beyond the first occurrence of typical delimiters.
@@ -444,7 +434,8 @@ def extract_main_title(full_title):
     return parts[0].strip()
 
 
-def match_titles(title1, title2, main_title_only=True, normalize=True, order_dependent=True):
+def match_titles(title1: str, title2: str, main_title_only: bool = True, 
+                 normalize: bool =True, order_dependent: bool = True):
     """Returns a score of similarity between two title strings
 
     Args:
@@ -475,7 +466,8 @@ def match_titles(title1, title2, main_title_only=True, normalize=True, order_dep
     
     return fuzz.token_set_ratio(title1, title2) # order indepenent
 
-def best_zotero_title_match(target_title: str, zotero_items:  List[Dict[str, Any]]) -> Tuple[Optional[dict], int]:
+def best_zotero_title_match(target_title: str, 
+                            zotero_items:  List[Dict[str, Any]]) -> Tuple[Optional[dict], int]:
     """Find the title in a list of zotero items that best matches a target title, 
     return (item, score)."""
 
@@ -492,21 +484,21 @@ def best_zotero_title_match(target_title: str, zotero_items:  List[Dict[str, Any
 
     return best_match, best_score
 
-def is_youtube_video(item):
+def is_youtube_video(item: Dict) -> bool:
     """Returns True i a zotero DB item is a youtube video"""
     if item['data']['itemType'] == 'videoRecording':
         url = item['data'].get('url', '')
         return 'youtube.com' in url or 'youtu.be' in url
     return False
 
-def get_youtube_video_id(url):
+def get_youtube_video_id(url: str):
     """Extract video ID from YouTube URL"""
     video_id_match = re.search(r"(?:v=|\/)([0-9A-Za-z_-]{11}).*", url)
     if video_id_match:
         return video_id_match.group(1)
     return None
 
-def youtube2md(video_url, output_file):
+def youtube2md(video_url: str, output_file: pl.Path):
     """Gets a youtube transcript and saves it in a timestamped markdown file"""
     video_id = get_youtube_video_id(video_url)
     if not video_id:
@@ -530,7 +522,7 @@ def youtube2md(video_url, output_file):
         raise Exception(f"An error occurred: {e}")
 
 
-def read_html_file(html_file):
+def read_html_file(html_file: pl.Path) -> str:
     """Returns the html in an html file, with (hopefully) correct decoding."""
     with open(html_file, 'rb') as f:
         raw_data = f.read()
@@ -543,7 +535,7 @@ def read_html_file(html_file):
     return html
 
 # supposed to work on both cascade PBS and AP sites but it doesn't work well
-def clean_html(html_file_path):
+def clean_html(html_file_path: str) -> str:
     """
     Enhanced HTML cleaner handling both AP News and Cascade PBS articles.
     But it's not great.
@@ -637,12 +629,12 @@ def clean_html(html_file_path):
 
     return str(article)
 
-def html_to_pdf_wkhtmltopdf(input_file, output_file):
+def html_to_pdf_wkhtmltopdf(input_file: pl.Path, output_file: pl.Path):
     """Converts and html_file into and html_file"""
     wkhtmltopdf_exe = pl.Path(r"C:\Program Files\wkhtmltopdf\bin\wkhtmltopdf.exe")
     subprocess.run([str(wkhtmltopdf_exe), str(input_file), str(output_file)], check=False)
 
-def html_to_pdf_playwright(input_html, output_pdf_path):
+def html_to_pdf_playwright(input_html: str, output_pdf_path: pl.Path):
     """
     Converts an HTML string to a PDF file.
     Args:
@@ -670,7 +662,7 @@ def html_to_pdf_playwright(input_html, output_pdf_path):
                 landscape=True, margin={"top": "2cm"})
         browser.close()
 
-def convert_html_to_pdf_subproc(html_file, pdf_file, cleaning=True):
+def convert_html_to_pdf_subproc(html_file: pl.Path, pdf_file: pl.Path, cleaning=True):
     """Converts an html file to a pdf file, calling the converter in a subprocess. 
        Conversion uses the playwright lib, which doesn't work in an jupyter notebook or 
        vscode interactive cell.  So this function runs playwright by calling a 
@@ -685,14 +677,14 @@ def convert_html_to_pdf_subproc(html_file, pdf_file, cleaning=True):
     if result.returncode != 0:
         print(f"Subprocess Error: {result.stderr}")
 
-def load_pickle_data(fNm):
+def load_pickle_data(fNm: pl.Path):
     """Returns the data stored in a pickle file"""
     print(f'Reading from {fNm}...')
     with open(fNm, 'rb') as file:
         data = pickle.load(file)
     return data
 
-def save_pickle_data(fNm, data):
+def save_pickle_data(fNm: pl.Path, data):
     """Saves data to a pickle file"""
     print(f'Writing to {fNm}...')
     with open(fNm, 'wb') as file:
@@ -815,7 +807,7 @@ def total_size(obj, seen=None):
 
     return size
 
-def is_file_big(file_path, min_bytes_for_big):
+def is_file_big(file_path: pl.Path, min_bytes_for_big: int) -> bool:
     """Returns True if the size of the file pointed to by file_path is >= min_bytes_for_big bytes.
     Returns False if the file is smaller or doesn't exist."""
 
@@ -827,7 +819,7 @@ def is_file_big(file_path, min_bytes_for_big):
     return nbytes_dest >= min_bytes_for_big
 
 
-def make_atx_header(text, header_level):
+def make_atx_header(text: str, header_level: int) -> str:
     """
     Converts the given text into an ATX-style markdown header of the specified level.
 
@@ -843,7 +835,7 @@ def make_atx_header(text, header_level):
     else:
         raise ValueError("header_level must be between 1 and 6.")
 
-def setext_headers_to_atx(markdown_text, top_header_level):
+def setext_headers_to_atx(markdown_text: str, top_header_level: int):
     """
     Converts Setext-style headers in the given Markdown text to ATX-style headers.
 
@@ -871,7 +863,7 @@ def setext_headers_to_atx(markdown_text, top_header_level):
 
     return markdown_text
 
-def heirarch_shift_markdown_headers(markdown_text, top_level=None):
+def heirarch_shift_markdown_headers(markdown_text: int, top_level=None):
     """Hierarchically shifts headers so that the highest level is top_level.
     (no shift if top_level==None)
     Any levels > 6 are set to ordinary text."""
@@ -898,7 +890,7 @@ def heirarch_shift_markdown_headers(markdown_text, top_level=None):
 
     return re.sub(r'^(#+)\s', replace_header, markdown_text, flags=re.MULTILINE)
 
-def html2md_cautious(html_input_file, md_output_file, verbose=False):
+def html2md_cautious(html_input_file: pl.Path, md_output_file: pl.Path, verbose: bool = False):
     """Converts an html file to a cleaned markdown file, trying for maximum quality first,
      but if the markdown result is too short, it tries again with a more lenient cleaner."""
     
@@ -912,7 +904,7 @@ def html2md_cautious(html_input_file, md_output_file, verbose=False):
 
     html2md_BS_html_to_markdown(html_input_file, md_output_file)
     
-def html2md_readability(html_input_file, md_output_file, verbose=False):
+def html2md_readability(html_input_file: pl.Path, md_output_file: pl.Path, verbose=False):
     """Converts an html file to a markdown file with readability, 
     post processed with markdownify.  This produces the cleanest and best markdown results 
     I've seen on most html files.  But occasionally, it deletes lot of the
@@ -946,7 +938,7 @@ def html2md_readability(html_input_file, md_output_file, verbose=False):
     with open(md_output_file, 'w', encoding='utf-8') as file:
         file.write(markdown_content)
 
-def normalize_odd_chars(text):
+def normalize_odd_chars(text: str) -> str:
     """Normalize chars like in utf8 to NFKD form (compatibility decomposition).  
     Good for functions that don't handle utf8 chars, like the Johannes Kaufmann html2markdown CLI"""
 
@@ -970,7 +962,7 @@ def normalize_odd_chars(text):
     
     return text
 
-def preproc_BS4_lenient(html):
+def preproc_BS4_lenient(html: str) -> str:
     """Preprocesses HTML content, removing images and extracting text while preserving structure.
     I haven't seen this delete meaninful text, but it sometimes leaves sequences 
     of leading and trailing link sequences and junk in the middle of some WA post articles."""
@@ -1000,7 +992,7 @@ def preproc_BS4_lenient(html):
 
     return extracted_text
 
-def html2md_BS_html_to_markdown(input_html_file, output_md_file):
+def html2md_BS_html_to_markdown(input_html_file: pl.Path, output_md_file: pl.Path):
     """Converts an html file into a markdown file, using lenient BeautifulSoup html
     preprocessing, then converting to markdown with Johannes Kaufmann's html2markdown CLI.
     The result is usually fairly clean markdown text, occasionally with some leftover junk.
@@ -1037,7 +1029,7 @@ def html2md_BS_html_to_markdown(input_html_file, output_md_file):
     with open(output_md_file, 'w', encoding='utf-8') as outfile:
         outfile.write(output)
 
-def remove_weird_len_md_headers(markdown_text):
+def remove_weird_len_md_headers(markdown_text: str) -> str:
     """Remove out-of-range length headers in markdown text."""
 
     lines = markdown_text.split('\n')
@@ -1050,7 +1042,7 @@ def remove_weird_len_md_headers(markdown_text):
             corrected_lines.append(line)
     return '\n'.join(corrected_lines)
 
-def fix_markdown_errors(content):
+def fix_markdown_errors(content: str) -> str:
     """
     Fix the following markdown errors:
     1. Unclosed '*'
@@ -1133,7 +1125,7 @@ def fix_markdown_errors(content):
 
     return content
 
-def pdf2md_pymupdf4llm(input_pdf, output_md):
+def pdf2md_pymupdf4llm(input_pdf: pl.Path, output_md: pl.Path):
     "Reads a pdf file and writes it as utf-8 markdown"    
 
     md_text = pymupdf4llm.to_markdown(input_pdf, write_images=False,
@@ -1143,7 +1135,7 @@ def pdf2md_pymupdf4llm(input_pdf, output_md):
     
     pl.Path(output_md).write_bytes(md_text.encode()) # encode w/ no args uses utf-8
 
-def bin_items_FFD(item_weights, max_bin_weight):
+def bin_items_FFD(item_weights: list, max_bin_weight: float) -> pd.DataFrame:
     """
     Allocates items to bins, with the goal of the most equal bin packing with no bin exceeding max_bin_weight
     Uses the First-Fit Decreasing (FFD) bin packing algorithm.
@@ -1186,18 +1178,18 @@ def bin_items_FFD(item_weights, max_bin_weight):
 
     return pd.DataFrame(dict(item_indices=item_index_bins, weights=total_weight_bin))    
 
-def count_words_in_markdown(content):
+def count_words_in_markdown(content: str) -> int:
     """Count the words in the content (string) of a markdown file"""
     # Remove markdown syntax to focus on the text content
     import re
     text_only = re.sub(r'[\*\#\[\]\(\)\!\`\>\-]', '', content)
     # Split the text into words and count them
     words = text_only.split()
-    return len(words)    
+    return len(words)
 
 
 ### Version 3: extra debugging
-def sanitize_markdown_before_reportlab(md_text):
+def sanitize_markdown_before_reportlab(md_text: str) -> str:
     """
     Fixes Markdown content to ensure compatibility with ReportLab's paragraph parser.
     This includes rewriting problematic Markdown syntax, escaping special characters,
@@ -1251,7 +1243,7 @@ def sanitize_markdown_before_reportlab(md_text):
     
     return sanitized_html
 
-def remove_unsupported_html_tags(html_content):
+def remove_unsupported_html_tags(html_content: str) -> str:
     """Clean HTML to only include supported tags and attributes"""
     soup = BeautifulSoup(html_content, 'html.parser')
     
@@ -1289,8 +1281,8 @@ def remove_unsupported_html_tags(html_content):
     return str(soup)
 
 
-def md2pdf_markdown_reportlab(markdown_data, output_file, verbose=False):
-    """Convert markdown to PDF with debug information""" 
+def md2pdf_markdown_reportlab(markdown_data: str, output_file: pl.Path, verbose: bool = False) -> None:
+    """Convert markdown to PDF with debug information.""" 
     try:
         # Register Verdana font family
         pdfmetrics.registerFont(TTFont('Verdana', 'Verdana.ttf'))
@@ -1384,16 +1376,15 @@ def md2pdf_markdown_reportlab(markdown_data, output_file, verbose=False):
         raise
 
 
-def merge_pdfs_with_structure(pdfs_info, output_path):
+def merge_pdfs_with_structure(pdfs_info: List[Dict[str, Any]], output_path: pl.Path) -> List[Dict[str, str]]:
     """Merge pdfs into a single pdf, intended to have RAG-friendly page and bookmark structure
     Perplexity:
       https://www.perplexity.ai/search/fix-the-bug-in-the-code-below-plw_2PR4TUWH6xqSZ7M_nQ#27"""
 
     writer = PdfWriter()
-    c1
+    
     # Add title page first
     pdf_files = [pdf_info['file'] for pdf_info in pdfs_info]
-    
     create_title_page(writer, pdf_files)
         
     current_page = 1
@@ -1410,7 +1401,6 @@ def merge_pdfs_with_structure(pdfs_info, output_path):
         full_path = os.path.abspath(pdf_path)
         
         add_separator_page(writer, pdf_basename, full_path, pdfs_info[i-1]['metainfo'])
-#        add_separator_page(writer, pdf_basename, full_path, sample_metadata[i-1])
         article_title = f"Article {i}: {pdf_basename}"
         separator_bookmark = writer.add_outline_item(article_title, current_page)
         current_page += 1

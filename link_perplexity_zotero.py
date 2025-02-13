@@ -1,18 +1,16 @@
 # %%
 import re
-from zoneinfo import ZoneInfoNotFoundError
-import pandas as pd
-import pathlib as pl
 from collections import Counter, defaultdict
 from typing import Optional, Dict, Tuple
 import datetime as dt
+import pandas as pd
+import pathlib as pl
 import refwrangle as rfw
 
 TOP_HEADING_LEVEL_IN_AI = 2
 ANSWER_HEADING = "## AI answer"
 USER_HEADING = '## User'
 MAX_WORDS_USER_HEADING = 10
-
 
 class ZoteroLinkConverter:
     """Converts web links to Zotero/Obsidian links in content sections"""
@@ -91,7 +89,7 @@ class ZoteroLinkConverter:
 
         return rfw.zotero_item_link(item["zotkey"], f'{item["citekey"]}\u2794{item["zotkey"]}')
 
-def relink_perplexity_export_smc(perplexity_smc_file: str, relinked_file: str):
+def relink_perplexity_export_smc(perplexity_smc_file: pl.Path, relinked_file: pl.Path):
     """Replace links in "Save my Chatbot" Perplexity output with links 
     to Zotero items or Obsidian lit notes."""
     relinker = ZoteroLinkConverter()
@@ -139,7 +137,7 @@ def relink_perplexity_export_smc(perplexity_smc_file: str, relinked_file: str):
             return match.group(0) # a source never used in the body
 
         source_url_to_title = build_source_url_to_title(sources_text)
-        body_link_urls_not_in_source = Counter()
+        body_link_urls_not_in_source: Counter[str] = Counter()
         link_nums_not_in_zotero = {}
 
         processed_body = body_link_re.sub(_replace_body_link, body_text)
@@ -191,13 +189,10 @@ def relink_perplexity_export_smc(perplexity_smc_file: str, relinked_file: str):
 
 # Example usage
 if __name__ == "__main__":
-    tmp_dir = rfw.refwrangle_test_dir / 'tmp'
-
     input_file = rfw.refwrangle_test_dir / "dat" / 'perplexity_multi_prompt_savemychatbot_example.md'
     #input_file = pl.Path(r"C:\Users\scott\share\ref\refwrangle\tmp\watchter\raw\perplexity_2025-02-10_20-04-06_data.md")
-    output_file = tmp_dir / 'tmp_savemychatbot_multiprompt_perplexity_example.md'
+    output_file = rfw.refwrangle_test_dir / 'tmp' / 'tmp_savemychatbot_multiprompt_perplexity_example.md'
     
     print(f'{input_file=}\n-->\n{output_file=}')
-    
     relink_perplexity_export_smc(input_file, output_file)
 # %%
