@@ -91,8 +91,9 @@ class ZoteroLinkConverter:
 
         return rfw.zotero_item_link(item["zotkey"], f'{item["citekey"]}\u2794{item["zotkey"]}')
 
-def relink_perplexity_export_smc(input_file: str, output_file: str):
-    """Replace links in "Save my Chatbot" Perplexity output with links to Zotero items or Obsidian lit notes."""
+def relink_perplexity_export_smc(perplexity_smc_file: str, relinked_file: str):
+    """Replace links in "Save my Chatbot" Perplexity output with links 
+    to Zotero items or Obsidian lit notes."""
     relinker = ZoteroLinkConverter()
     
     def relink_body_source(body_text: str, sources_text: str) -> Tuple[str, str, Counter]:
@@ -146,7 +147,7 @@ def relink_perplexity_export_smc(input_file: str, output_file: str):
         
         return processed_body, processed_sources, body_link_urls_not_in_source
     
-    with open(input_file, 'r', encoding='utf-8') as infile:
+    with open(perplexity_smc_file, 'r', encoding='utf-8') as infile:
         content = infile.read()
 
     sections = re.split(rf'(?<=\n){USER_HEADING}', content)
@@ -180,7 +181,7 @@ def relink_perplexity_export_smc(input_file: str, output_file: str):
 
         processed_sections += [user_header, processed_body, sources_header, processed_sources]
 
-    with open(output_file, 'w', encoding='utf-8') as outfile:
+    with open(relinked_file, 'w', encoding='utf-8') as outfile:
         outfile.write('\n'.join(processed_sections))
 
     if log_missing_links:
