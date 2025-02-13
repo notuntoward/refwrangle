@@ -3,8 +3,8 @@ import re
 from collections import Counter, defaultdict
 from typing import Optional, Dict, Tuple
 import datetime as dt
-import pandas as pd
 import pathlib as pl
+import pandas as pd
 import refwrangle as rfw
 
 TOP_HEADING_LEVEL_IN_AI = 2
@@ -83,7 +83,7 @@ class ZoteroLinkConverter:
 
     def create_obsidian_or_zotero_link(self, item: Dict) -> str:
         """Create Obsidian wikilink if literature note exists, otherwise Zotero URL link"""
-        
+       
         if item.get('hasLitNote'):
             return f'[[{item["citekey"]}|{item["citekey"]}]]'
 
@@ -98,7 +98,7 @@ def relink_perplexity_export_smc(perplexity_smc_file: pl.Path, relinked_file: pl
         """Replace URLs with Zotero/Obsidian links in both content sections"""
         def build_source_url_to_title(sources_content: str) -> Dict[str, str]:
             """Build a dictionary mapping URLs to titles from the sources section of a "Save my Chatbot" output."""
-            
+           
             source_url_to_title = {}
             matches = re.findall(r'- \[(.*?)\]\((https?://\S+)\)', sources_content)
             for title, url in matches:
