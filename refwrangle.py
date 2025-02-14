@@ -9,6 +9,7 @@ import subprocess
 import sys
 import traceback
 import unicodedata
+from collections.abc import Iterable
 from datetime import datetime
 from typing import Any, Dict, List, Optional, Tuple
 from urllib.parse import urlparse, urlunparse
@@ -282,6 +283,16 @@ def plot_my_zotero_collections(top_collection_name: Optional[str] = None) -> Non
 
     # Show the plot
     fig.show()
+    
+def ensure_iterable(obj: Any) -> Iterable:
+    """Wraps a scalar or string in a list if it's not iterable."""
+    if isinstance(obj, str):  
+        return [obj]  # Strings are iterable but don't want to iterate over chars
+
+    if isinstance(obj, Iterable):
+        return obj
+    
+    return [obj]  # make it iterable
 
 def extra2dict(extra: str) -> Dict[str, str]:
     """Converts zotero extra field string into dict of keys and values"""
