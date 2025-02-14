@@ -31,13 +31,13 @@ def split_body_source(perplexity_file: pl.Path):
     else:
         body, citations = section_parts
     
-    source_matches = re.finditer(r'^\[(?P<num>\d+)\]\s+(?P<url>https?://\S+)', citations, flags=re.M)
+    source_matches = list(re.finditer(r'^\[(?P<num>\d+)\]\s+(?P<url>https?://\S+)', citations, flags=re.M))
 
     url_to_source_num = {m.group('url'): m.group('num') for m in source_matches}
     
-    return body, url_to_source_num
+    return body, url_to_source_num, source_matches
 
-def relink_chunks(body, url_to_source_num, relinked_file: pl.Path) -> None:
+def relink_chunks(body, url_to_source_num, source_matches, relinked_file: pl.Path) -> None:
 
     def make_relinks_from_source(cite_num: str, doc_url: str) -> str:
         """Returns what a relinked citation would look like if present in the body,
@@ -45,7 +45,6 @@ def relink_chunks(body, url_to_source_num, relinked_file: pl.Path) -> None:
         relinked_sources, a relinked source part link.  Expects the global set, body_cite_nums."""
         
         numbered_link = f"[{cite_num}]({doc_url})"
-        ic(numbered_link)
         if zotero_item := relinker.find_zotero_item_via_url(doc_url):
             body_link = relinker.create_obsidian_or_zotero_link(zotero_item)
             relinked_sources.append(f'({numbered_link}) **{body_link}**')
@@ -54,8 +53,7 @@ def relink_chunks(body, url_to_source_num, relinked_file: pl.Path) -> None:
             source_line = f'({numbered_link}) {doc_url}'
             source_line = f'=={source_line} ==' if cite_num in body_cite_nums else source_line
             relinked_sources.append(source_line)
-
-        ic(body_link)            
+            
         return body_link
 
     relinker = lpz.ZoteroLinkConverter()
@@ -67,19 +65,16 @@ def relink_chunks(body, url_to_source_num, relinked_file: pl.Path) -> None:
     source_num_to_link = {m.group('num'): make_relinks_from_source(m.group('num'), m.group('url'))
                           for m in source_matches }
     
-    ic(source_num_to_link)
-    
     body_relinked = re.sub(r'\[(\d+)\]', 
                            lambda m: f' {source_num_to_link.get(m.group(1))}', body)
     sources_relinked = "\n".join(relinked_sources)
     
-    relinked_text = f"{body_relinked}\nCitations:\n{sources_relinked}"
     relinked_file.write_text(f"{body_relinked}\nCitations:\n{sources_relinked}", 
                              encoding='utf-8')
 
 def relink_perplexity_export(perplexity_file: pl.Path, relinked_file: pl.Path) -> None:
-    body, url_to_source_num = split_body_source(perplexity_file)
-    relink_chunks(body, url_to_source_num, relinked_file)    
+    body, url_to_source_num, source_matches = split_body_source(perplexity_file)
+    relink_chunks(body, url_to_source_num, source_matches, relinked_file)    
 
 # %%
 perplexity_dialog_file = rfw.refwrangle_test_dir / "dat" / 'perplexity_example.md'
