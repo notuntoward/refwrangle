@@ -6,12 +6,19 @@ import datetime as dt
 import pathlib as pl
 import pandas as pd
 import refwrangle as rfw
+from icecream import ic
 
 
 TOP_HEADING_LEVEL_IN_AI = 2
 ANSWER_HEADING = "## AI answer"
 USER_HEADING = '## User'
 MAX_WORDS_USER_HEADING = 10
+
+# like in smc body
+citenum_url_link_re = re.compile(r'\[(?P<orig>\d+)\]\((?P<url>https?://[^\)]+)\)')
+# like in smc source list
+source_link_re = re.compile(r'\[\((\d+)\)\s*(.*?)\]\((https?://\S+)\)')
+source_citenum_title_re = re.compile(r'^\((?P<citenum>\d+)\)\s*(?P<title>.+)')
 
 class ZoteroLinkConverter:
     """Converts web links to Zotero/Obsidian links in content sections"""
@@ -93,7 +100,7 @@ class ZoteroLinkConverter:
 
         return rfw.zotero_item_link(item["zotkey"], f'{item["citekey"]}\u2794{item["zotkey"]}')
     
-    def make_relinks_from_source(self, cite_num: str, doc_url: str, all_body_cite_nums: set, source_title: Optional[str] = None) -> str:
+    def make_relinks(self, cite_num: str, doc_url: str, all_body_cite_nums: set, source_title: Optional[str] = None) -> Tuple[str, str]:
         """Returns what a relinked citation would look like if present in the body,
         given a source citation number and url (found in sources, possibly in body).  
         Also, returns a relinked source line. The source_title is present in
@@ -121,7 +128,7 @@ class ZoteroLinkConverter:
         if cite_num in all_body_cite_nums and not zotero_item:
             source_link = f'=={source_link} ==' # "in body, not in zotero"
         
-        return body_link, source_link 
+        return body_link, source_link
     
 
 def relink_perplexity_export_smc(perplexity_smc_file: pl.Path, relinked_file: pl.Path):
@@ -136,9 +143,12 @@ def relink_perplexity_export_smc(perplexity_smc_file: pl.Path, relinked_file: pl
            
             source_url_to_title = {}
             matches = re.findall(r'- \[(.*?)\]\((https?://\S+)\)', sources_content)
-            for title, url in matches:
-                normalized_url = rfw.normalize_url(url)
-                title = re.sub(r'^\s*\(\d+\)\s*', '', title) # remove ref num
+            for link_text, link_url in matches:
+                normalized_url = rfw.normalize_url(link_url)
+                matches = re.match(source_citenum_title_re, link_text)
+                citeum, title = matches['citenum'], matches['title']
+                ic(link_text, link_url, citenum, title)
+                # title = re.sub(r'^\s*\(\d+\)\s*', '', link_text) # remove ref num
                 source_url_to_title[normalized_url] = title.strip()
             return source_url_to_title
 
@@ -174,11 +184,13 @@ def relink_perplexity_export_smc(perplexity_smc_file: pl.Path, relinked_file: pl
         source_url_to_title = build_source_url_to_title(sources_text)
         body_link_urls_not_in_source: Counter[str] = Counter()
         link_nums_not_in_zotero = {}
-
-        processed_body = body_link_re.sub(_replace_body_link, body_text)
-        processed_sources = source_link_re.sub(_replace_source_link, sources_text)
         
-        return processed_body, processed_sources, body_link_urls_not_in_source
+        
+
+        relinked_body = citenum_url_link_re.sub(_replace_body_link, body_text)
+        relinked_sources = source_link_re.sub(_replace_source_link, sources_text)
+        
+        return relinked_body, relinked_sources, body_link_urls_not_in_source
     
     with open(perplexity_smc_file, 'r', encoding='utf-8') as infile:
         content = infile.read()
@@ -188,16 +200,6 @@ def relink_perplexity_export_smc(perplexity_smc_file: pl.Path, relinked_file: pl
     chat_source = " ".join(sections[0].split("\n")[1:])  # Remove redundant header
     processed_sections = [front_matter + f'{chat_source.lstrip()}\n']
     log_missing_links = []
-
-    citenum_url_link_re = re.compile(r'\[(?P<orig>\d+)\]\((?P<url>https?://[^\)]+)\)')
-    # perplex_source_list_re = re.compile(r'^\[(?P<num>\d+)\]\s+(?P<url>https?://\S+)', re.M) # \n determines "end of line"
-    # sources_citenum_links_re = re.compile(r'\((?P<orig>\d+)\)\((?P<url>https?://[^\)]+)\)')
-    # citenum_plain_re = re.compile(r'\[(?P<num>\d+)\]')
-
-
-    body_link_re = citenum_url_link_re
-    # body_link_re = re.compile(r'\[(.*?)\]\((https?://\S+)\)')
-    source_link_re = re.compile(r'\[\((\d+)\)\s*(.*?)\]\((https?://\S+)\)')
 
     for section in sections[1:]:  # Process each user section
         section_parts = re.split(r'(\n---\s*\n\s*\*\*Sources:\*\*\s*\n)', section)
