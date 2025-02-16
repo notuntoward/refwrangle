@@ -93,35 +93,36 @@ class ZoteroLinkConverter:
 
         return rfw.zotero_item_link(item["zotkey"], f'{item["citekey"]}\u2794{item["zotkey"]}')
     
-def make_relinks_from_source(cite_num: str, doc_url: str, all_body_cite_nums: set, source_title: str = None) -> str:
-    """Returns what a relinked citation would look like if present in the body,
-    given a source citation number and url (found in sources, possibly in body).  
-    Also, returns a relinked source line. The source_title is present in
-    Save my Chatbot output, but not in stock perplexity"""
-    
-    if not (zotero_item := relinker.find_zotero_item_via_url(doc_url)):
-        zotero_item = relinker.find_zotero_item_via_title(source_title)
-
-    numbered_link = f"[{cite_num}]({doc_url})"
-    if zotero_item:
-        body_link = relinker.create_obsidian_or_zotero_link(zotero_item)
-    else:
-        body_link = f"=={numbered_link}==" # "in body, not in zotero"
-
-    source_link = f'({numbered_link})'
-    if not (zotero_item or source_title):
-        source_link += f" {doc_url}"
-    elif not zotero_item and source_title:
-        source_link += f" {source_title}"
-    elif zotero_item and not source_title:
-        source_link += f" **{body_link}**"
-    else:
-        source_link += f" {source_title} **{body_link}**"
-
-    if cite_num in all_body_cite_nums and not zotero_item:
-        source_link = f'=={source_link} ==' # "in body, not in zotero"
+    def make_relinks_from_source(self, cite_num: str, doc_url: str, all_body_cite_nums: set, source_title: str = None) -> str:
+        """Returns what a relinked citation would look like if present in the body,
+        given a source citation number and url (found in sources, possibly in body).  
+        Also, returns a relinked source line. The source_title is present in
+        Save my Chatbot output, but not in stock perplexity"""
         
-    return body_link, source_link
+        if not (zotero_item := self.find_zotero_item_via_url(doc_url)):
+            zotero_item = self.find_zotero_item_via_title(source_title)
+
+        numbered_link = f"[{cite_num}]({doc_url})"
+        if zotero_item:
+            body_link = self.create_obsidian_or_zotero_link(zotero_item)
+        else:
+            body_link = f"=={numbered_link}==" # "in body, not in zotero"
+
+        source_link = f'({numbered_link})'
+        if not (zotero_item or source_title):
+            source_link += f" {doc_url}"
+        elif not zotero_item and source_title:
+            source_link += f" {source_title}"
+        elif zotero_item and not source_title:
+            source_link += f" **{body_link}**"
+        else:
+            source_link += f" {source_title} **{body_link}**"
+
+        if cite_num in all_body_cite_nums and not zotero_item:
+            source_link = f'=={source_link} ==' # "in body, not in zotero"
+        
+        return body_link, source_link 
+    
 
 def relink_perplexity_export_smc(perplexity_smc_file: pl.Path, relinked_file: pl.Path):
     """Replace links in "Save my Chatbot" Perplexity output with links 
