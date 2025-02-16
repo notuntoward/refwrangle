@@ -71,6 +71,9 @@ class ZoteroLinkConverter:
 
     def find_zotero_item_via_title(self, target_title: str) -> Optional[Dict]:
         """Find best title match from content using similarity scoring"""
+        if not target_title or len(target_title)<1:
+            return None
+        
         if target_title not in self._note_title_zotero_cache:
             best_match = None
             best_score = 0
