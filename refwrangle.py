@@ -874,7 +874,7 @@ def setext_headers_to_atx(markdown_text: str, top_header_level: int):
 
     return markdown_text
 
-def heirarch_shift_markdown_headers(markdown_text: int, top_level=None):
+def heirarch_shift_markdown_headers(markdown_text: int, top_level: int = None):
     """Hierarchically shifts headers so that the highest level is top_level.
     (no shift if top_level==None)
     Any levels > 6 are set to ordinary text."""
