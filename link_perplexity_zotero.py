@@ -130,6 +130,35 @@ class ZoteroLinkConverter:
         
         return body_link, source_link
     
+    def citenums_to_urls_dedup(self, num_url_pairs: list[Tuple[str, str]], verbose: bool = False) -> pd.DataFrame:
+        """Return a dataframe mapping from citenums to url.
+        Citenums are remapped when >1 citenums map to the same URL."""
+        
+        url_to_citenums = defaultdict(list)
+        for num, url in num_url_pairs:
+            url_to_citenums[url].append(num)
+        
+        # Create new citation numbers if there are duplicates
+        new_cite_num = 1
+        lut = []
+        display_citenums_map = False
+        for url, nums in url_to_citenums.items():
+            if (nDups := len(nums)) > 1 and verbose:
+                display_citenums_map = True
+                print(f'URL has {nDups} dups: {nums=}, {url=}')
+                
+            for num in nums:
+                lut.append({'orig_num': num, 'new_num': str(new_cite_num), 'url': url})
+            
+            new_cite_num += 1
+        
+        citenums_to_url = pd.DataFrame(lut).set_index(['orig_num'])
+        if display_citenums_map:
+            display(citenums_to_url)
+        
+        return citenums_to_url
+    
+    
 
 def relink_perplexity_export_smc(perplexity_smc_file: pl.Path, relinked_file: pl.Path):
     """Replace links in "Save my Chatbot" Perplexity output with links 
@@ -138,19 +167,24 @@ def relink_perplexity_export_smc(perplexity_smc_file: pl.Path, relinked_file: pl
     
     def relink_body_source(body_text: str, sources_text: str) -> Tuple[str, str, Counter]:
         """Replace URLs with Zotero/Obsidian links in both content sections"""
-        def build_source_url_to_title(sources_content: str) -> Dict[str, str]:
-            """Build a dictionary mapping URLs to titles from the sources section of a "Save my Chatbot" output."""
+        def parse_source_lines(sources_content: str) -> Tuple[Dict[str, str], Dict[str, str]]:
+            """Map Build a dictionary mapping URLs to titles from the sources section of a "Save my Chatbot" output."""
            
-            source_url_to_title = {}
+            url_to_title: Dict[str, str] = {}
+            citenum_to_url: Dict[str, str] = {}
             matches = re.findall(r'- \[(.*?)\]\((https?://\S+)\)', sources_content)
             for link_text, link_url in matches:
                 normalized_url = rfw.normalize_url(link_url)
-                matches = re.match(source_citenum_title_re, link_text)
-                citenum, title = matches['citenum'], matches['title']
-                ic(link_text, link_url, citenum, title)
-                # title = re.sub(r'^\s*\(\d+\)\s*', '', link_text) # remove ref num
-                source_url_to_title[normalized_url] = title.strip()
-            return source_url_to_title
+                match = re.match(source_citenum_title_re, link_text)
+                if match:
+                    citenum, title = match['citenum'], match['title']
+                    citenum_to_url[citenum] = normalized_url
+                    url_to_title[normalized_url] = title.strip()
+                else:
+                    print('failed to parse source link text: {link_text=}')
+                    continue
+
+            return url_to_title, citenum_to_url
 
         def _replace_body_link(match: re.Match) -> str:
             url = rfw.normalize_url(match.group(2))
@@ -181,7 +215,7 @@ def relink_perplexity_export_smc(perplexity_smc_file: pl.Path, relinked_file: pl
             
             return match.group(0) # a source never used in the body
 
-        source_url_to_title = build_source_url_to_title(sources_text)
+        source_url_to_title, source_citenum_to_url = parse_source_lines(sources_text)
         body_link_urls_not_in_source: Counter[str] = Counter()
         link_nums_not_in_zotero = {}
 
