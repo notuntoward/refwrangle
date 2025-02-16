@@ -146,7 +146,7 @@ def relink_perplexity_export_smc(perplexity_smc_file: pl.Path, relinked_file: pl
             for link_text, link_url in matches:
                 normalized_url = rfw.normalize_url(link_url)
                 matches = re.match(source_citenum_title_re, link_text)
-                citeum, title = matches['citenum'], matches['title']
+                citenum, title = matches['citenum'], matches['title']
                 ic(link_text, link_url, citenum, title)
                 # title = re.sub(r'^\s*\(\d+\)\s*', '', link_text) # remove ref num
                 source_url_to_title[normalized_url] = title.strip()
@@ -184,8 +184,6 @@ def relink_perplexity_export_smc(perplexity_smc_file: pl.Path, relinked_file: pl
         source_url_to_title = build_source_url_to_title(sources_text)
         body_link_urls_not_in_source: Counter[str] = Counter()
         link_nums_not_in_zotero = {}
-        
-        
 
         relinked_body = citenum_url_link_re.sub(_replace_body_link, body_text)
         relinked_sources = source_link_re.sub(_replace_source_link, sources_text)
