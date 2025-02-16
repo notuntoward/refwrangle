@@ -874,6 +874,10 @@ def setext_headers_to_atx(markdown_text: str, top_header_level: int):
 
     return markdown_text
 
+def file_link_md(link_text: str, file_path: pl.Path) -> str:
+    """Makes a mardkown link to a file."""
+    return f'[{link_text}](file:///{file_path})'
+
 def heirarch_shift_markdown_headers(markdown_text: int, top_level: int = None):
     """Hierarchically shifts headers so that the highest level is top_level.
     (no shift if top_level==None)
