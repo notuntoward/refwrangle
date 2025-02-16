@@ -93,7 +93,7 @@ class ZoteroLinkConverter:
 
         return rfw.zotero_item_link(item["zotkey"], f'{item["citekey"]}\u2794{item["zotkey"]}')
     
-    def make_relinks_from_source(self, cite_num: str, doc_url: str, all_body_cite_nums: set, source_title: str = None) -> str:
+    def make_relinks_from_source(self, cite_num: str, doc_url: str, all_body_cite_nums: set, source_title: Optional[str] = None) -> str:
         """Returns what a relinked citation would look like if present in the body,
         given a source citation number and url (found in sources, possibly in body).  
         Also, returns a relinked source line. The source_title is present in
@@ -189,7 +189,14 @@ def relink_perplexity_export_smc(perplexity_smc_file: pl.Path, relinked_file: pl
     processed_sections = [front_matter + f'{chat_source.lstrip()}\n']
     log_missing_links = []
 
-    body_link_re = re.compile(r'\[(.*?)\]\((https?://\S+)\)')
+    citenum_url_link_re = re.compile(r'\[(?P<orig>\d+)\]\((?P<url>https?://[^\)]+)\)')
+    # perplex_source_list_re = re.compile(r'^\[(?P<num>\d+)\]\s+(?P<url>https?://\S+)', re.M) # \n determines "end of line"
+    # sources_citenum_links_re = re.compile(r'\((?P<orig>\d+)\)\((?P<url>https?://[^\)]+)\)')
+    # citenum_plain_re = re.compile(r'\[(?P<num>\d+)\]')
+
+
+    body_link_re = citenum_url_link_re
+    # body_link_re = re.compile(r'\[(.*?)\]\((https?://\S+)\)')
     source_link_re = re.compile(r'\[\((\d+)\)\s*(.*?)\]\((https?://\S+)\)')
 
     for section in sections[1:]:  # Process each user section
