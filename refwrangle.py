@@ -879,6 +879,10 @@ def file_link_md(link_text: str, file_path: pl.Path) -> str:
     return f'[{link_text}](file:///{file_path})'
 
 def heirarch_shift_markdown_headers(markdown_text: int, top_level: int = None):
+    print('bad spelling: change your code.')
+    return hierarch_shift_markdown_headers(markdown_text, top_level)
+
+def hierarch_shift_markdown_headers(markdown_text: int, top_level: int = None):
     """Hierarchically shifts headers so that the highest level is top_level.
     (no shift if top_level==None)
     Any levels > 6 are set to ordinary text."""
