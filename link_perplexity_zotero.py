@@ -19,6 +19,8 @@ citenum_url_link_re = re.compile(r'\[(?P<orig>\d+)\]\((?P<url>https?://[^\)]+)\)
 # like in smc source list
 source_link_re = re.compile(r'\[\((\d+)\)\s*(.*?)\]\((https?://\S+)\)')
 source_citenum_title_re = re.compile(r'^\((?P<citenum>\d+)\)\s*(?P<title>.+)')
+citenum_plain_re = re.compile(r'\[(?P<num>\d+)\]')
+
 
 class ZoteroLinkConverter:
     """Converts web links to Zotero/Obsidian links in content sections"""
@@ -154,9 +156,22 @@ class ZoteroLinkConverter:
         
         citenums_to_url = pd.DataFrame(lut).set_index(['orig_num'])
         if display_citenums_map:
-            display(citenums_to_url)
+            ic(citenums_to_url)
         
         return citenums_to_url
+    
+    def replace_body_citenums(self, body: str, oldnum_to_new: Dict[str, str], body_cite_type: str = 'plain') -> str:
+            """Replace citation numbers in the body with new ones.  
+            Works for both plain cites, as in perplexity outputs, and web links, as in SMC outputs"""
+            
+            if body_cite_type == 'plain':
+                return re.sub(citenum_plain_re, lambda m: f'[{oldnum_to_new[m.group("num")]}]', body)
+
+            if body_cite_type == 'web_link':
+                return re.sub(citenum_plain_re, lambda m: f'[{oldnum_to_new[m.group("num")]}]', body)
+
+            raise ValueError(f'Unknown {body_cite_type=}')
+
     
     
 
@@ -165,26 +180,25 @@ def relink_perplexity_export_smc(perplexity_smc_file: pl.Path, relinked_file: pl
     to Zotero items or Obsidian lit notes."""
     relinker = ZoteroLinkConverter()
     
-    def relink_body_source(body_text: str, sources_text: str) -> Tuple[str, str, Counter]:
+    def relink_body_source(body_text: str, sources_text: str) -> Tuple[str, str, Counter[str], pd.DataFrame]:
         """Replace URLs with Zotero/Obsidian links in both content sections"""
-        def parse_source_lines(sources_content: str) -> Tuple[Dict[str, str], Dict[str, str]]:
+        def parse_source_lines(sources_content: str) -> Tuple[Dict[str, str], list[Tuple[str, str]]]:
             """Map Build a dictionary mapping URLs to titles from the sources section of a "Save my Chatbot" output."""
            
             url_to_title: Dict[str, str] = {}
-            citenum_to_url: Dict[str, str] = {}
+            citenum_url_pairs: list[Tuple[str, str]] = []
             matches = re.findall(r'- \[(.*?)\]\((https?://\S+)\)', sources_content)
             for link_text, link_url in matches:
                 normalized_url = rfw.normalize_url(link_url)
                 match = re.match(source_citenum_title_re, link_text)
                 if match:
                     citenum, title = match['citenum'], match['title']
-                    citenum_to_url[citenum] = normalized_url
+                    citenum_url_pairs.append((citenum, normalized_url))
                     url_to_title[normalized_url] = title.strip()
                 else:
-                    print('failed to parse source link text: {link_text=}')
-                    continue
+                    print(f'failed to parse source link text: {link_text=}')
 
-            return url_to_title, citenum_to_url
+            return url_to_title, citenum_url_pairs
 
         def _replace_body_link(match: re.Match) -> str:
             url = rfw.normalize_url(match.group(2))
@@ -215,14 +229,16 @@ def relink_perplexity_export_smc(perplexity_smc_file: pl.Path, relinked_file: pl
             
             return match.group(0) # a source never used in the body
 
-        source_url_to_title, source_citenum_to_url = parse_source_lines(sources_text)
+        source_url_to_title, source_citenum_url_pairs = parse_source_lines(sources_text)
+        citenums_to_url = relinker.citenums_to_urls_dedup(source_citenum_url_pairs)
+        
         body_link_urls_not_in_source: Counter[str] = Counter()
-        link_nums_not_in_zotero = {}
+        link_nums_not_in_zotero: Dict[str, bool] = {}
 
         relinked_body = citenum_url_link_re.sub(_replace_body_link, body_text)
         relinked_sources = source_link_re.sub(_replace_source_link, sources_text)
         
-        return relinked_body, relinked_sources, body_link_urls_not_in_source
+        return relinked_body, relinked_sources, body_link_urls_not_in_source, citenums_to_url
     
     with open(perplexity_smc_file, 'r', encoding='utf-8') as infile:
         content = infile.read()
@@ -243,7 +259,7 @@ def relink_perplexity_export_smc(perplexity_smc_file: pl.Path, relinked_file: pl
         user_header = rfw.summarize_prompt(body, MAX_WORDS_USER_HEADING,
                                            ANSWER_HEADING, TOP_HEADING_LEVEL_IN_AI)
         
-        processed_body, processed_sources, unsourced_links = relink_body_source(body, sources)
+        processed_body, processed_sources, unsourced_links, citenums_to_url = relink_body_source(body, sources)
         processed_body = rfw.setext_headers_to_atx(processed_body,
                                                    TOP_HEADING_LEVEL_IN_AI + 1)
 
