@@ -171,6 +171,7 @@ class ZoteroLinkConverter:
 def relink_perplexity_export_smc(perplexity_smc_file: pl.Path, relinked_file: pl.Path):
     """Replace links in "Save my Chatbot" Perplexity output with links 
     to Zotero items or Obsidian lit notes."""
+
     relinker = ZoteroLinkConverter()
     
     def relink_body_source(body_text: str, sources_text: str) -> Tuple[str, str, Counter[str], pd.DataFrame]:
