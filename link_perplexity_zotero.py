@@ -183,7 +183,6 @@ class ZoteroLinkConverter:
             source_num_to_link[num] = body_link
             relinked_source_lines.append(relinked_source)
         
-        ic(source_num_to_link)
         if source_url_to_title:
             # TODO: instead, make relinker.replace_body_citenums() force substitue plain links w/ no URL?
             body_relinked = re.sub(citenum_url_link_re,  # match and replace the entire link
@@ -201,7 +200,7 @@ def relink_perplexity_export_smc(perplexity_smc_file: pl.Path, relinked_file: pl
 
     relinker = ZoteroLinkConverter()
     
-    def relink_body_source(body_text: str, sources_text: str) -> Tuple[str, str, Counter[str], pd.DataFrame]:
+    def relink_body_source(body_text: str, sources_text: str) -> Tuple[str, str, Optional[Counter[str]], pd.DataFrame]:
         """Replace URLs with Zotero/Obsidian links in both content sections"""
         def parse_source_lines(sources_content: str) -> Tuple[Dict[str, str], list[Tuple[str, str]]]:
             """Map Build a dictionary mapping URLs to titles from the sources section of a "Save my Chatbot" output."""
@@ -221,47 +220,9 @@ def relink_perplexity_export_smc(perplexity_smc_file: pl.Path, relinked_file: pl
 
             return url_to_title, citenum_url_pairs
 
-        # def _replace_body_link(match: re.Match) -> str:
-        #     url = rfw.normalize_url(match.group(2))
-        #     link_num = match.group(1)
-            
-        #     if url not in source_url_to_title:
-        #         body_link_urls_not_in_source[url] += 1
-                
-        #     if item := relinker.find_zotero_item_via_url(url):
-        #         return relinker.create_obsidian_or_zotero_link(item)
-        #     if title := source_url_to_title.get(url):
-        #         if item := relinker.find_zotero_item_via_title(title):
-        #             return relinker.create_obsidian_or_zotero_link(item)
-            
-        #     link_nums_not_in_zotero[link_num] = True
-        #     return f'=={match.group(0)}=='
-
-        # def _replace_source_link(match: re.Match) -> str:
-        #     link_num, desc, url = match.groups()
-        #     norm_url = rfw.normalize_url(url)
-        #     item = relinker.find_zotero_item_via_url(norm_url) or relinker.find_zotero_item_via_title(desc)
-            
-        #     if item:
-        #         new_link = relinker.create_obsidian_or_zotero_link(item)
-        #         return f'[({link_num}) {desc}]({url}) **{new_link}**'
-        #     if link_num in link_nums_not_in_zotero:
-        #         return f'==[({link_num}) {desc}]({url})=='
-            
-        #     return match.group(0) # a source never used in the body
-
         source_url_to_title, source_citenum_url_pairs = parse_source_lines(sources_text)
-        #ic(source_url_to_title)
-        #ic(source_citenum_url_pairs)
         
-        # body_link_urls_not_in_source: Counter[str] = Counter()
-        # link_nums_not_in_zotero: Dict[str, bool] = {}
-        # relinked_body = citenum_url_link_re.sub(_replace_body_link, body_text)
-        # relinked_sources = source_link_re.sub(_replace_source_link, sources_text)
-        # return relinked_body, relinked_sources, body_link_urls_not_in_source, citenums_to_url
-    
         citenums_to_url = relinker.citenums_to_urls_dedup(source_citenum_url_pairs)
-        #ic(citenums_to_url)
         body_depup = relinker.replace_body_citenums(body_text, citenums_to_url.new_num.to_dict())
         relinked_body, relinked_sources = relinker.relink_body_and_make_source_links(body_depup, citenums_to_url, source_url_to_title)
         relinked_sources = "\n".join(sorted(relinked_sources, key=lambda line: int(re.search(citenum_plain_re, line).group(1))))
