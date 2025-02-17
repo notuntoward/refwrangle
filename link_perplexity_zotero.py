@@ -160,18 +160,13 @@ class ZoteroLinkConverter:
         
         return citenums_to_url
     
-    def replace_body_citenums(self, body: str, oldnum_to_new: Dict[str, str], body_cite_type: str = 'plain') -> str:
+    def replace_body_citenums(self, body: str, oldnum_to_new: Dict[str, str]) -> str:
             """Replace citation numbers in the body with new ones.  
-            Works for both plain cites, as in perplexity outputs, and web links, as in SMC outputs"""
+            Works for both plain cites, as in perplexity outputs, and web links, as in SMC outputs.
+            This is assuming that the urls in the original SMC body cites were intially correct, 
+            even if the citenums were duplicates.  On stock perplexity outptus, this appeared to be the case."""
             
-            if body_cite_type == 'plain':
-                return re.sub(citenum_plain_re, lambda m: f'[{oldnum_to_new[m.group("num")]}]', body)
-
-            if body_cite_type == 'web_link':
-                return re.sub(citenum_plain_re, lambda m: f'[{oldnum_to_new[m.group("num")]}]', body)
-
-            raise ValueError(f'Unknown {body_cite_type=}')
-        
+            return re.sub(citenum_plain_re, lambda m: f'[{oldnum_to_new[m.group("num")]}]', body)        
 
 def relink_perplexity_export_smc(perplexity_smc_file: pl.Path, relinked_file: pl.Path):
     """Replace links in "Save my Chatbot" Perplexity output with links 
@@ -235,7 +230,6 @@ def relink_perplexity_export_smc(perplexity_smc_file: pl.Path, relinked_file: pl
 
         relinked_body = citenum_url_link_re.sub(_replace_body_link, body_text)
         dedup_body = relinker.replace_body_citenums(body_text,citenums_to_url.new_num.to_dict())
-        print(dedup_body)
         relinked_sources = source_link_re.sub(_replace_source_link, sources_text)
         
         return relinked_body, relinked_sources, body_link_urls_not_in_source, citenums_to_url
