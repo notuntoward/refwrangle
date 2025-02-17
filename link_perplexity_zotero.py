@@ -178,7 +178,7 @@ class ZoteroLinkConverter:
         source_num_to_link, relinked_sources = {}, []
         for num, url in new_num_to_url.items():
             title = source_url_to_title[url] if source_url_to_title else None
-            body_link, relinked_source = relinker.make_relinks(num, url, body_citenums, title)
+            body_link, relinked_source = self.make_relinks(num, url, body_citenums, title)
             source_num_to_link[num] = body_link
             relinked_sources.append(relinked_source)
         
