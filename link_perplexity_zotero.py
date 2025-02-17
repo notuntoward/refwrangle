@@ -267,6 +267,41 @@ def relink_perplexity_export_smc(perplexity_smc_file: pl.Path, relinked_file: pl
         for log_entry in log_missing_links:
             print(log_entry)
 
+
+def is_smc_file(file_path: pl.Path) -> bool:
+    """ Returns True the file in file_path came from the SaveMyChatbot browser plugin."""
+    try:
+        if isinstance(file_path, str):
+            file_path = pl.Path(file_path)
+        
+        if file_path.suffix != '.md':
+            raise ValueError(f'No .md extention -- is this really markdown: file {file_path}')
+        
+        with file_path.open('r', encoding='utf-8') as file:
+            heading = file.readline().strip()
+            metadata = file.readline().strip()
+        
+        if not heading.startswith("# "):
+            return False
+        
+        exported_pattern = r"Exported on (\d{2}/\d{2}/\d{4}) at (\d{2}:\d{2}:\d{2})"
+        match = re.search(exported_pattern, metadata)
+        if not match:
+            return False
+        
+        try:
+            dt.datetime.strptime(f"{match.group(1)} {match.group(2)}", "%d/%m/%Y %H:%M:%S")
+        except ValueError:
+            return False
+        
+        if not ("Perplexity.ai" in metadata and "SaveMyChatbot" in metadata):
+            return False
+        
+        return True
+
+    except Exception as e:
+        raise Exception(e)
+    
 # Example usage
 if __name__ == "__main__":
     input_file = rfw.refwrangle_test_dir / "dat" / 'perplexity_multi_prompt_savemychatbot_example.md'
