@@ -171,9 +171,7 @@ class ZoteroLinkConverter:
                 return re.sub(citenum_plain_re, lambda m: f'[{oldnum_to_new[m.group("num")]}]', body)
 
             raise ValueError(f'Unknown {body_cite_type=}')
-
-    
-    
+        
 
 def relink_perplexity_export_smc(perplexity_smc_file: pl.Path, relinked_file: pl.Path):
     """Replace links in "Save my Chatbot" Perplexity output with links 
@@ -236,6 +234,8 @@ def relink_perplexity_export_smc(perplexity_smc_file: pl.Path, relinked_file: pl
         link_nums_not_in_zotero: Dict[str, bool] = {}
 
         relinked_body = citenum_url_link_re.sub(_replace_body_link, body_text)
+        dedup_body = relinker.replace_body_citenums(body_text,citenums_to_url.new_num.to_dict())
+        print(dedup_body)
         relinked_sources = source_link_re.sub(_replace_source_link, sources_text)
         
         return relinked_body, relinked_sources, body_link_urls_not_in_source, citenums_to_url
