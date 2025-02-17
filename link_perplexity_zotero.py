@@ -161,12 +161,31 @@ class ZoteroLinkConverter:
         return citenums_to_url
     
     def replace_body_citenums(self, body: str, oldnum_to_new: Dict[str, str]) -> str:
-            """Replace citation numbers in the body with new ones.  
-            Works for both plain cites, as in perplexity outputs, and web links, as in SMC outputs.
-            This is assuming that the urls in the original SMC body cites were intially correct, 
-            even if the citenums were duplicates.  On stock perplexity outptus, this appeared to be the case."""
-            
-            return re.sub(citenum_plain_re, lambda m: f'[{oldnum_to_new[m.group("num")]}]', body)        
+        """Replace citation numbers in the body with new ones.  
+        Works for both plain cites, as in perplexity outputs, and web links, as in SMC outputs.
+        This is assuming that the urls in the original SMC body cites were intially correct, 
+        even if the citenums were duplicates.  On stock perplexity outptus, this appeared to be the case."""
+        
+        return re.sub(citenum_plain_re, lambda m: f'[{oldnum_to_new[m.group("num")]}]', body)
+    
+    def relink_body_and_make_source_links(self, body_dedup: str, citenums_to_url: pd.DataFrame, source_url_to_title: Dict[str, str] = None) -> tuple[str, list[str]]:
+        """For both body and source, replaces links with Zotero or Obsidian links. Assumes that duplicate citenums
+        have already been removed from the body text (body_dedup)"""
+
+        new_num_to_url = citenums_to_url.set_index('new_num').url.to_dict() # dedup citenums to url
+        body_citenums = set(re.findall(citenum_plain_re, body_dedup))
+        
+        source_num_to_link, relinked_sources = {}, []
+        for num, url in new_num_to_url.items():
+            title = source_url_to_title[url] if source_url_to_title else None
+            body_link, relinked_source = relinker.make_relinks(num, url, body_citenums, title)
+            source_num_to_link[num] = body_link
+            relinked_sources.append(relinked_source)
+        
+        body_relinked = re.sub(citenum_plain_re, 
+                            lambda m: f' {source_num_to_link.get(m.group("num"))}', body_dedup)
+        
+        return body_relinked, relinked_sources
 
 def relink_perplexity_export_smc(perplexity_smc_file: pl.Path, relinked_file: pl.Path):
     """Replace links in "Save my Chatbot" Perplexity output with links 
@@ -234,6 +253,7 @@ def relink_perplexity_export_smc(perplexity_smc_file: pl.Path, relinked_file: pl
         relinked_sources = source_link_re.sub(_replace_source_link, sources_text)
         
         return relinked_body, relinked_sources, body_link_urls_not_in_source, citenums_to_url
+    
     
     with open(perplexity_smc_file, 'r', encoding='utf-8') as infile:
         content = infile.read()
