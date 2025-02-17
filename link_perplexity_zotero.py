@@ -78,9 +78,9 @@ class ZoteroLinkConverter:
             
         return self._note_url_zotero_cache[norm_url]
 
-    def find_zotero_item_via_title(self, target_title: str) -> Optional[Dict]:
+    def find_zotero_item_via_title(self, target_title: str) -> Optional[Dict[str, Optional[Dict]]]:
         """Find best title match from content using similarity scoring"""
-        if not target_title or len(target_title)<1:
+        if not target_title or len(target_title) < 1:
             return None
         
         if target_title not in self._note_title_zotero_cache:
@@ -130,6 +130,7 @@ class ZoteroLinkConverter:
         if cite_num in all_body_cite_nums and not zotero_item:
             source_link = f'=={source_link} ==' # "in body, not in zotero"
         
+        # ic(body_link, source_link)
         return body_link, source_link
     
     def citenums_to_urls_dedup(self, num_url_pairs: list[Tuple[str, str]], verbose: bool = False) -> pd.DataFrame:
@@ -182,8 +183,15 @@ class ZoteroLinkConverter:
             source_num_to_link[num] = body_link
             relinked_source_lines.append(relinked_source)
         
-        body_relinked = re.sub(citenum_plain_re, 
-                            lambda m: f' {source_num_to_link.get(m.group("num"))}', body_dedup)
+        ic(source_num_to_link)
+        if source_url_to_title:
+            # TODO: instead, make relinker.replace_body_citenums() force substitue plain links w/ no URL?
+            body_relinked = re.sub(citenum_url_link_re,  # match and replace the entire link
+                                lambda m: f' {source_num_to_link.get(m.group('orig'))}', body_dedup)
+        else:
+            body_relinked = re.sub(citenum_plain_re,  # only matching and replace the num
+                                lambda m: f' {source_num_to_link.get(m.group("num"))}', body_dedup)
+            
         
         return body_relinked, relinked_source_lines
 
@@ -243,8 +251,8 @@ def relink_perplexity_export_smc(perplexity_smc_file: pl.Path, relinked_file: pl
         #     return match.group(0) # a source never used in the body
 
         source_url_to_title, source_citenum_url_pairs = parse_source_lines(sources_text)
-        ic(source_url_to_title)
-        ic(source_citenum_url_pairs)
+        #ic(source_url_to_title)
+        #ic(source_citenum_url_pairs)
         
         # body_link_urls_not_in_source: Counter[str] = Counter()
         # link_nums_not_in_zotero: Dict[str, bool] = {}
@@ -253,13 +261,12 @@ def relink_perplexity_export_smc(perplexity_smc_file: pl.Path, relinked_file: pl
         # return relinked_body, relinked_sources, body_link_urls_not_in_source, citenums_to_url
     
         citenums_to_url = relinker.citenums_to_urls_dedup(source_citenum_url_pairs)
+        #ic(citenums_to_url)
         body_depup = relinker.replace_body_citenums(body_text, citenums_to_url.new_num.to_dict())
         relinked_body, relinked_sources = relinker.relink_body_and_make_source_links(body_depup, citenums_to_url, source_url_to_title)
         relinked_sources = "\n".join(sorted(relinked_sources, key=lambda line: int(re.search(citenum_plain_re, line).group(1))))
         return relinked_body, relinked_sources, None, citenums_to_url
         
-    
-    
     with open(perplexity_smc_file, 'r', encoding='utf-8') as infile:
         content = infile.read()
 
