@@ -267,19 +267,31 @@ def relink_perplexity_export_smc(perplexity_smc_file: pl.Path, relinked_file: pl
         for log_entry in log_missing_links:
             print(log_entry)
 
-
-def is_smc_file(file_path: pl.Path) -> bool:
-    """ Returns True the file in file_path came from the SaveMyChatbot browser plugin."""
+def read_markdown_file(file_path: str) -> bool:
+    """Reads a markdown file."""
     try:
-        if isinstance(file_path, str):
-            file_path = pl.Path(file_path)
+        file_path = pl.Path(file_path)
         
         if file_path.suffix != '.md':
-            raise ValueError(f'No .md extention -- is this really markdown: file {file_path}')
+            raise ValueError(f"File does not have a .md extension: {file_path}")
         
         with file_path.open('r', encoding='utf-8') as file:
-            heading = file.readline().strip()
-            metadata = file.readline().strip()
+            markdown_content = file.read()
+    except Exception as e:
+        raise Exception(f"Error processing file: {e}")
+    
+    return markdown_content
+
+def is_smc_content(markdown_content: str) -> bool:
+    """Returns True if the given markdown content came from the SaveMyChatbot browser plugin."""
+    try:
+        lines = markdown_content.splitlines()
+        
+        if len(lines) < 2:
+            return False
+        
+        heading = lines[0].strip()
+        metadata = lines[1].strip()
         
         if not heading.startswith("# "):
             return False
@@ -300,7 +312,37 @@ def is_smc_file(file_path: pl.Path) -> bool:
         return True
 
     except Exception as e:
-        raise Exception(e)
+        raise Exception(f"Error processing markdown content: {e}")
+
+def count_prompts_smc_content(file_contents: str) -> int:
+    """ Counts user/response prompts in the contents of an smc perplexity output file.
+    A prompt is defined as a pair of ## User and ## AI Answer headers."""
+    
+    lines = file_contents.splitlines()
+
+    prompt_count, user_found = 0, False
+    for line in lines:
+        line = line.strip()
+        if line == "## User":
+            if user_found:
+                raise ValueError("Unmatched ## User header found without a corresponding ## AI Answer.")
+            user_found = True  # Mark that a user header is found
+        elif line == "## AI Answer":
+            if not user_found:
+                raise ValueError("Unmatched ## AI Answer header found without a preceding ## User.")
+            # if here, prompt pair is complete.  Restart pair search
+            prompt_count += 1  
+            user_found = False 
+
+    if user_found:
+        raise ValueError("Unmatched ## User header found without a corresponding ## AI Answer.")
+
+    if prompt_count == 0:
+        raise ValueError("No valid prompt pairs (## User, ## AI Answer) found in the file.")
+
+    return prompt_count
+
+
     
 # Example usage
 if __name__ == "__main__":
