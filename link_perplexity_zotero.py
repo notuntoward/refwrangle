@@ -4,6 +4,7 @@ from collections import Counter, defaultdict
 from typing import Optional, Dict, Tuple
 import datetime as dt
 import pathlib as pl
+from outcome import Value
 import pandas as pd
 import refwrangle as rfw
 from icecream import ic
@@ -167,8 +168,9 @@ class ZoteroLinkConverter:
     def replace_body_citenums(self, body: str, oldnum_to_new: Dict[str, str]) -> str:
         """Replace citation numbers in the body with new ones.  
         Works for both plain cites, as in perplexity outputs, and web links, as in SMC outputs.
-        This is assuming that the urls in the original SMC body cites were intially correct, 
-        even if the citenums were duplicates.  On stock perplexity outptus, this appeared to be the case."""
+        Assumes that source numbers and urls matched those in source list, and that if there were
+        number/url duplicates, the duplication was the same in both the source list and the body. 
+        On stock perplexity outputs, this appeared to be the case."""
         
         return re.sub(citenum_plain_re, lambda m: f'[{oldnum_to_new[m.group("num")]}]', body)
     
@@ -202,7 +204,7 @@ def relink_perplexity_export_smc(perplexity_smc_file: pl.Path, relinked_file: pl
 
     relinker = ZoteroLinkConverter()
     
-    def relink_body_source(body_text: str, sources_text: str) -> Tuple[str, str, Optional[Counter[str]], pd.DataFrame]:
+    def relink_body_source(body_text: str, sources_text: str) -> Tuple[str, str]:
         """Replace URLs with Zotero/Obsidian links in both content sections"""
         def parse_source_lines(sources_content: str) -> Tuple[Dict[str, str], list[Tuple[str, str]]]:
             """Map Build a dictionary mapping URLs to titles from the sources section of a "Save my Chatbot" output."""
@@ -218,17 +220,17 @@ def relink_perplexity_export_smc(perplexity_smc_file: pl.Path, relinked_file: pl
                     citenum_url_pairs.append((citenum, normalized_url))
                     url_to_title[normalized_url] = title.strip()
                 else:
-                    print(f'failed to parse source link text: {link_text=}')
+                    raise ValueError(f'Failed to parse source link text: {link_text=}')
 
             return url_to_title, citenum_url_pairs
 
         source_url_to_title, source_citenum_url_pairs = parse_source_lines(sources_text)
         
-        citenums_to_url = relinker.citenums_to_urls_dedup(source_citenum_url_pairs)
-        body_depup = relinker.replace_body_citenums(body_text, citenums_to_url.new_num.to_dict())
-        relinked_body, relinked_sources = relinker.relink_body_and_make_source_links(body_depup, citenums_to_url, source_url_to_title)
-        relinked_sources = "\n".join(sorted(relinked_sources, key=lambda line: int(re.search(citenum_plain_re, line).group(1))))
-        return relinked_body, relinked_sources, None, citenums_to_url
+        citenums_to_url_source = relinker.citenums_to_urls_dedup(source_citenum_url_pairs)
+        body_depup = relinker.replace_body_citenums(body_text, citenums_to_url_source.new_num.to_dict())
+        relinked_body, relinked_sources = relinker.relink_body_and_make_source_links(body_depup, citenums_to_url_source, source_url_to_title)
+        relinked_sources_str = "\n".join(sorted(relinked_sources, key=lambda line: int(re.search(citenum_plain_re, line).group('num'))))
+        return relinked_body, relinked_sources_str
         
     with open(perplexity_smc_file, 'r', encoding='utf-8') as infile:
         content = infile.read()
@@ -237,8 +239,7 @@ def relink_perplexity_export_smc(perplexity_smc_file: pl.Path, relinked_file: pl
     front_matter = f'---\ncategory: aichat\ncreated date: {dt.datetime.now()}\n---\n'
     chat_source = " ".join(sections[0].split("\n")[1:])  # Remove redundant header
     processed_sections = [front_matter + f'{chat_source.lstrip()}\n']
-    log_missing_links = []
-
+    
     for section in sections[1:]:  # Process each user section
         section_parts = re.split(r'(\n---\s*\n\s*\*\*Sources:\*\*\s*\n)', section)
         if len(section_parts) < 3:
@@ -249,25 +250,14 @@ def relink_perplexity_export_smc(perplexity_smc_file: pl.Path, relinked_file: pl
         user_header = rfw.summarize_prompt(body, MAX_WORDS_USER_HEADING,
                                            ANSWER_HEADING, TOP_HEADING_LEVEL_IN_AI)
         
-        processed_body, processed_sources, unsourced_links, citenums_to_url = relink_body_source(body, sources)
+        processed_body, processed_sources = relink_body_source(body, sources)
         processed_body = rfw.setext_headers_to_atx(processed_body,
                                                    TOP_HEADING_LEVEL_IN_AI + 1)
-
-        if unsourced_links:
-            log_missing_links.append(
-                "Body links not in source: " +
-                ", ".join([f"{url} (count: {count})" for url, count in unsourced_links.items()])
-            )
 
         processed_sections += [user_header, processed_body, sources_header, processed_sources]
 
     with open(relinked_file, 'w', encoding='utf-8') as outfile:
         outfile.write('\n'.join(processed_sections))
-
-    if log_missing_links:
-        print("Missing links detected:")
-        for log_entry in log_missing_links:
-            print(log_entry)
 
 def read_markdown_file(file_path: str) -> bool:
     """Reads a markdown file."""
