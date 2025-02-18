@@ -346,7 +346,8 @@ def count_prompts_smc_content(file_contents: str) -> int:
     
 # Example usage
 if __name__ == "__main__":
-    input_file = rfw.refwrangle_test_dir / "dat" / 'perplexity_multi_prompt_savemychatbot_example.md'
+    input_file = rfw.refwrangle_test_dir / "dat" / 'merge_chats_smc' / 'chatgpt4o_MissLinkBG.md'
+    #input_file = rfw.refwrangle_test_dir / "dat" / 'perplexity_multi_prompt_savemychatbot_example.md'
     #input_file = pl.Path(r"C:\Users\scott\share\ref\refwrangle\tmp\watchter\raw\perplexity_2025-02-10_20-04-06_data.md")
     output_file = rfw.refwrangle_test_dir / 'tmp' / 'tmp_savemychatbot_multiprompt_perplexity_example.md'
     
