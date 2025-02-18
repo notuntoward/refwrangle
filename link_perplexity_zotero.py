@@ -15,11 +15,14 @@ USER_HEADING = '## User'
 MAX_WORDS_USER_HEADING = 10
 
 # like in smc body
-citenum_url_link_re = re.compile(r'\[(?P<orig>\d+)\]\((?P<url>https?://[^\)]+)\)')
+#citenum_url_link_re = re.compile(r'\[(?P<orig>\d+)\]\((?P<url>https?://[^\)]+)\)')
+citenum_url_link_re = re.compile(r'\[\^?(?P<orig>\d+)\]\((?P<url>https?://[^\)]+)\)') # handles both ^ and plain number syntax
 # like in smc source list
 source_link_re = re.compile(r'\[\((\d+)\)\s*(.*?)\]\((https?://\S+)\)')
 source_citenum_title_re = re.compile(r'^\((?P<citenum>\d+)\)\s*(?P<title>.+)')
-citenum_plain_re = re.compile(r'\[(?P<num>\d+)\]')
+#citenum_plain_re = re.compile(r'\[(?P<num>\d+)\]')
+citenum_plain_re = re.compile(r'\[\^?(?P<num>\d+)\]') # handles both ^ and plain number syntax
+
 
 
 class ZoteroLinkConverter:
@@ -169,7 +172,7 @@ class ZoteroLinkConverter:
         
         return re.sub(citenum_plain_re, lambda m: f'[{oldnum_to_new[m.group("num")]}]', body)
     
-    def relink_body_and_make_source_links(self, body_dedup: str, citenums_to_url: pd.DataFrame, source_url_to_title: Dict[str, str] = None) -> tuple[str, list[str]]:
+    def relink_body_and_make_source_links(self, body_dedup: str, citenums_to_url: pd.DataFrame, source_url_to_title: Optional[Dict[str, str]] = None) -> Tuple[str, list[str]]:
         """For both body and source, replaces links with Zotero or Obsidian links. Assumes that duplicate citenums
         have already been removed from the body text (body_dedup)"""
 
@@ -186,12 +189,11 @@ class ZoteroLinkConverter:
         if source_url_to_title:
             # TODO: instead, make relinker.replace_body_citenums() force substitue plain links w/ no URL?
             body_relinked = re.sub(citenum_url_link_re,  # match and replace the entire link
-                                lambda m: f' {source_num_to_link.get(m.group('orig'))}', body_dedup)
+                                lambda m: f' {source_num_to_link.get(m.group("orig"))}', body_dedup)
         else:
             body_relinked = re.sub(citenum_plain_re,  # only matching and replace the num
                                 lambda m: f' {source_num_to_link.get(m.group("num"))}', body_dedup)
             
-        
         return body_relinked, relinked_source_lines
 
 def relink_perplexity_export_smc(perplexity_smc_file: pl.Path, relinked_file: pl.Path):
@@ -353,4 +355,5 @@ if __name__ == "__main__":
     
     print(f'{input_file=}\n-->\n{output_file=}')
     relink_perplexity_export_smc(input_file, output_file)
+    print('Done.')
 # %%
