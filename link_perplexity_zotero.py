@@ -260,14 +260,17 @@ def relink_perplexity_export_smc(perplexity_smc_file: pl.Path, relinked_file: pl
         outfile.write('\n'.join(processed_sections))
 
 def read_markdown_file(file_path: str) -> str:
-    """Reads a markdown file and returns its content as a string."""
+    """Reads a markdown file and returns its content as a string.
+    Always read with utf-8, and converts to python standard \n newlines, 
+    as some AI files have windows-styple \r\n e.g. ChatGPT-4o exported from Perplexity."""
+    
     try:
         file_path = pl.Path(file_path)
         
         if file_path.suffix != '.md':
             raise ValueError(f"File does not have a .md extension: {file_path}")
-        
-        with file_path.open('r', encoding='utf-8') as file:
+
+        with file_path.open('r', encoding='utf-8', newline=None) as file:
             markdown_content = file.read()
             
     except Exception as e:

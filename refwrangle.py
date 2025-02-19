@@ -875,8 +875,11 @@ def setext_headers_to_atx(markdown_text: str, top_header_level: int):
     return markdown_text
 
 def file_link_md(link_text: str, file_path: pl.Path) -> str:
-    """Makes a mardkown link to a file."""
-    return f'[{link_text}](file:///{file_path})'
+    """Makes a markdown link to a file."""
+    if not isinstance(file_path, pl.Path):
+        file_path = pl.Path(file_path) # so can use windows-friendly .as_uri()
+    
+    return f'[{link_text}]({file_path.as_uri()})'
 
 def heirarch_shift_markdown_headers(markdown_text: int, top_level: int = None):
     print('bad spelling: change your code.')
