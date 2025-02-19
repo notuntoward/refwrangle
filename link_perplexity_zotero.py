@@ -259,8 +259,8 @@ def relink_perplexity_export_smc(perplexity_smc_file: pl.Path, relinked_file: pl
     with open(relinked_file, 'w', encoding='utf-8') as outfile:
         outfile.write('\n'.join(processed_sections))
 
-def read_markdown_file(file_path: str) -> bool:
-    """Reads a markdown file."""
+def read_markdown_file(file_path: str) -> str:
+    """Reads a markdown file and returns its content as a string."""
     try:
         file_path = pl.Path(file_path)
         
@@ -269,8 +269,9 @@ def read_markdown_file(file_path: str) -> bool:
         
         with file_path.open('r', encoding='utf-8') as file:
             markdown_content = file.read()
+            
     except Exception as e:
-        raise Exception(f"Error processing file: {e}")
+        raise Exception(e)
     
     return markdown_content
 
