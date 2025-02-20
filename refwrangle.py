@@ -9,9 +9,8 @@ import subprocess
 import sys
 import traceback
 import unicodedata
-from collections.abc import Iterable
 from datetime import datetime
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple, Iterable
 from urllib.parse import urlparse, urlunparse
 from xml.sax.saxutils import escape
 import chardet
@@ -186,9 +185,8 @@ def get_my_zotero_collections(top_collection_name: Optional[str] = None, zot: Op
      top_collection_name: return only collections hierarchically below this collection. 
      zot is an opened pyzotero object
      
-     TODO: make this accept a zotero cache, once this is storing that data
      TODO: use zot.collections_sub() and zot.collections_top()"""
-    
+  
     if zot is None:
         zot = zotero.Zotero(library_id, library_type, api_key)
 
@@ -198,12 +196,11 @@ def get_my_zotero_collections(top_collection_name: Optional[str] = None, zot: Op
     top_collection_data = next((c for c in zot.collections() if c['data']['name'] == top_collection_name), None)
 
     if top_collection_data:
-        top_collection_key = top_collection_data['key']
-        
+        top_collection_key = top_collection_data['key']    
         # Get all subcollections under 'Politics'
         return [c['data']['name'] for c in zot.all_collections(top_collection_key)]
-    else:
-        raise ValueError(f"'{top_collection_name}' collection not found")
+
+    raise ValueError(f"'{top_collection_name}' collection not found")
 
 def plot_my_zotero_collections(top_collection_name: Optional[str] = None) -> None:
     """Hierarchically plots the collections in my zotero DB. 
@@ -251,8 +248,7 @@ def plot_my_zotero_collections(top_collection_name: Optional[str] = None) -> Non
         tree_data = [build_tree(root) for root in root_collections]
 
     # Create lists to hold the labels and parents
-    labels = []
-    parents = []
+    labels, parents = [], []
 
     # Function to flatten the tree structure
     def flatten_tree(node, parent=""):
@@ -269,16 +265,14 @@ def plot_my_zotero_collections(top_collection_name: Optional[str] = None) -> Non
     fig = go.Figure(go.Treemap(
         labels=labels,
         parents=parents,
-        root_color="lightgrey"
-    ))
+        root_color="lightgrey"))
 
     # Update the layout
     title = f"Zotero Collection Hierarchy: {top_collection_name}" if top_collection_name else "Zotero Collection Hierarchy"
     fig.update_layout(
         title=title,
         width=1000,
-        height=800
-    )
+        height=800)
 
     # Show the plot
     fig.show()
@@ -308,7 +302,6 @@ def get_citation_key(parent_dat: Dict[str, Any]) -> Optional[str]:
         return extra2dict(parent_dat['extra'])['Citation Key']
     except:
         return None
-
 
 def get_creator(item: Dict[str, Any]) -> str:
     """ Get a zotero parent item's "creator"
@@ -425,8 +418,7 @@ def normalize_string(string: str) -> str:
 
 
 def extract_main_title(full_title: str) -> str:
-    """
-    Extracts the main title from a full title string, attempting to remove trailing subtitles, authors, 
+    """Extracts the main title from a full title string, attempting to remove trailing subtitles, authors, 
     publishers etc. by removing any substring beyond the first occurrence of typical delimiters.
 
     Args:
@@ -436,13 +428,12 @@ def extract_main_title(full_title: str) -> str:
     str: The extracted main title, stripped of leading and trailing whitespace.
 
     The following delimiters are tested in order: '|', ':', '--', and '. ' (period followed by a capital letter).
-    It splits the title at the first occurrence of any of these delimiters.
-    """
+    It splits the title at the first occurrence of any of these delimiters."""
+    
     full_title = full_title.strip()
     delimiters = r'\||:|--|\.(?=\s[A-Z])'
     parts = re.split(delimiters, full_title, 1)
     return parts[0].strip()
-
 
 def match_titles(title1: str, title2: str, main_title_only: bool = True, 
                  normalize: bool =True, order_dependent: bool = True):
@@ -471,7 +462,6 @@ def match_titles(title1: str, title2: str, main_title_only: bool = True,
 
     if order_dependent:
         score = fuzz.partial_ratio(title1, title2)  # somewhat order dependant
-        # ic(title1, title2, score)
         return score
     
     return fuzz.token_set_ratio(title1, title2) # order indepenent
@@ -484,7 +474,7 @@ def best_zotero_title_match(target_title: str,
     best_score = 0
     best_match = None
 
-    for item in zotero_items.items():
+    for item in zotero_items:
         item_title = item['data'].get('title', '')
         score = match_titles(target_title, item_title)
 
@@ -546,10 +536,9 @@ def read_html_file(html_file: pl.Path) -> str:
 
 # supposed to work on both cascade PBS and AP sites but it doesn't work well
 def clean_html(html_file_path: str) -> str:
-    """
-    Enhanced HTML cleaner handling both AP News and Cascade PBS articles.
-    But it's not great.
-    """
+    """Enhanced HTML cleaner handling both AP News and Cascade PBS articles.
+    But it's not great."""
+    
     with open(html_file_path, 'r', encoding='utf-8') as file:
         html_content = file.read()
 
@@ -645,8 +634,7 @@ def html_to_pdf_wkhtmltopdf(input_file: pl.Path, output_file: pl.Path):
     subprocess.run([str(wkhtmltopdf_exe), str(input_file), str(output_file)], check=False)
 
 def html_to_pdf_playwright(input_html: str, output_pdf_path: pl.Path):
-    """
-    Converts an HTML string to a PDF file.
+    """Converts an HTML string to a PDF file.
     Args:
         input_html (str): HTML content as a string.
         output_pdf_path (str): Path to save the generated PDF.
@@ -655,8 +643,7 @@ def html_to_pdf_playwright(input_html: str, output_pdf_path: pl.Path):
         - Requires Playwright's `sync_playwright`.
         - Does not work in Jupyter Notebook or VSCode Interactive Window.
 
-    Example: html_to_pdf_playwright("<h1>Hello</h1>", "output.pdf")
-    """
+    Example: html_to_pdf_playwright("<h1>Hello</h1>", "output.pdf") """
 
     ic(pl.Path(output_pdf_path).exists() and not os.access(output_pdf_path, os.W_OK))
     if pl.Path(output_pdf_path).exists() and not os.access(output_pdf_path, os.W_OK):
@@ -694,13 +681,14 @@ def load_pickle_data(fNm: pl.Path):
         data = pickle.load(file)
     return data
 
-def save_pickle_data(fNm: pl.Path, data):
+def save_pickle_data(file_name: pl.Path, data):
     """Saves data to a pickle file"""
-    print(f'Writing to {fNm}...')
-    with open(fNm, 'wb') as file:
+    print(f'Writing to {file_name}...')
+    with open(file_name, 'wb') as file:
         pickle.dump(data, file)
 
 def create_title_page(writer, pdf_files):
+    """Makes a pdf title page for each pdf file."""
     packet = io.BytesIO()
     c = canvas.Canvas(packet, pagesize=letter)
     
@@ -735,6 +723,7 @@ def create_title_page(writer, pdf_files):
     writer.add_page(title_pdf.pages[0])
 
 def add_separator_page(writer, pdf_basename, full_path, metadata):
+    """Adds pdf separator page."""
     packet = io.BytesIO()
     c = canvas.Canvas(packet, pagesize=letter)
     
@@ -760,6 +749,7 @@ def add_separator_page(writer, pdf_basename, full_path, metadata):
     writer.add_page(separator_pdf.pages[0])
 
 def add_margin_text(page, basename):
+    """Write a file basename in a pdf margin"""
     packet = io.BytesIO()
     c = canvas.Canvas(packet, pagesize=letter)
     
@@ -830,31 +820,29 @@ def is_file_big(file_path: pl.Path, min_bytes_for_big: int) -> bool:
 
 
 def make_atx_header(text: str, header_level: int) -> str:
-    """
-    Converts the given text into an ATX-style markdown header of the specified level.
+    """Converts the given text into an ATX-style markdown header of the specified level.
 
     Args:
         text (str): The input text to be converted into a header.
         header_level (int): The desired header level (1 to 6).
 
     Returns:
-        str: The text formatted as an ATX-style header.
-    """
+        str: The text formatted as an ATX-style header."""
+        
     if 1 <= header_level <= 6:  # Ensure valid heading level
         return f"{'#' * header_level} {text}"
     else:
         raise ValueError("header_level must be between 1 and 6.")
 
 def setext_headers_to_atx(markdown_text: str, top_header_level: int):
-    """
-    Converts Setext-style headers in the given Markdown text to ATX-style headers.
+    """Converts Setext-style headers in the given Markdown text to ATX-style headers.
 
     Args:
         markdown_text (str): The input Markdown text.
 
     Returns:
-        str: The Markdown text with Setext-style headers converted to ATX-style headers.
-    """
+        str: The Markdown text with Setext-style headers converted to ATX-style headers."""
+        
     # Convert first-level Setext headers (underlined with '-')
     markdown_text = re.sub(
         r'^(.*)\n-{2,}$',
