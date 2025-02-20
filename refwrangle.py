@@ -103,21 +103,19 @@ desiredFileExtention = {'application/pdf':'pdf', 'text/html':'html',
 
 def zotero_item_link(zotero_item_key: str, link_text: str) -> str:
     """Makes a link to a zoter item, given key and text."""
-    return f'[{link_text}](zotero://select/library/items/{zotero_item_key})'
+    return f'[{link_text}f](zotero://select/library/items/{zotero_item_key})'
 
 
 # Another futile attempt at speeding up cache updating.  As always, when I add 
 # a zotero item in zotero, the entire cache updates.  
-# TODO: search for any example showing that pyzotero's incremental cache updating speeds things up
-# TODO: search/query for any example that pyzotero's local zotero db access actually works (I can't get it to work, myself.)
 class ZoteroCache:
     """Caches Zotero data and performs incremental updates by merging only changed items."""
     
     HEADER_FORMAT = "I"  # Format for an unsigned integer (for the version number)
     HEADER_SIZE = struct.calcsize(HEADER_FORMAT)
 
-    def __init__(self, filename: pl.Path = zoterodb_cache_file, library_id: str = library_id,
-                 library_type: str = library_type, api_key: str = api_key):
+    def __init__(self, filename=zoterodb_cache_file, library_id=library_id,
+                 library_type=library_type, api_key=api_key):
         """
         Initialize the ZoteroCache with API credentials and cache filename.
         
@@ -146,7 +144,7 @@ class ZoteroCache:
             print(f"Error downloading and saving cache: {e}")
             return None
 
-    def read_version(self) -> Optional[int]:
+    def read_version(self):
         """ Read only the version number from the cache file."""
         try:
             with open(self.filename, 'rb') as f:
@@ -155,7 +153,7 @@ class ZoteroCache:
         except (FileNotFoundError, struct.error):
             return None  # Cache file does not exist or is corrupted
 
-    def read_cache(self) -> Optional[List[Dict[str, Any]]]:
+    def read_cache(self):
         """Read the cached data from the file."""
         try:
             with open(self.filename, 'rb') as f:
@@ -164,13 +162,13 @@ class ZoteroCache:
         except (FileNotFoundError, pickle.UnpicklingError):
             return None  # Cache file does not exist or contains invalid data
 
-    def is_cache_valid(self) -> bool:
+    def is_cache_valid(self):
         """ Check if the cached version matches the current version from Zotero."""
         cached_version = self.read_version()
         current_version = self.zot.last_modified_version()
         return cached_version == current_version
 
-    def get_data(self) -> Optional[List[Dict[str, Any]]]:
+    def get_data(self):
         """ Retrieve data from cache if valid; otherwise update cache and fetch fresh data."""
         if self.is_cache_valid():
             print("Reading from cache.")

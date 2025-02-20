@@ -150,9 +150,9 @@ class ZoteroLinkConverter:
         lut = []
         display_citenums_map = False
         for url, nums in url_to_citenums.items():
-            if (nDups := len(nums)) > 1 and verbose:
+            if (num_dups := len(nums)) > 1 and verbose:
                 display_citenums_map = True
-                print(f'URL has {nDups} dups: {nums=}, {url=}')
+                print(f'URL has {num_dups} dups: {nums=}, {url=}')
                 
             for num in nums:
                 lut.append({'orig_num': num, 'new_num': str(new_cite_num), 'url': url})
@@ -259,20 +259,23 @@ def relink_perplexity_export_smc(perplexity_smc_file: pl.Path, relinked_file: pl
     with open(relinked_file, 'w', encoding='utf-8') as outfile:
         outfile.write('\n'.join(processed_sections))
 
-def read_markdown_file(file_path: str) -> str:
+def read_markdown_file(file_path: pl.Path) -> str:
     """Reads a markdown file and returns its content as a string.
     Always read with utf-8, and converts to python standard \n newlines, 
     as some AI files have windows-styple \r\n e.g. ChatGPT-4o exported from Perplexity."""
     
     try:
-        file_path = pl.Path(file_path)
+        if isinstance(file_path, str):
+            file_path = pl.Path(file_path)
+    except Exception as e:
+        raise ValueError(f"Invalid file path: {file_path}") from e
         
-        if file_path.suffix != '.md':
-            raise ValueError(f"File does not have a .md extension: {file_path}")
+    if file_path.suffix != '.md':
+        raise ValueError(f"File does not have a .md extension: {file_path}")
 
+    try:
         with file_path.open('r', encoding='utf-8', newline=None) as file:
             markdown_content = file.read()
-            
     except Exception as e:
         raise Exception(e)
     
