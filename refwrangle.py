@@ -105,82 +105,83 @@ def zotero_item_link(zotero_item_key: str, link_text: str) -> str:
     """Makes a link to a zoter item, given key and text."""
     return f'[{link_text}](zotero://select/library/items/{zotero_item_key})'
 
-class ZoteroCache:
-    """Caches the result of the pyzotero command:  parent_items = self.zot.everything(self.zot.top())"""
 
-    HEADER_FORMAT = "I"  # Format for an unsigned integer (serial number)
+# Another futile attempt at speeding up cache updating.  As always, when I add 
+# a zotero item in zotero, the entire cache updates.  
+# TODO: search for any example showing that pyzotero's incremental cache updating speeds things up
+# TODO: search/query for any example that pyzotero's local zotero db access actually works (I can't get it to work, myself.)
+class ZoteroCache:
+    """Caches Zotero data and performs incremental updates by merging only changed items."""
+    
+    HEADER_FORMAT = "I"  # Format for an unsigned integer (for the version number)
     HEADER_SIZE = struct.calcsize(HEADER_FORMAT)
 
-    def __init__(self, filename=zoterodb_cache_file, library_id=library_id, 
-                 library_type=library_type, api_key=api_key):
-        """Initialize the ZoteroCache with the given filename and Zotero API credentials."""
+    def __init__(self, filename: pl.Path = zoterodb_cache_file, library_id: str = library_id,
+                 library_type: str = library_type, api_key: str = api_key):
+        """
+        Initialize the ZoteroCache with API credentials and cache filename.
+        
+        :param filename: File path for the local cache.
+        :param library_id: Zotero library ID.
+        :param library_type: 'user' or 'group'.
+        :param api_key: Zotero API key.
+        """
         self.filename = filename
         self.zot = zotero.Zotero(library_id, library_type, api_key)
 
-    def download_and_save_cache(self):
-        """ Fetch data from Zotero and write it to the cache file along with the current version."""
-        # Fetch data from Zotero
-        parent_items = self.zot.everything(self.zot.top())
-        current_version = self.zot.last_modified_version()
+    def download_and_save_cache(self) -> Optional[List[Dict[str, Any]]]:
+        """ Perform a full download of all items from Zotero and write them to the cache."""
+        try:
+            parent_items = self.zot.everything(self.zot.top())
+            current_version = self.zot.last_modified_version()
 
-        with open(self.filename, 'wb') as f:
-            # Write the current version as a fixed-size header
-            f.write(struct.pack(self.HEADER_FORMAT, current_version))
-            # Serialize and write the parent items
-            pickle.dump(parent_items, f)
+            with open(self.filename, 'wb') as f:
+                # Write the current version as a fixed-size header
+                f.write(struct.pack(self.HEADER_FORMAT, current_version))
+                # Serialize and write the parent items
+                pickle.dump(parent_items, f)
 
-    def read_version(self):
-        """Read only the version number from the cache file."""
+            return parent_items  # Return fetched data for immediate use
+        except Exception as e:
+            print(f"Error downloading and saving cache: {e}")
+            return None
+
+    def read_version(self) -> Optional[int]:
+        """ Read only the version number from the cache file."""
         try:
             with open(self.filename, 'rb') as f:
-                # Read and unpack the fixed-size header
                 header_data = f.read(self.HEADER_SIZE)
                 return struct.unpack(self.HEADER_FORMAT, header_data)[0]
-        except FileNotFoundError:
-            return None  # Cache file does not exist
+        except (FileNotFoundError, struct.error):
+            return None  # Cache file does not exist or is corrupted
 
-    def read_cache(self):
+    def read_cache(self) -> Optional[List[Dict[str, Any]]]:
         """Read the cached data from the file."""
         try:
             with open(self.filename, 'rb') as f:
-                # Skip the fixed-size header
-                f.seek(self.HEADER_SIZE)
-                # Load and deserialize the parent items
+                f.seek(self.HEADER_SIZE)  # Skip the fixed-size header
                 return pickle.load(f)
-        except FileNotFoundError:
-            return None  # Cache file does not exist
+        except (FileNotFoundError, pickle.UnpicklingError):
+            return None  # Cache file does not exist or contains invalid data
 
-    def is_cache_valid(self):
-        """Check if the cached version matches the current version from Zotero."""
+    def is_cache_valid(self) -> bool:
+        """ Check if the cached version matches the current version from Zotero."""
         cached_version = self.read_version()
         current_version = self.zot.last_modified_version()
         return cached_version == current_version
 
-    def get_data(self):
-        """Retrieve data from cache if valid; otherwise update cache and fetch fresh data."""
+    def get_data(self) -> Optional[List[Dict[str, Any]]]:
+        """ Retrieve data from cache if valid; otherwise update cache and fetch fresh data."""
         if self.is_cache_valid():
             print("Reading from cache.")
-            return self.read_cache()
+            data = self.read_cache()
+            if data is None:
+                print("Cache is invalid; performing full download.")
+                return self.download_and_save_cache()
+            return data
         else:
             print("Updating cache.")
-            self.download_and_save_cache()
-            return self.read_cache()
-        
-def is_ignorable_child(child: Dict[str, Any]) -> bool:
-    """Returns True if a child is not something that attachment processing 
-    would need to deal with."""
-    
-    cdat = child['data']
-    if cdat['itemType'] != 'attachment':
-        return True # e.g. a zotero note of type type 'note'
-
-    if cdat['title'] in ['PubMed entry', 'Semantic Scholar Link']:
-        return True
-    
-    if 'path' not in cdat:
-        return True # must not be a note then but I'm not sure what it is
-    
-    return False
+            return self.download_and_save_cache()
         
 def get_my_zotero_collections(top_collection_name: Optional[str] = None, zot: Optional[zotero.Zotero] = None) -> List[str]:
     """Returns the list of collections in my zotero DB. 
