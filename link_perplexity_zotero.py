@@ -143,6 +143,7 @@ class ZoteroLinkConverter:
         
         url_to_citenums = defaultdict(list)
         for num, url in num_url_pairs:
+            print(f'{num=}, (url=)')
             url_to_citenums[url].append(num)
         
         # Create new citation numbers if there are duplicates
@@ -150,11 +151,13 @@ class ZoteroLinkConverter:
         lut = []
         display_citenums_map = False
         for url, nums in url_to_citenums.items():
+            print(f'{url=}, {nums}')
             if (num_dups := len(nums)) > 1 and verbose:
                 display_citenums_map = True
                 print(f'URL has {num_dups} dups: {nums=}, {url=}')
                 
             for num in nums:
+                print(f'{num}')
                 lut.append({'orig_num': num, 'new_num': str(new_cite_num), 'url': url})
             
             new_cite_num += 1
@@ -212,8 +215,10 @@ def relink_perplexity_export_smc(perplexity_smc_file: pl.Path, relinked_file: pl
             url_to_title: Dict[str, str] = {}
             citenum_url_pairs: list[Tuple[str, str]] = []
             # TODO: replace with named, compiled, global link
+            # TODO: wrong regexp for sources in smc files
             matches = re.findall(r'- \[(.*?)\]\((https?://\S+)\)', sources_content)
             for link_text, link_url in matches:
+                print(f'{link_text=}, {link_url=}')
                 normalized_url = rfw.normalize_url(link_url)
                 match = re.match(source_citenum_title_re, link_text)
                 if match:
@@ -346,10 +351,11 @@ def count_prompts_smc_content(file_contents: str) -> int:
     
 # Example usage
 if __name__ == "__main__":
-    input_file = rfw.refwrangle_test_dir / "dat" / 'merge_chats_smc' / 'chatgpt4o_MissLinkBG.md'
+    input_file = pl.Path(r"C:\Users\scott\OneDrive\share\ref\refwrangle\test\dat\merge_chats_smc\GPT-4o-BGtrail.md")
     #input_file = rfw.refwrangle_test_dir / "dat" / 'perplexity_multi_prompt_savemychatbot_example.md'
     #input_file = pl.Path(r"C:\Users\scott\share\ref\refwrangle\tmp\watchter\raw\perplexity_2025-02-10_20-04-06_data.md")
-    output_file = rfw.refwrangle_test_dir / 'tmp' / 'tmp_savemychatbot_multiprompt_perplexity_example.md'
+    output_dir = pl.Path(r"C:\Users\scott\OneDrive\share\ref\obsidian\Obsidian Share Vault\Scratch Space")
+    output_file = output_dir / 'tmp_savemychatbot_multiprompt_perplexity_example.md'
     
     print(f'{input_file=}\n-->\n{output_file=}')
     relink_perplexity_export_smc(input_file, output_file)
