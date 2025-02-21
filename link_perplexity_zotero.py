@@ -109,7 +109,7 @@ class ZoteroLinkConverter:
     def make_relinks(self, cite_num: str, doc_url: str, all_body_cite_nums: set, source_title: Optional[str] = None) -> Tuple[str, str]:
         """Returns what a relinked citation would look like if present in the body,
         given a source citation number and url (found in sources, possibly in body).  
-        Also, returns a relinked source line. The source_title is present in
+        Also, returns a relinked source list line. Note that the source_title is present in
         Save my Chatbot output, but not in stock perplexity"""
         
         if not (zotero_item := self.find_zotero_item_via_url(doc_url)):
@@ -211,6 +211,7 @@ def relink_perplexity_export_smc(perplexity_smc_file: pl.Path, relinked_file: pl
            
             url_to_title: Dict[str, str] = {}
             citenum_url_pairs: list[Tuple[str, str]] = []
+            # TODO: replace with named, compiled, global link
             matches = re.findall(r'- \[(.*?)\]\((https?://\S+)\)', sources_content)
             for link_text, link_url in matches:
                 normalized_url = rfw.normalize_url(link_url)
