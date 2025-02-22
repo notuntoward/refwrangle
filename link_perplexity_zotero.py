@@ -143,7 +143,6 @@ class ZoteroLinkConverter:
         
         url_to_citenums = defaultdict(list)
         for num, url in num_url_pairs:
-            #print(f'{num=}, (url=)')
             url_to_citenums[url].append(num)
         
         # Create new citation numbers if there are duplicates
@@ -211,43 +210,29 @@ def relink_perplexity_export_smc(perplexity_smc_file: pl.Path, relinked_file: pl
     
     def relink_body_source(body_text: str, sources_text: str, is_source_list=True) -> Tuple[str, str]:
         """Replace URLs with Zotero/Obsidian links in both content sections"""
-        def parse_source_lines(sources_content: str, sources_source: str) -> Tuple[Dict[str, str], list[Tuple[str, str]]]:
-            """Map Build a dictionary mapping URLs to titles from the sources section of a "Save my Chatbot" output."""
-           
-            url_to_title: Dict[str, str] = {}
-            citenum_url_pairs: list[Tuple[str, str]] = []
-            if sources_source == 'sources_list':
-                # TODO: replace with named, compiled, global link
-                matches = re.findall(r'- \[(.*?)\]\((https?://\S+)\)', sources_content)
-                for link_text, link_url in matches:
-                    normalized_url = rfw.normalize_url(link_url)
-                    match = re.match(source_citenum_title_re, link_text)
-                    if match:
-                        citenum, title = match['citenum'], match['title']
-                        citenum_url_pairs.append((citenum, normalized_url))
-                        url_to_title[normalized_url] = title.strip()
-                    else:
-                        raise ValueError(f'Failed to parse source link text: {link_text=}')
-            elif sources_source == 'body_text':
-                for citenum, url in re.findall(citenum_url_link_re, sources_content):
-                    citenum_url_pairs.append((citenum, rfw.normalize_url(url)))
-            else:
-                raise ValueError(f'Unknown {sources_source=}')
-
-            return url_to_title, citenum_url_pairs
-
-        if len(sources) == 0:
-            source_url_to_title, source_citenum_url_pairs = parse_source_lines(body_text, 'body_text')
+ 
+        url_to_title: Dict[str, str] = {}
+        citenum_url_pairs: list[Tuple[str, str]] = []
+        if len(sources_text) == 0:
+            # citenum/url from body
+            citenum_url_pairs = rfw.get_link_tu_pairs(body_text, r'\[(.*?)\]\((https?://\S+)\)')
         else:
-            source_url_to_title, source_citenum_url_pairs = parse_source_lines(sources_text, 'sources_list')
+            # citenum/url/title from sources list
+            for link_text, url in rfw.get_link_tu_pairs(sources_text, r'- \[(.*?)\]\((https?://\S+)\)'):
+                if match := re.match(source_citenum_title_re, link_text):
+                    citenum, title = match['citenum'], match['title']
+                    citenum_url_pairs.append((citenum, url))
+                    url_to_title[url] = title.strip()
+                else:
+                    raise ValueError(f'Failed to parse source link text: {link_text=}')
         
-        citenums_to_url_source = relinker.citenums_to_urls_dedup(source_citenum_url_pairs)
+        citenums_to_url_source = relinker.citenums_to_urls_dedup(citenum_url_pairs)
         body_depup = relinker.replace_body_citenums(body_text, citenums_to_url_source.new_num.to_dict())
         
-        relinked_body, relinked_sources = relinker.relink_body_and_make_source_links(body_depup, citenums_to_url_source, 'url_link', source_url_to_title)
+        relinked_body, relinked_sources = relinker.relink_body_and_make_source_links(body_depup, citenums_to_url_source, 'url_link', url_to_title)
         
         relinked_sources_str = "\n".join(sorted(relinked_sources, key=lambda line: int(re.search(citenum_plain_re, line).group('num'))))
-        return relinked_body, relinked_sources_str
+        return relinked_body, relinked_sources_str    
         
     with open(perplexity_smc_file, 'r', encoding='utf-8') as infile:
         content = infile.read()
@@ -275,6 +260,7 @@ def relink_perplexity_export_smc(perplexity_smc_file: pl.Path, relinked_file: pl
 
     with open(relinked_file, 'w', encoding='utf-8') as outfile:
         outfile.write('\n'.join(processed_sections))
+                
 
 def read_markdown_file(file_path: pl.Path) -> str:
     """Reads a markdown file and returns its content as a string.

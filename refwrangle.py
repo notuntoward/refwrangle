@@ -407,6 +407,16 @@ def normalize_url(url: str) -> str:
     parsed = urlparse(url.lower())
     return urlunparse(parsed._replace(path=parsed.path.rstrip('/')))
 
+def get_link_tu_pairs(source_text: str, regexp_pattern: str) -> List[Tuple[str, str]]:
+    """Returns pairs of markdown link text and urls in source_text"""
+    link_tu_pairs = [(m.group(1), normalize_url(m.group(2)))
+                     for m in re.finditer(regexp_pattern, source_text)]
+    
+    if len(link_tu_pairs) < 1:
+        print('Found no links in source_text')
+        
+    return link_tu_pairs
+
 def normalize_string(string: str) -> str:
     """Lowercases, removes common words e.g. articles, and non-alphanumeric characters. """
     common_words = ['the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'of', 'with', 'by']
@@ -817,7 +827,34 @@ def is_file_big(file_path: pl.Path, min_bytes_for_big: int) -> bool:
     nbytes_dest = file_path.stat().st_size if file_path.exists() else 0
     
     return nbytes_dest >= min_bytes_for_big
+class DividerNotFoundError(Exception):
+    pass
 
+def find_markdown_divider_boundaries(markdown_string: str) -> Tuple[int, int]:
+    """ Finds the index of the last character before the markdown line divider ('---') 
+    line and the first character on the next line after the divider."""
+    
+    match = re.search(r'(?m)^---', markdown_string)
+    if not match:
+        raise DividerNotFoundError("'---' line divider not found")
+    
+    divider_start_index = match.start()
+    
+    # Find the index of the last character before the divider
+    last_char_before_index = markdown_string.rfind('\n', 0, divider_start_index) - 1
+    
+    # Find where the next line starts after '---'
+    first_char_after_index = markdown_string.find('\n', match.end()) + 1
+    if first_char_after_index <= 0 or first_char_after_index >= len(markdown_string):
+        raise DividerNotFoundError("No content found after '---' line divider")
+        
+    return last_char_before_index, first_char_after_index
+
+def remove_markdown_dividers(markdown_text: str) -> str:
+    """Removes divider lines.  o3-mini adds an excess of them to the response, sometime, in 2/2025"""
+    dividerless_text = re.sub(r'^---\s*$', '', markdown_text, flags=re.MULTILINE)
+    dividerless_text = re.sub(r'\n\n+', '\n', dividerless_text)
+    return dividerless_text
 
 def make_atx_header(text: str, header_level: int) -> str:
     """Converts the given text into an ATX-style markdown header of the specified level.
