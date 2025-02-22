@@ -207,30 +207,39 @@ def relink_perplexity_export_smc(perplexity_smc_file: pl.Path, relinked_file: pl
 
     relinker = ZoteroLinkConverter()
     
-    def relink_body_source(body_text: str, sources_text: str) -> Tuple[str, str]:
+    def relink_body_source(body_text: str, sources_text: str, is_source_list=True) -> Tuple[str, str]:
         """Replace URLs with Zotero/Obsidian links in both content sections"""
-        def parse_source_lines(sources_content: str) -> Tuple[Dict[str, str], list[Tuple[str, str]]]:
+        def parse_source_lines(sources_content: str, sources_source: str) -> Tuple[Dict[str, str], list[Tuple[str, str]]]:
             """Map Build a dictionary mapping URLs to titles from the sources section of a "Save my Chatbot" output."""
            
             url_to_title: Dict[str, str] = {}
             citenum_url_pairs: list[Tuple[str, str]] = []
-            # TODO: replace with named, compiled, global link
-            # TODO: wrong regexp for sources in smc files
-            matches = re.findall(r'- \[(.*?)\]\((https?://\S+)\)', sources_content)
-            for link_text, link_url in matches:
-                print(f'{link_text=}, {link_url=}')
-                normalized_url = rfw.normalize_url(link_url)
-                match = re.match(source_citenum_title_re, link_text)
-                if match:
-                    citenum, title = match['citenum'], match['title']
-                    citenum_url_pairs.append((citenum, normalized_url))
-                    url_to_title[normalized_url] = title.strip()
-                else:
-                    raise ValueError(f'Failed to parse source link text: {link_text=}')
+            if sources_source == 'sources_list':
+                # TODO: replace with named, compiled, global link
+                matches = re.findall(r'- \[(.*?)\]\((https?://\S+)\)', sources_content)
+                for link_text, link_url in matches:
+                    print(f'{link_text=}, {link_url=}')
+                    normalized_url = rfw.normalize_url(link_url)
+                    match = re.match(source_citenum_title_re, link_text)
+                    if match:
+                        citenum, title = match['citenum'], match['title']
+                        citenum_url_pairs.append((citenum, normalized_url))
+                        url_to_title[normalized_url] = title.strip()
+                    else:
+                        raise ValueError(f'Failed to parse source link text: {link_text=}')
+            elif source_source == 'body_text':
+                MAKE A LOOP HERE, SEARCHING IN BODY
+            else:
+                raise ValueError(f'Unknown {sources_source=}')
+
 
             return url_to_title, citenum_url_pairs
 
-        source_url_to_title, source_citenum_url_pairs = parse_source_lines(sources_text)
+        if sources is None:
+            print('sources from body')
+            source_url_to_title, source_citenum_url_pairs = parse_source_lines(body_text, 'body_text')
+        else:
+            source_url_to_title, source_citenum_url_pairs = parse_source_lines(sources_text, 'sources_list')
         
         citenums_to_url_source = relinker.citenums_to_urls_dedup(source_citenum_url_pairs)
         body_depup = relinker.replace_body_citenums(body_text, citenums_to_url_source.new_num.to_dict())
@@ -250,7 +259,7 @@ def relink_perplexity_export_smc(perplexity_smc_file: pl.Path, relinked_file: pl
         section_parts = re.split(r'(\n---\s*\n\s*\*\*Sources:\*\*\s*\n)', section)
         if len(section_parts) < 3:
             print('Incomplete Body/Sources pair: assuming no Sources')
-            section_parts += ['', '']
+            section_parts += [None, None]
 
         body, sources_header, sources = section_parts
         user_header = rfw.summarize_prompt(body, MAX_WORDS_USER_HEADING,
