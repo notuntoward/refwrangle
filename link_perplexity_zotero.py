@@ -143,7 +143,7 @@ class ZoteroLinkConverter:
         
         url_to_citenums = defaultdict(list)
         for num, url in num_url_pairs:
-            print(f'{num=}, (url=)')
+            #print(f'{num=}, (url=)')
             url_to_citenums[url].append(num)
         
         # Create new citation numbers if there are duplicates
@@ -151,13 +151,13 @@ class ZoteroLinkConverter:
         lut = []
         display_citenums_map = False
         for url, nums in url_to_citenums.items():
-            print(f'{url=}, {nums}')
+            #print(f'{url=}, {nums}')
             if (num_dups := len(nums)) > 1 and verbose:
                 display_citenums_map = True
                 print(f'URL has {num_dups} dups: {nums=}, {url=}')
                 
             for num in nums:
-                print(f'{num}')
+                #print(f'{num}')
                 lut.append({'orig_num': num, 'new_num': str(new_cite_num), 'url': url})
             
             new_cite_num += 1
@@ -177,7 +177,7 @@ class ZoteroLinkConverter:
         
         return re.sub(citenum_plain_re, lambda m: f'[{oldnum_to_new[m.group("num")]}]', body)
     
-    def relink_body_and_make_source_links(self, body_dedup: str, citenums_to_url: pd.DataFrame, source_url_to_title: Optional[Dict[str, str]] = None) -> Tuple[str, list[str]]:
+    def relink_body_and_make_source_links(self, body_dedup: str, citenums_to_url: pd.DataFrame, body_link_type: str, source_url_to_title: Optional[Dict[str, str]] = None) -> Tuple[str, list[str]]:
         """For both body and source, replaces links with Zotero or Obsidian links. Assumes that duplicate citenums
         have already been removed from the body text (body_dedup)"""
 
@@ -191,13 +191,15 @@ class ZoteroLinkConverter:
             source_num_to_link[num] = body_link
             relinked_source_lines.append(relinked_source)
         
-        if source_url_to_title:
+        if body_link_type == 'url_link':
             # TODO: instead, make relinker.replace_body_citenums() force substitue plain links w/ no URL?
             body_relinked = re.sub(citenum_url_link_re,  # match and replace the entire link
                                 lambda m: f' {source_num_to_link.get(m.group("orig"))}', body_dedup)
-        else:
+        elif body_link_type == 'plain_link':
             body_relinked = re.sub(citenum_plain_re,  # only matching and replace the num
                                 lambda m: f' {source_num_to_link.get(m.group("num"))}', body_dedup)
+        else:
+            raise ValueError(f'Unknown {body_link_type=}')
             
         return body_relinked, relinked_source_lines
 
@@ -218,7 +220,6 @@ def relink_perplexity_export_smc(perplexity_smc_file: pl.Path, relinked_file: pl
                 # TODO: replace with named, compiled, global link
                 matches = re.findall(r'- \[(.*?)\]\((https?://\S+)\)', sources_content)
                 for link_text, link_url in matches:
-                    print(f'{link_text=}, {link_url=}')
                     normalized_url = rfw.normalize_url(link_url)
                     match = re.match(source_citenum_title_re, link_text)
                     if match:
@@ -227,23 +228,24 @@ def relink_perplexity_export_smc(perplexity_smc_file: pl.Path, relinked_file: pl
                         url_to_title[normalized_url] = title.strip()
                     else:
                         raise ValueError(f'Failed to parse source link text: {link_text=}')
-            elif source_source == 'body_text':
-                MAKE A LOOP HERE, SEARCHING IN BODY
+            elif sources_source == 'body_text':
+                for citenum, url in re.findall(citenum_url_link_re, sources_content):
+                    citenum_url_pairs.append((citenum, rfw.normalize_url(url)))
             else:
                 raise ValueError(f'Unknown {sources_source=}')
 
-
             return url_to_title, citenum_url_pairs
 
-        if sources is None:
-            print('sources from body')
+        if len(sources) == 0:
             source_url_to_title, source_citenum_url_pairs = parse_source_lines(body_text, 'body_text')
         else:
             source_url_to_title, source_citenum_url_pairs = parse_source_lines(sources_text, 'sources_list')
         
         citenums_to_url_source = relinker.citenums_to_urls_dedup(source_citenum_url_pairs)
         body_depup = relinker.replace_body_citenums(body_text, citenums_to_url_source.new_num.to_dict())
-        relinked_body, relinked_sources = relinker.relink_body_and_make_source_links(body_depup, citenums_to_url_source, source_url_to_title)
+        
+        relinked_body, relinked_sources = relinker.relink_body_and_make_source_links(body_depup, citenums_to_url_source, 'url_link', source_url_to_title)
+        
         relinked_sources_str = "\n".join(sorted(relinked_sources, key=lambda line: int(re.search(citenum_plain_re, line).group('num'))))
         return relinked_body, relinked_sources_str
         
@@ -259,7 +261,7 @@ def relink_perplexity_export_smc(perplexity_smc_file: pl.Path, relinked_file: pl
         section_parts = re.split(r'(\n---\s*\n\s*\*\*Sources:\*\*\s*\n)', section)
         if len(section_parts) < 3:
             print('Incomplete Body/Sources pair: assuming no Sources')
-            section_parts += [None, None]
+            section_parts += ["", ""]
 
         body, sources_header, sources = section_parts
         user_header = rfw.summarize_prompt(body, MAX_WORDS_USER_HEADING,
