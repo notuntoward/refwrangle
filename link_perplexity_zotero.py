@@ -15,9 +15,6 @@ TOP_HEADING_LEVEL_IN_AI = 2
 ANSWER_HEADING = "## AI answer"
 USER_HEADING = '## User'
 MAX_WORDS_PROMPT_HEADING = 10
-PROMPT_HEADER_SMC = '## User'
-RESPONSE_HEADER_SMC = '## AI Answer'
-SOURCES_HEADER_SMC = r'\*\*Sources\*\*'
 
 # like in smc body
 #citenum_url_link_re = re.compile(r'\[(?P<orig>\d+)\]\((?P<url>https?://[^\)]+)\)')
@@ -196,30 +193,28 @@ class ZoteroLinkConverter:
         
         return re.sub(citenum_plain_re, lambda m: f'[{oldnum_to_new[m.group("num")]}]', body)
     
-    def relink_body_and_make_source_links(self, prsplit: PromptResponseSplitDeDup, body_link_type: str) -> Tuple[str, list[str]]:
+    def relink_body_and_make_source_links(self, prsplit: PromptResponseSplitDeDup, response_link_type: str) -> Tuple[str, list[str]]:
         """For both body and source, replaces links with Zotero or Obsidian links. Assumes that duplicate citenums
         have already been removed from the body text (body_dedup)""" 
 
-        citenums_to_url_source = prsplit.citenums_to_url_source.copy()
-        new_num_to_url = citenums_to_url_source.set_index('new_num').url.drop_duplicates().to_dict() # dedup citenums to url
+        new_num_to_url = (prsplit.citenums_to_url_source.copy()
+                          .set_index('new_num').url.drop_duplicates().to_dict())
         
-        #new_num_to_url = citenums_to_url_source.set_index('new_num').url.to_dict() # dedup citenums to url
-
-        response_citenums = set(re.findall(citenum_plain_re, prsplit.response_dedup))
+        all_response_nums = set(re.findall(citenum_plain_re, prsplit.response_dedup))
         
         source_num_to_link, relinked_source_lines = {}, []
         for num, url in new_num_to_url.items():
             title = prsplit.url_to_source_title[url] if prsplit.url_to_source_title else None
-            response_link, relinked_source = self.make_relinks(num, url, response_citenums, title)
+            response_link, relinked_source = self.make_relinks(num, url, all_response_nums, title)
             source_num_to_link[num] = response_link
             relinked_source_lines.append(relinked_source)
     
-        if body_link_type == 'url_link':
+        if response_link_type == 'url_link':
             gname = 'orig'
-        elif body_link_type == 'plain_link':
+        elif response_link_type == 'plain_link':
             gname = 'num'
         else:
-            raise ValueError(f'Unknown {body_link_type=}')
+            raise ValueError(f'Unknown {response_link_type=}')
         
         response_relinked = re.sub(citenum_plain_re,  # only matching and replace the num
                     lambda m: f' {source_num_to_link.get(m.group(gname))}', prsplit.response_dedup)
@@ -243,31 +238,58 @@ class ZoteroLinkConverter:
 # a relinker use here and by any importer of this file.  Only make one of these and share it.
 relinker = ZoteroLinkConverter()
 
+PROMPT_HEADER_SMC = '## User'
+RESPONSE_HEADER_SMC = '## AI Answer'
+SOURCES_HEADER_SMC = r'\*\*Sources\*\*'
+
 def split_prompt_response_text_smc(input_string: str) -> PromptResponseSplit:
     """Splits a single prompt/response/source string from Save My Chatbot output markdown"""
     
-    pattern = rf"(?m)^({PROMPT_HEADER_SMC}|{RESPONSE_HEADER_SMC}|{SOURCES_HEADER_SMC})"
-    parts = re.split(pattern, input_string)
+    # pattern = rf"(?m)^({PROMPT_HEADER_SMC}|{RESPONSE_HEADER_SMC}|{SOURCES_HEADER_SMC})"    
+    # parts = re.split(pattern, input_string)
 
-    if (num_parts := len(parts)) < 1:
-        raise ValueError("Empty document or failed to find any headers in expected places")
+    # if (num_parts := len(parts)) < 1:
+    #     raise ValueError("Empty document or failed to find any headers in expected places")
 
-    if num_parts < 3 or not re.match(rf'^{PROMPT_HEADER_SMC}.*',parts[1]):
-        raise ValueError(f"Failed to find prompt header ({PROMPT_HEADER_SMC}) in expected place")
+    # if num_parts < 3 or not re.match(rf'^{PROMPT_HEADER_SMC}.*',parts[1]):
+    #     raise ValueError(f"Failed to find prompt header ({PROMPT_HEADER_SMC}) in expected place")
 
-    if num_parts < 4 or not re.match(rf'^{RESPONSE_HEADER_SMC}.*',parts[3]):
-        raise ValueError(f"Failed to find response header ({RESPONSE_HEADER_SMC}) in expected place")
+    # if num_parts < 4 or not re.match(rf'^{RESPONSE_HEADER_SMC}.*',parts[3]):
+    #     raise ValueError(f"Failed to find response header ({RESPONSE_HEADER_SMC}) in expected place")
 
-    if num_parts < 5:
-        raise ValueError("Incomplete prompt/response pair")
+    # if num_parts < 5:
+    #     raise ValueError("Incomplete prompt/response pair")
         
-    preamble, prompt, response = parts[0], parts[2], parts[4]
+    # preamble, prompt, response = parts[0], parts[2], parts[4]
 
-    sources = ''
-    if num_parts > 6 and re.match(rf'^{SOURCES_HEADER_SMC}.*',parts[5]):
-        sources = parts[6]
-    else:
-        print(f"Sources header({RESPONSE_HEADER_SMC}) not in expected place or no source list: Assume no sources.")
+    # sources = ''
+    # if num_parts > 6 and re.match(rf'^{SOURCES_HEADER_SMC}.*',parts[5]):
+    #     sources = parts[6]
+    # else:
+    #     print(f"Sources header({RESPONSE_HEADER_SMC}) not in expected place or no source list: Assume no sources.")
+    
+    # Define a pattern with capturing groups for headers
+    pattern = rf"(?m)^({PROMPT_HEADER_SMC}|{RESPONSE_HEADER_SMC}|{SOURCES_HEADER_SMC})"
+    
+    # Use re.split to split and include the matched headers in the result
+    parts = re.split(pattern, input_string)
+    
+    # Filter out empty strings from parts (if any)
+    parts = [part.strip() for part in parts if part.strip()]
+    
+    # Process parts to extract prompt, response, and sources
+    prompt = ""
+    response = ""
+    sources = ""
+    
+    # Iterate through parts to assign content based on headers
+    for i in range(len(parts)):
+        if parts[i] == PROMPT_HEADER_SMC and i + 1 < len(parts):
+            prompt = parts[i + 1]
+        elif parts[i] == RESPONSE_HEADER_SMC and i + 1 < len(parts):
+            response = parts[i + 1]
+        elif parts[i] == SOURCES_HEADER_SMC and i + 1 < len(parts):
+            sources = parts[i + 1]
 
     citenum_url_pairs, url_to_source_title = [], {}
     if sources:
@@ -284,6 +306,117 @@ def split_prompt_response_text_smc(input_string: str) -> PromptResponseSplit:
         citenum_url_pairs = rfw.get_link_tu_pairs(response, r'\[(.*?)\]\((https?://\S+)\)')
 
     return PromptResponseSplit(preamble, prompt, response, citenum_url_pairs, url_to_source_title)
+
+# Something cleaner from perplexity, although it loses strict order testing
+#
+# import re
+# from dataclasses import dataclass
+
+# PROMPT_HEADER_SMC = '## User'
+# RESPONSE_HEADER_SMC = '## AI Answer'
+# SOURCES_HEADER_SMC = r'\*\*Sources\*\*'
+
+# @dataclass
+# class PromptResponseSplit:
+#     prompt: str
+#     response: str
+#     sources: str
+
+# def split_prompt_response_text_smc(input_string: str) -> PromptResponseSplit:
+#     """Splits a single prompt/response/source string from Save My Chatbot output markdown."""
+    
+#     # Define a pattern with capturing groups for headers
+#     pattern = rf"(?m)^({PROMPT_HEADER_SMC}|{RESPONSE_HEADER_SMC}|{SOURCES_HEADER_SMC})"
+    
+#     # Use re.split to split and include the matched headers in the result
+#     parts = re.split(pattern, input_string)
+    
+#     # Filter out empty strings from parts (if any)
+#     parts = [part.strip() for part in parts if part.strip()]
+    
+#     # Process parts to extract prompt, response, and sources
+#     prompt = ""
+#     response = ""
+#     sources = ""
+    
+#     # Iterate through parts to assign content based on headers
+#     for i in range(len(parts)):
+#         if parts[i] == PROMPT_HEADER_SMC and i + 1 < len(parts):
+#             prompt = parts[i + 1]
+#         elif parts[i] == RESPONSE_HEADER_SMC and i + 1 < len(parts):
+#             response = parts[i + 1]
+#         elif parts[i] == SOURCES_HEADER_SMC and i + 1 < len(parts):
+#             sources = parts[i + 1]
+    
+#     return PromptResponseSplit(prompt=prompt, response=response, sources=sources)
+
+# # Example usage
+# input_string = """## User
+# This is a user input.
+# ## AI Answer
+# This is an AI response.
+# **Sources**
+# These are the sources."""
+# result = split_prompt_response_text_smc(input_string)
+# print(result)
+# 
+#---------------------------------------------------------------------------------
+#
+# perplexity verssion that maintains order
+#
+# import re
+# from dataclasses import dataclass
+
+# PROMPT_HEADER_SMC = '## User'
+# RESPONSE_HEADER_SMC = '## AI Answer'
+# SOURCES_HEADER_SMC = r'\*\*Sources\*\*'
+
+# @dataclass
+# class PromptResponseSplit:
+#     prompt: str
+#     response: str
+#     sources: str = ""  # Default to an empty string if sources are not provided
+
+# def split_prompt_response_text_smc(input_string: str) -> PromptResponseSplit:
+#     """Splits a single prompt/response/source string from Save My Chatbot output markdown, with optional sources."""
+    
+#     # Regex pattern to match required headers (in order) and optional sources
+#     pattern = rf"""
+#         ^{PROMPT_HEADER_SMC}\n(.*?)       # Match ## User and capture its content
+#         \n{RESPONSE_HEADER_SMC}\n(.*?)   # Match ## AI Answer and capture its content
+#         (?:\n{SOURCES_HEADER_SMC}\n(.*))?$  # Optionally match **Sources** and capture its content
+#     """
+    
+#     match = re.match(pattern, input_string, re.DOTALL | re.VERBOSE)
+    
+#     if not match:
+#         raise ValueError("Input string does not match the expected format.")
+    
+#     # Extract matched groups with default for sources if not present
+#     prompt, response, sources = match.group(1).strip(), match.group(2).strip(), (match.group(3) or "").strip()
+    
+#     return PromptResponseSplit(prompt=prompt, response=response, sources=sources)
+
+# # Example usage
+# input_string_with_sources = """## User
+# This is a user input.
+# ## AI Answer
+# This is an AI response.
+# **Sources**
+# These are the sources."""
+
+# input_string_without_sources = """## User
+# This is a user input.
+# ## AI Answer
+# This is an AI response."""
+
+# # Test with sources present
+# result_with_sources = split_prompt_response_text_smc(input_string_with_sources)
+# print(result_with_sources)
+
+# # Test without sources present
+# result_without_sources = split_prompt_response_text_smc(input_string_without_sources)
+# print(result_without_sources)
 
 def split_prompt_response_dedup_smc(markdown_text: str) -> PromptResponseSplitDeDup:
     """Splits perplexity Save my Chatbot output markdown text into prompt, response and source sections.
@@ -361,11 +494,14 @@ def relink_single_file_smc(perplexity_smc_file: pl.Path, relinked_file: pl.Path)
     with open(perplexity_smc_file, 'r', encoding='utf-8') as infile:
         content = infile.read()
 
+    #sections = re.split(rf'(?<=\n)({PROMPT_HEADER_SMC})', content)
     sections = re.split(rf'(?<=\n){PROMPT_HEADER_SMC}', content)
+    
     chat_source = rfw.file_link_md('source', perplexity_smc_file) # " ".join(sections[0].split("\n")[1:])  # Remove redundant header
     relinked_sections = [make_obsidian_front_matter() + f'{chat_source.lstrip()}\n']
     
     for section in sections[1:]:  # Process each user section
+        section = f'{PROMPT_HEADER_SMC}\n{section}' # stick header back on for more certtain matching
         prsplit = split_prompt_response_dedup_smc(section)
         response_relinked, relinked_sources = relinker.relink_body_and_make_source_links(prsplit,'url_link')
         response_relinked = rfw.hierarch_shift_markdown_headers(response_relinked, top_level=2)
