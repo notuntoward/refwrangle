@@ -1,12 +1,13 @@
 # %%
 import re
 from collections import Counter, defaultdict
-from typing import Optional, Dict, Tuple
+from typing import Optional, Dict, Tuple, List, Callable
 import datetime as dt
 import pathlib as pl
 from outcome import Value
 import pandas as pd
 import refwrangle as rfw
+from dataclasses import dataclass
 from icecream import ic
 
 
@@ -24,8 +25,22 @@ source_citenum_title_re = re.compile(r'^\((?P<citenum>\d+)\)\s*(?P<title>.+)')
 #citenum_plain_re = re.compile(r'\[(?P<num>\d+)\]')
 citenum_plain_re = re.compile(r'\[\^?(?P<num>\d+)\]') # handles both ^ and plain number syntax
 
+@dataclass
+class PromptResponseSplit:
+    """The components of a single Perplexity Prompt-Response"""
+    preamble: str
+    prompt: str
+    response: str
+    citenum_url_pairs: List[Tuple]
 
-
+@dataclass
+class PromptResponseSplitDeDup:
+    """The components of a single Perplexity Prompt-Response, after the citenums have been deduplicated"""
+    preamble: str
+    prompt: str
+    response_dedup: str
+    citenums_to_url_source: pd.DataFrame
+    
 class ZoteroLinkConverter:
     """Converts web links to Zotero/Obsidian links in content sections"""
     
@@ -202,19 +217,19 @@ class ZoteroLinkConverter:
             
         return body_relinked, relinked_source_lines
     
-    def split_dedup_prompt_response(self, markdown_text, split_func) -> Tuple[str, str, str, pd.DataFrame]:
+    def split_prompt_response_dedup(self, markdown_text: str, split_func: Callable[[str], PromptResponseSplit]) -> PromptResponseSplitDeDup:
         """Splits perplexity output markdown text into prompt, response and source sections.
         In the response, duplicate citenums are removed, and the mapping from original 
         to deduplicated numbers is in citenumes_to_url_source"""
         
-        preamble, prompt, response, citenum_url_pairs = split_func(markdown_text)
+        prsplit = split_func(markdown_text)
                 
-        citenums_to_url_source = self.citenums_to_urls_dedup(citenum_url_pairs)
+        citenums_to_url_source = self.citenums_to_urls_dedup(prsplit.citenum_url_pairs)
         
-        response_dedup = self.replace_body_citenums(response, citenums_to_url_source.new_num.to_dict())
+        response_dedup = self.replace_body_citenums(prsplit.response, citenums_to_url_source.new_num.to_dict())
         response_dedup = rfw.remove_markdown_dividers(response_dedup) # too many in o3-mini (2/2025)
         
-        return preamble, prompt, response_dedup, citenums_to_url_source
+        return PromptResponseSplitDeDup(prsplit.preamble, prsplit.prompt, response_dedup, citenums_to_url_source)
 
 
 def relink_perplexity_export_smc(perplexity_smc_file: pl.Path, relinked_file: pl.Path):
