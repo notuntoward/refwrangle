@@ -201,7 +201,10 @@ class ZoteroLinkConverter:
         have already been removed from the body text (body_dedup)""" 
 
         citenums_to_url_source = prsplit.citenums_to_url_source.copy()
-        new_num_to_url = citenums_to_url_source.set_index('new_num').url.to_dict() # dedup citenums to url
+        new_num_to_url = citenums_to_url_source.set_index('new_num').url.drop_duplicates().to_dict() # dedup citenums to url
+        
+        #new_num_to_url = citenums_to_url_source.set_index('new_num').url.to_dict() # dedup citenums to url
+
         response_citenums = set(re.findall(citenum_plain_re, prsplit.response_dedup))
         
         source_num_to_link, relinked_source_lines = {}, []
