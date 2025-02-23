@@ -13,7 +13,7 @@ from icecream import ic
 TOP_HEADING_LEVEL_IN_AI = 2
 ANSWER_HEADING = "## AI answer"
 USER_HEADING = '## User'
-MAX_WORDS_USER_HEADING = 10
+MAX_WORDS_PROMPT_HEADING = 10
 
 # like in smc body
 #citenum_url_link_re = re.compile(r'\[(?P<orig>\d+)\]\((?P<url>https?://[^\)]+)\)')
@@ -201,6 +201,21 @@ class ZoteroLinkConverter:
             raise ValueError(f'Unknown {body_link_type=}')
             
         return body_relinked, relinked_source_lines
+    
+    def split_dedup_prompt_response(self, markdown_text, split_func) -> Tuple[str, str, str, pd.DataFrame]:
+        """Splits perplexity output markdown text into prompt, response and source sections.
+        In the response, duplicate citenums are removed, and the mapping from original 
+        to deduplicated numbers is in citenumes_to_url_source"""
+        
+        preamble, prompt, response, citenum_url_pairs = split_func(markdown_text)
+                
+        citenums_to_url_source = self.citenums_to_urls_dedup(citenum_url_pairs)
+        
+        response_dedup = self.replace_body_citenums(response, citenums_to_url_source.new_num.to_dict())
+        response_dedup = rfw.remove_markdown_dividers(response_dedup) # too many in o3-mini (2/2025)
+        
+        return preamble, prompt, response_dedup, citenums_to_url_source
+
 
 def relink_perplexity_export_smc(perplexity_smc_file: pl.Path, relinked_file: pl.Path):
     """Replace links in "Save my Chatbot" Perplexity output with links 
@@ -234,32 +249,106 @@ def relink_perplexity_export_smc(perplexity_smc_file: pl.Path, relinked_file: pl
         relinked_sources_str = "\n".join(sorted(relinked_sources, key=lambda line: int(re.search(citenum_plain_re, line).group('num'))))
         return relinked_body, relinked_sources_str    
         
-    with open(perplexity_smc_file, 'r', encoding='utf-8') as infile:
-        content = infile.read()
+#     with open(perplexity_smc_file, 'r', encoding='utf-8') as infile:
+#         content = infile.read()
 
-    sections = re.split(rf'(?<=\n){USER_HEADING}', content)
-    front_matter = f'---\ncategory: aichat\ncreated date: {dt.datetime.now()}\n---\n'
-    chat_source = " ".join(sections[0].split("\n")[1:])  # Remove redundant header
-    processed_sections = [front_matter + f'{chat_source.lstrip()}\n']
+#     # TODO: add this to both SMC and Perplex
+#     front_matter = f'---\ncategory: aichat\ncreated date: {dt.datetime.now()}\n---\n'
+
+#     sections = re.split(rf'(?<=\n){USER_HEADING}', content)
+#     chat_source = " ".join(sections[0].split("\n")[1:])  # Remove redundant header
+#     processed_sections = [front_matter + f'{chat_source.lstrip()}\n']
     
-    for section in sections[1:]:  # Process each user section
-        section_parts = re.split(r'(\n---\s*\n\s*\*\*Sources:\*\*\s*\n)', section)
-        if len(section_parts) < 3:
-            print('Incomplete Body/Sources pair: assuming no Sources')
-            section_parts += ["", ""]
-
-        body, sources_header, sources = section_parts
-        user_header = rfw.summarize_prompt(body, MAX_WORDS_USER_HEADING,
-                                           ANSWER_HEADING, TOP_HEADING_LEVEL_IN_AI)
+#     for section in sections[1:]:  # Process each user section
+#         PROMPT_HEADING = '## USER'
+#         match = re.search(rf'(?m)^#{PROMPT_HEADING}', content)
+#         if (user_start_idx := match.start('heading_text')) == -1:
+#             raise ValueError('Could not find user prompt heading')
         
-        processed_body, processed_sources = relink_body_source(body, sources)
-        processed_body = rfw.setext_headers_to_atx(processed_body,
-                                                   TOP_HEADING_LEVEL_IN_AI + 1)
+    
+        
+        
+#         section_parts = re.split(r'(\n---\s*\n\s*\*\*Sources:\*\*\s*\n)', section)
+#         if len(section_parts) < 3:
+#             print('Incomplete Body/Sources pair: assuming no Sources')
+#             section_parts += ["", ""]
 
-        processed_sections += [user_header, processed_body, sources_header, processed_sources]
+#         body, sources_header, sources = section_parts
+#         user_header = rfw.summarize_prompt(body, MAX_WORDS_PROMPT_HEADING,
+#                                            ANSWER_HEADING, TOP_HEADING_LEVEL_IN_AI)
+        
+#         processed_body, processed_sources = relink_body_source(body, sources)
+#         processed_body = rfw.setext_headers_to_atx(processed_body,
+#                                                    TOP_HEADING_LEVEL_IN_AI + 1)
 
-    with open(relinked_file, 'w', encoding='utf-8') as outfile:
-        outfile.write('\n'.join(processed_sections))
+#         processed_sections += [user_header, processed_body, sources_header, processed_sources]
+
+#     with open(relinked_file, 'w', encoding='utf-8') as outfile:
+#         outfile.write('\n'.join(processed_sections))
+        
+# def split_prompt_response_text_smc(prompt_response_source_text: str) -> Tuple[str, str, pd.DataFrame]:
+#     """Splits a single prompt/response/source string from Save My Chatbot output markdown"""
+    
+#     PROMPT_HEADER = '## User'
+#     RESPONSE_HEADER = '## AI Answer'
+#     SOURCES_HEADER = r'\*\*Sources\*\*'
+
+#     pattern = rf"(?m)^({PROMPT_HEADER}|{RESPONSE_HEADER}|{SOURCES_HEADER})"
+#     parts = re.split(pattern, input_string)
+#     num_parts = len(parts)
+#     ic(parts[1], parts[2], parts[2])
+
+#     if num_parts < 1:
+#         raise ValueError(f"Empty document for failed to find any headers in expected places")
+
+#     if num_parts < 3 or not re.match(rf'^{PROMPT_HEADER}.*',parts[1]):
+#         raise ValueError(f"Failed to find prompt header ({PROMPT_HEADER}) in expected place")
+
+#     if num_parts < 4 or not re.match(rf'^{RESPONSE_HEADER}.*',parts[3]):
+#         raise ValueError(f"Failed to find response header ({RESPONSE_HEADER}) in expected place")
+
+#     if num_parts < 5:
+#         raise ValueError(f"Incomplete prompt/response pair")
+        
+#     preamble, prompt, response = parts[0], parts[2], parts[4]
+
+#     sources = ''
+#     if num_parts > 6 and re.match(rf'^{SOURCES_HEADER}.*',parts[5]):
+#         sources = parts[6]
+#     else:
+#         print(f"Sources header({RESPONSE_HEADER}) not in expected place or no source list: Assume no sources.")
+
+#     return preamble, prompt, response, sources    
+    
+def split_dedup_prompt_response_smc(markdown_text: str) -> Tuple[str, str, pd.DataFrame]:
+    """Splits a single file's worth of Save My Chatbot output markdown text into 
+    prompt, response and source sections. In the response, duplicate citenums
+    are removed, and the mapping from original to deduplicated numbers is in
+    citenumes_to_url_source"""
+    
+    front_matter = f'---\ncategory: aichat\ncreated date: {dt.datetime.now()}\n---\n'
+    sections_prompt_response = re.split(rf'(?<=\n){USER_HEADING}', markdown_text)
+    
+    chat_source = " ".join(sections_prompt_response[0].split("\n")[1:])  # Remove redundant header
+    file_header = front_matter + f'{chat_source.lstrip()}\n'
+    # processed_sections = [front_matter + f'{chat_source.lstrip()}\n']
+        
+    for section in sections_prompt_response[1:]:  # Process each user section
+        try:        
+            _, prompt, response, sources  = split_prompt_response_text_smc(section)
+        except:
+            print(e)
+            continue # don't die if only one is section is bad
+        
+        citenum_url_pairs = rfw.get_link_tu_pairs(sources, source_list_pattern_smc)
+   
+        citenums_to_url_source = relinker.citenums_to_urls_dedup(citenum_url_pairs)
+    
+        response_dedup = relinker.replace_body_citenums(response, citenums_to_url_source.new_num.to_dict())
+        response_dedup = rfw.remove_markdown_dividers(response_dedup) # too many in o3-mini (2/2025)
+        
+
+    return preamble, prompt, response_dedup, citenums_to_url_source
                 
 
 def read_markdown_file(file_path: pl.Path) -> str:
@@ -348,8 +437,8 @@ def count_prompts_smc_content(file_contents: str) -> int:
     
 # Example usage
 if __name__ == "__main__":
-    input_file = pl.Path(r"C:\Users\scott\OneDrive\share\ref\refwrangle\test\dat\merge_chats_smc\GPT-4o-BGtrail.md")
-    #input_file = rfw.refwrangle_test_dir / "dat" / 'perplexity_multi_prompt_savemychatbot_example.md'
+    #input_file = pl.Path(r"C:\Users\scott\OneDrive\share\ref\refwrangle\test\dat\merge_chats_smc\GPT-4o-BGtrail.md")
+    input_file = rfw.refwrangle_test_dir / "dat" / 'perplexity_multi_prompt_savemychatbot_example.md'
     #input_file = pl.Path(r"C:\Users\scott\share\ref\refwrangle\tmp\watchter\raw\perplexity_2025-02-10_20-04-06_data.md")
     output_dir = pl.Path(r"C:\Users\scott\OneDrive\share\ref\obsidian\Obsidian Share Vault\Scratch Space")
     output_file = output_dir / 'tmp_savemychatbot_multiprompt_perplexity_example.md'
