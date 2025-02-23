@@ -105,7 +105,7 @@ def webhook():
             if output_relinked_file:
                 print(f'{input_smc_file}\n-->\n{output_relinked_file}')
                 #lpz.relink_perplexity_export_smc(input_smc_file, output_relinked_file, zot_db_items)
-                lpz.relink_perplexity_export_smc(input_smc_file, output_relinked_file)
+                lpz.relink_single_file_smc(input_smc_file, output_relinked_file)
                 print('Done.')
             else:
                 print('Save operation cancelled')
