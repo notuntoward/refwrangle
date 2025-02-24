@@ -123,7 +123,7 @@ class ZoteroLinkConverter:
 
         return rfw.zotero_item_link(item["zotkey"], f'{item["citekey"]}\u2794{item["zotkey"]}')
     
-    def make_relinks(self, cite_num: str, doc_url: str, all_body_cite_nums: set, source_title: Optional[str] = None) -> Tuple[str, str]:
+    def make_relinks(self, cite_num: str, doc_url: str, all_resp_cite_nums: set, source_title: Optional[str] = None) -> Tuple[str, str]:
         """Returns what a relinked citation would look like if present in the body,
         given a source citation number and url (found in sources, possibly in body).  
         Also, returns a relinked source list line. Note that the source_title is present in
@@ -134,9 +134,9 @@ class ZoteroLinkConverter:
 
         numbered_link = f"[{cite_num}]({doc_url})"
         if zotero_item:
-            body_link = self.create_obsidian_or_zotero_link(zotero_item)
+            resp_link = self.create_obsidian_or_zotero_link(zotero_item)
         else:
-            body_link = f"=={numbered_link}==" # "in body, not in zotero"
+            resp_link = f"=={numbered_link}==" # "in body, not in zotero"
 
         source_link = f'({numbered_link})'
         if not (zotero_item or source_title):
@@ -144,15 +144,15 @@ class ZoteroLinkConverter:
         elif not zotero_item and source_title:
             source_link += f" {source_title}"
         elif zotero_item and not source_title:
-            source_link += f" **{body_link}**"
+            source_link += f" **{resp_link}**"
         else:
-            source_link += f" {source_title} **{body_link}**"
+            source_link += f" {source_title} **{resp_link}**"
 
-        if cite_num in all_body_cite_nums and not zotero_item:
-            source_link = f'=={source_link} ==' # "in body, not in zotero"
+        if cite_num in all_resp_cite_nums and not zotero_item:
+            source_link = f'=={source_link} ==' # "in ressponse, not in zotero"
         
         # ic(body_link, source_link)
-        return body_link, source_link
+        return resp_link, source_link
     
     def citenums_to_urls_dedup(self, num_url_pairs: list[Tuple[str, str]], verbose: bool = False) -> pd.DataFrame:
         """Return a dataframe mapping from citenums to url.
@@ -163,7 +163,7 @@ class ZoteroLinkConverter:
             url_to_citenums[url].append(num)
         
         # Create new citation numbers if there are duplicates
-        new_cite_num = 1
+        dedup_cite_num = 1
         lut = []
         display_citenums_map = False
         for url, nums in url_to_citenums.items():
@@ -174,36 +174,40 @@ class ZoteroLinkConverter:
                 
             for num in nums:
                 #print(f'{num}')
-                lut.append({'orig_num': num, 'new_num': str(new_cite_num), 'url': url})
+                lut.append({'orig_num': num, 'dedup_num': str(dedup_cite_num), 'url': url})
             
-            new_cite_num += 1
+            dedup_cite_num += 1
         
-        citenums_to_url = pd.DataFrame(lut).set_index(['orig_num'])
+        citenums_to_url = pd.DataFrame(lut).drop_duplicates().set_index(['orig_num'])
         if display_citenums_map:
             ic(citenums_to_url)
         
         return citenums_to_url
     
-    def replace_body_citenums(self, body: str, oldnum_to_new: Dict[str, str]) -> str:
+    def replace_response_citenums(self, response: str, oldnum_to_new: Dict[str, str]) -> str:
         """Replace citation numbers in the body with new ones.  
         Works for both plain cites, as in perplexity outputs, and web links, as in SMC outputs.
         Assumes that source numbers and urls matched those in source list, and that if there were
         number/url duplicates, the duplication was the same in both the source list and the body. 
         On stock perplexity outputs, this appeared to be the case."""
         
-        return re.sub(citenum_plain_re, lambda m: f'[{oldnum_to_new[m.group("num")]}]', body)
+#        return re.sub(citenum_plain_re, lambda m: f'[{oldnum_to_new[m.group("num")]}]', body)
+        #ic(oldnum_to_new)
+        resp_groups = [m for m in re.findall(citenum_plain_re, response)]
+        #ic(resp_groups)
+        return re.sub(citenum_plain_re, lambda m: f'[{oldnum_to_new[m.group(1)]}]', response) # assumed 1st group scitenum
     
     def relink_body_and_make_source_links(self, prsplit: PromptResponseSplitDeDup, response_link_type: str) -> Tuple[str, list[str]]:
         """For both body and source, replaces links with Zotero or Obsidian links. Assumes that duplicate citenums
         have already been removed from the body text (body_dedup)""" 
 
-        new_num_to_url = (prsplit.citenums_to_url_source.copy()
-                          .set_index('new_num').url.drop_duplicates().to_dict())
+        dedup_num_to_url = (prsplit.citenums_to_url_source.copy()
+                          .set_index('dedup_num').url.drop_duplicates().to_dict())
         
         all_response_nums = set(re.findall(citenum_plain_re, prsplit.response_dedup))
         
         source_num_to_link, relinked_source_lines = {}, []
-        for num, url in new_num_to_url.items():
+        for num, url in dedup_num_to_url.items():
             title = prsplit.url_to_source_title[url] if prsplit.url_to_source_title else None
             response_link, relinked_source = self.make_relinks(num, url, all_response_nums, title)
             source_num_to_link[num] = response_link
@@ -227,10 +231,12 @@ class ZoteroLinkConverter:
         to deduplicated numbers is in citenumes_to_url_source"""
         
         prsplit = split_func(markdown_text)
+        #ic(prsplit.citenum_url_pairs, prsplit.url_to_source_title)
                 
         citenums_to_url_source = self.citenums_to_urls_dedup(prsplit.citenum_url_pairs)
+        #ic(citenums_to_url_source)
         
-        response_dedup = self.replace_body_citenums(prsplit.response, citenums_to_url_source.new_num.to_dict())
+        response_dedup = self.replace_response_citenums(prsplit.response, citenums_to_url_source.dedup_num.to_dict())
         response_dedup = rfw.remove_markdown_dividers(response_dedup) # too many in o3-mini (2/2025)
         
         return PromptResponseSplitDeDup(prsplit.preamble, prsplit.prompt, response_dedup, citenums_to_url_source)
@@ -239,60 +245,61 @@ class ZoteroLinkConverter:
 relinker = ZoteroLinkConverter()
 
 PROMPT_HEADER_SMC = '## User'
-RESPONSE_HEADER_SMC = '## AI Answer'
-SOURCES_HEADER_SMC = r'\*\*Sources\*\*'
+RESPONSE_HEADER_SMC = '## AI answer'
+SOURCES_HEADER_SMC = r'\*\*Sources:\*\*'
 
 def split_prompt_response_text_smc(input_string: str) -> PromptResponseSplit:
     """Splits a single prompt/response/source string from Save My Chatbot output markdown"""
     
-    # pattern = rf"(?m)^({PROMPT_HEADER_SMC}|{RESPONSE_HEADER_SMC}|{SOURCES_HEADER_SMC})"    
-    # parts = re.split(pattern, input_string)
-
-    # if (num_parts := len(parts)) < 1:
-    #     raise ValueError("Empty document or failed to find any headers in expected places")
-
-    # if num_parts < 3 or not re.match(rf'^{PROMPT_HEADER_SMC}.*',parts[1]):
-    #     raise ValueError(f"Failed to find prompt header ({PROMPT_HEADER_SMC}) in expected place")
-
-    # if num_parts < 4 or not re.match(rf'^{RESPONSE_HEADER_SMC}.*',parts[3]):
-    #     raise ValueError(f"Failed to find response header ({RESPONSE_HEADER_SMC}) in expected place")
-
-    # if num_parts < 5:
-    #     raise ValueError("Incomplete prompt/response pair")
-        
-    # preamble, prompt, response = parts[0], parts[2], parts[4]
-
-    # sources = ''
-    # if num_parts > 6 and re.match(rf'^{SOURCES_HEADER_SMC}.*',parts[5]):
-    #     sources = parts[6]
-    # else:
-    #     print(f"Sources header({RESPONSE_HEADER_SMC}) not in expected place or no source list: Assume no sources.")
-    
-    # Define a pattern with capturing groups for headers
-    pattern = rf"(?m)^({PROMPT_HEADER_SMC}|{RESPONSE_HEADER_SMC}|{SOURCES_HEADER_SMC})"
-    
-    # Use re.split to split and include the matched headers in the result
+    pattern = rf"(?m)^({PROMPT_HEADER_SMC}|{RESPONSE_HEADER_SMC}|{SOURCES_HEADER_SMC})"    
     parts = re.split(pattern, input_string)
-    
-    # Filter out empty strings from parts (if any)
-    parts = [part.strip() for part in parts if part.strip()]
-    
-    # Process parts to extract prompt, response, and sources
-    prompt = ""
-    response = ""
-    sources = ""
-    
-    # Iterate through parts to assign content based on headers
-    for i in range(len(parts)):
-        if parts[i] == PROMPT_HEADER_SMC and i + 1 < len(parts):
-            prompt = parts[i + 1]
-        elif parts[i] == RESPONSE_HEADER_SMC and i + 1 < len(parts):
-            response = parts[i + 1]
-        elif parts[i] == SOURCES_HEADER_SMC and i + 1 < len(parts):
-            sources = parts[i + 1]
 
+    if (num_parts := len(parts)) < 1:
+        raise ValueError("Empty document or failed to find any headers in expected places")
+
+    #ic(num_parts)
+    
+    if num_parts < 3 or not re.match(rf'^{PROMPT_HEADER_SMC}.*',parts[1]):
+        raise ValueError(f"Failed to find prompt header ({PROMPT_HEADER_SMC}) in expected place")
+
+    if num_parts < 4 or not re.match(rf'^{RESPONSE_HEADER_SMC}.*',parts[3]):
+        raise ValueError(f"Failed to find response header ({RESPONSE_HEADER_SMC}) in expected place")
+
+    if num_parts < 5:
+        raise ValueError("Incomplete prompt/response pair")
+        
+    preamble, prompt, response = parts[0], parts[2], parts[4]
+    
+    #ic(re.match(rf'^{SOURCES_HEADER_SMC}.*', parts[4]))
+    
+    # try:
+    #     ic(parts[4])
+    # except:
+    #     print('no parts[4]')
+        
+    sources = ''
+    if num_parts > 6 and re.match(rf'^{SOURCES_HEADER_SMC}.*',parts[5]):
+        sources = parts[6]
+    else:
+        print(f"Sources header({SOURCES_HEADER_SMC}) not in expected place or no source list: Assume no sources.")
+    
+    # print(f'{preamble=}')
+    # print(f'{response=}')
+    #print(f'{prompt=}, {sources=}')
+
+    citenum_url_pairs_response = rfw.get_link_tu_pairs(response, r'\[(.*?)\]\((https?://\S+)\)')
+
+    # add plain citenums on to list (a constantant problem w/ SMC)
+    citenums_in_pairs = set([cupair[0] for cupair in citenum_url_pairs_response])
+    for citenum_plain in set([m for m in re.findall(citenum_plain_re, response)]):
+        if citenum_plain not in citenums_in_pairs:
+            warning_url = f"https://NO_URL_IN_RESPONSE_FOR_BARE_CITE_NUMBER_{citenum_plain}"
+            print(f'Malformed Plain citenum [{citenum_plain}] appears without URL in response')
+            citenum_url_pairs_response.append((citenum_plain, warning_url))
+    
     citenum_url_pairs, url_to_source_title = [], {}
-    if sources:
+    if len(sources)>0:
+        print(f'getting citenum_url_pairs from sources. {sources=}')
         # citenum/url/title from sources list
         for link_text, url in rfw.get_link_tu_pairs(sources, r'- \[(.*?)\]\((https?://\S+)\)'):
             if match := re.match(source_citenum_title_re, link_text):
@@ -301,167 +308,34 @@ def split_prompt_response_text_smc(input_string: str) -> PromptResponseSplit:
                 url_to_source_title[url] = title.strip()
             else:
                 raise ValueError(f'Failed to parse source link text: {link_text=}')
+        
+        # Append response num/url pairs not in sources list (sometimes happens in SMC)
+        for num_url_pair in citenum_url_pairs_response:
+            if num_url_pair not in citenum_url_pairs:
+                print(f'{num_url_pair[0]=}, {num_url_pair[1]=} in response but not source list')
+                citenum_url_pairs.append(num_url_pair)
+                url_to_source_title[num_url_pair[1]] = 'No entry in sources list'
     else:
-        # citenum/url from body
-        citenum_url_pairs = rfw.get_link_tu_pairs(response, r'\[(.*?)\]\((https?://\S+)\)')
+        print(f'getting citenum_url_pairs from response.  {sources=}')
+        citenum_url_pairs = citenum_url_pairs_response
 
+    display(citenum_url_pairs)
+    #print(f'split_prompt_response_text_smc: {citenum_url_pairs=}')
+
+    # print('hack')
+    # preamble = ''
     return PromptResponseSplit(preamble, prompt, response, citenum_url_pairs, url_to_source_title)
 
-# Something cleaner from perplexity, although it loses strict order testing
-#
-# import re
-# from dataclasses import dataclass
 
-# PROMPT_HEADER_SMC = '## User'
-# RESPONSE_HEADER_SMC = '## AI Answer'
-# SOURCES_HEADER_SMC = r'\*\*Sources\*\*'
-
-# @dataclass
-# class PromptResponseSplit:
-#     prompt: str
-#     response: str
-#     sources: str
-
-# def split_prompt_response_text_smc(input_string: str) -> PromptResponseSplit:
-#     """Splits a single prompt/response/source string from Save My Chatbot output markdown."""
-    
-#     # Define a pattern with capturing groups for headers
-#     pattern = rf"(?m)^({PROMPT_HEADER_SMC}|{RESPONSE_HEADER_SMC}|{SOURCES_HEADER_SMC})"
-    
-#     # Use re.split to split and include the matched headers in the result
-#     parts = re.split(pattern, input_string)
-    
-#     # Filter out empty strings from parts (if any)
-#     parts = [part.strip() for part in parts if part.strip()]
-    
-#     # Process parts to extract prompt, response, and sources
-#     prompt = ""
-#     response = ""
-#     sources = ""
-    
-#     # Iterate through parts to assign content based on headers
-#     for i in range(len(parts)):
-#         if parts[i] == PROMPT_HEADER_SMC and i + 1 < len(parts):
-#             prompt = parts[i + 1]
-#         elif parts[i] == RESPONSE_HEADER_SMC and i + 1 < len(parts):
-#             response = parts[i + 1]
-#         elif parts[i] == SOURCES_HEADER_SMC and i + 1 < len(parts):
-#             sources = parts[i + 1]
-    
-#     return PromptResponseSplit(prompt=prompt, response=response, sources=sources)
-
-# # Example usage
-# input_string = """## User
-# This is a user input.
-# ## AI Answer
-# This is an AI response.
-# **Sources**
-# These are the sources."""
-# result = split_prompt_response_text_smc(input_string)
-# print(result)
-# 
-#---------------------------------------------------------------------------------
-#
-# perplexity verssion that maintains order
-#
-# import re
-# from dataclasses import dataclass
-
-# PROMPT_HEADER_SMC = '## User'
-# RESPONSE_HEADER_SMC = '## AI Answer'
-# SOURCES_HEADER_SMC = r'\*\*Sources\*\*'
-
-# @dataclass
-# class PromptResponseSplit:
-#     prompt: str
-#     response: str
-#     sources: str = ""  # Default to an empty string if sources are not provided
-
-# def split_prompt_response_text_smc(input_string: str) -> PromptResponseSplit:
-#     """Splits a single prompt/response/source string from Save My Chatbot output markdown, with optional sources."""
-    
-#     # Regex pattern to match required headers (in order) and optional sources
-#     pattern = rf"""
-#         ^{PROMPT_HEADER_SMC}\n(.*?)       # Match ## User and capture its content
-#         \n{RESPONSE_HEADER_SMC}\n(.*?)   # Match ## AI Answer and capture its content
-#         (?:\n{SOURCES_HEADER_SMC}\n(.*))?$  # Optionally match **Sources** and capture its content
-#     """
-    
-#     match = re.match(pattern, input_string, re.DOTALL | re.VERBOSE)
-    
-#     if not match:
-#         raise ValueError("Input string does not match the expected format.")
-    
-#     # Extract matched groups with default for sources if not present
-#     prompt, response, sources = match.group(1).strip(), match.group(2).strip(), (match.group(3) or "").strip()
-    
-#     return PromptResponseSplit(prompt=prompt, response=response, sources=sources)
-
-# # Example usage
-# input_string_with_sources = """## User
-# This is a user input.
-# ## AI Answer
-# This is an AI response.
-# **Sources**
-# These are the sources."""
-
-# input_string_without_sources = """## User
-# This is a user input.
-# ## AI Answer
-# This is an AI response."""
-
-# # Test with sources present
-# result_with_sources = split_prompt_response_text_smc(input_string_with_sources)
-# print(result_with_sources)
-
-# # Test without sources present
-# result_without_sources = split_prompt_response_text_smc(input_string_without_sources)
-# print(result_without_sources)
-
-def split_prompt_response_dedup_smc(markdown_text: str) -> PromptResponseSplitDeDup:
+def split_single_prompt_response_dedup_smc(markdown_text: str) -> PromptResponseSplitDeDup:
     """Splits perplexity Save my Chatbot output markdown text into prompt, response and source sections.
     In the response, duplicate citenums are removed, and the mapping from original 
     to deduplicated numbers is in citenumes_to_url_source"""
     
-    return relinker.split_prompt_response_dedup(markdown_text, split_prompt_response_text_smc)
-          
-    
-# def split_dedup_prompt_response_smc(markdown_text: str) -> Tuple[str, str, pd.DataFrame]:
-#     """Splits a single file's worth of Save My Chatbot output markdown text into 
-#     prompt, response and source sections. In the response, duplicate citenums
-#     are removed, and the mapping from original to deduplicated numbers is in
-#     citenumes_to_url_source"""
-    
-#     front_matter = f'---\ncategory: aichat\ncreated date: {dt.datetime.now()}\n---\n'
-#     sections_prompt_response = re.split(rf'(?<=\n){USER_HEADING}', markdown_text)
-    
-#     chat_source = " ".join(sections_prompt_response[0].split("\n")[1:])  # Remove redundant header
-#     file_header = front_matter + f'{chat_source.lstrip()}\n'
-#     # processed_sections = [front_matter + f'{chat_source.lstrip()}\n']
-        
-#     for section in sections_prompt_response[1:]:  # Process each user section
-#         try:        
-#             _, prompt, response, sources  = split_prompt_response_text_smc(section)
-#         except:
-#             print(e)
-#             continue # don't die if only one is section is bad
-        
-#         citenum_url_pairs = rfw.get_link_tu_pairs(sources, source_list_pattern_smc)
-   
-#         citenums_to_url_source = relinker.citenums_to_urls_dedup(citenum_url_pairs)
-    
-#         response_dedup = relinker.replace_body_citenums(response, citenums_to_url_source.new_num.to_dict())
-#         response_dedup = rfw.remove_markdown_dividers(response_dedup) # too many in o3-mini (2/2025)
-        
-
-#     return preamble, prompt, response_dedup, citenums_to_url_source
-                
-# def split_prompt_response_dedup_smc(markdown_text: str) -> PromptResponseSplitDeDup:
-#     """Splits perplexity Save My Chatbot output markdown text into prompt, response and source sections.
-#     In the response, duplicate citenums are removed, and the mapping from original 
-#     to deduplicated numbers is in citenumes_to_url_source"""
-    
-#     return relinker.split_prompt_response_dedup(markdown_text, split_prompt_response_text_perplex)
+    retval_split_prompt_response_dedup_smc = relinker.split_prompt_response_dedup(markdown_text, split_prompt_response_text_smc)
+    #ic(retval_split_prompt_response_dedup_smc)
+    #display(retval_split_prompt_response_dedup_smc.citenums_to_url_source)
+    return retval_split_prompt_response_dedup_smc
 
 def read_markdown_file(file_path: pl.Path) -> str:
     """Reads a markdown file and returns its content as a string.
@@ -502,7 +376,8 @@ def relink_single_file_smc(perplexity_smc_file: pl.Path, relinked_file: pl.Path)
     
     for section in sections[1:]:  # Process each user section
         section = f'{PROMPT_HEADER_SMC}\n{section}' # stick header back on for more certtain matching
-        prsplit = split_prompt_response_dedup_smc(section)
+        prsplit = split_single_prompt_response_dedup_smc(section)
+        #ic(prsplit)
         response_relinked, relinked_sources = relinker.relink_body_and_make_source_links(prsplit,'url_link')
         response_relinked = rfw.hierarch_shift_markdown_headers(response_relinked, top_level=2)
 
@@ -585,10 +460,10 @@ def count_prompts_smc_content(file_contents: str) -> int:
 # Example usage
 if __name__ == "__main__":
     #input_file = pl.Path(r"C:\Users\scott\OneDrive\share\ref\refwrangle\test\dat\merge_chats_smc\GPT-4o-BGtrail.md")
-    input_file = rfw.refwrangle_test_dir / "dat" / 'perplexity_multi_prompt_savemychatbot_example.md'
-    #input_file = pl.Path(r"C:\Users\scott\share\ref\refwrangle\tmp\watchter\raw\perplexity_2025-02-10_20-04-06_data.md")
+    #input_file = rfw.refwrangle_test_dir / "dat" / 'perplexity_multi_prompt_savemychatbot_example.md'
+    input_file = rfw.refwrangle_test_dir / "dat" / 'perplexity_single_prompt_savemychatbot_example.md'
     output_dir = pl.Path(r"C:\Users\scott\OneDrive\share\ref\obsidian\Obsidian Share Vault\Scratch Space")
-    output_file = output_dir / 'tmp_savemychatbot_multiprompt_perplexity_example.md'
+    output_file = output_dir / 'tmp_savemychatbot_output.md'
     
     print(f'{input_file=}\n-->\n{output_file=}')
     relink_single_file_smc(input_file, output_file)
