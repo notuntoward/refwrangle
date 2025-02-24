@@ -42,7 +42,7 @@ class PromptResponseSplitDeDup:
     preamble: str
     prompt: str
     response_dedup: str
-    citenums_to_url_source: pd.DataFrame
+    citenum_to_url_df: pd.DataFrame
     url_to_source_title: pd.Series
     # url_to_source_title: Dict[str, str]    
     # url_to_source_title: Dict[str, str] = field(default_factory=dict)    
@@ -158,7 +158,7 @@ class ZoteroLinkConverter:
         # ic(body_link, source_link)
         return resp_link, source_link
     
-    def citenums_to_urls_dedup(self, num_url_pairs: list[Tuple[str, str]], verbose: bool = False) -> pd.DataFrame:
+    def dedup_citenums_to_urls(self, num_url_pairs: list[Tuple[str, str]], verbose: bool = False) -> pd.DataFrame:
         """Return a dataframe mapping from citenums to url.
         Citenums are remapped when >1 citenums map to the same URL."""
         
@@ -205,7 +205,7 @@ class ZoteroLinkConverter:
         """For both body and source, replaces links with Zotero or Obsidian links. Assumes that duplicate citenums
         have already been removed from the body text (body_dedup)""" 
 
-        dedup_num_to_url = (prsplit.citenums_to_url_source.copy()
+        dedup_num_to_url = (prsplit.citenum_to_url_df.copy()
                           .set_index('dedup_num').url.drop_duplicates().to_dict())
         
         all_response_nums = set(re.findall(citenum_plain_re, prsplit.response_dedup))
@@ -217,15 +217,29 @@ class ZoteroLinkConverter:
             source_num_to_link[num] = response_link
             relinked_source_lines.append(relinked_source)
     
-        if response_link_type == 'url_link':
-            gname = 'orig'
-        elif response_link_type == 'plain_link':
-            gname = 'num'
-        else:
-            raise ValueError(f'Unknown {response_link_type=}')
+        # if response_link_type == 'url_link':
+        #     gname = 'orig'
+        # elif response_link_type == 'plain_link':
+        #     gname = 'num'
+        # else:
+        #     raise ValueError(f'Unknown {response_link_type=}')
+        
+        #gname = 'num'
+        
+        # # for m in re.findall(citenum_plain_re,  prsplit.response_dedup):
+        # #     ic(m)
+
+        # # tmp = re.sub(citenum_plain_re,  # only matching and replace the num
+        # #             lambda m: f' {source_num_to_link.get(m.group(gname))}', prsplit.response_dedup)
+
+        # def tmp_func(m):
+        #     ic(m,  m.groupdict(), m.group(0), m.group(1))
+        #     return f' {source_num_to_link.get(m.group(1))}'
+        
+        # response_relinked = re.sub(citenum_plain_re,  tmp_func, prsplit.response_dedup)
         
         response_relinked = re.sub(citenum_plain_re,  # only matching and replace the num
-                    lambda m: f' {source_num_to_link.get(m.group(gname))}', prsplit.response_dedup)
+                    lambda m: f' {source_num_to_link.get(m.group(1))}', prsplit.response_dedup)
 
         return response_relinked, relinked_source_lines
     
@@ -237,13 +251,13 @@ class ZoteroLinkConverter:
         prsplit = split_func(markdown_text)
         #ic(prsplit.citenum_url_pairs, prsplit.url_to_source_title)
                 
-        citenums_to_url_source = self.citenums_to_urls_dedup(prsplit.citenum_url_pairs)
+        citenum_to_url_df = self.dedup_citenums_to_urls(prsplit.citenum_url_pairs)
         #ic(citenums_to_url_source)
         
-        response_dedup = self.replace_response_citenums(prsplit.response, citenums_to_url_source.dedup_num.to_dict())
+        response_dedup = self.replace_response_citenums(prsplit.response, citenum_to_url_df.dedup_num.to_dict())
         response_dedup = rfw.remove_markdown_dividers(response_dedup) # too many in o3-mini (2/2025)
         
-        return PromptResponseSplitDeDup(prsplit.preamble, prsplit.prompt, response_dedup, citenums_to_url_source, url_to_source_title=prsplit.url_to_source_title)
+        return PromptResponseSplitDeDup(prsplit.preamble, prsplit.prompt, response_dedup, citenum_to_url_df, url_to_source_title=prsplit.url_to_source_title)
 
 # a relinker use here and by any importer of this file.  Only make one of these and share it.
 relinker = ZoteroLinkConverter()
@@ -331,20 +345,20 @@ def split_prompt_response_text_smc(input_string: str) -> PromptResponseSplit:
     return retval
 
 
-def split_single_prompt_response_dedup_smc(markdown_text: str) -> PromptResponseSplitDeDup:
-    """Splits perplexity Save my Chatbot output markdown text into prompt, response and source sections.
-    In the response, duplicate citenums are removed, and the mapping from original 
-    to deduplicated numbers is in citenumes_to_url_source"""
+# def split_single_prompt_response_dedup_smc(markdown_text: str) -> PromptResponseSplitDeDup:
+#     """Splits perplexity Save my Chatbot output markdown text into prompt, response and source sections.
+#     In the response, duplicate citenums are removed, and the mapping from original 
+#     to deduplicated numbers is in citenumes_to_url_source"""
     
-    retval_split_prompt_response_text_smc = relinker.split_prompt_response_dedup(markdown_text, split_prompt_response_text_smc)
-    print('retval_split_prompt_response_text_smc.url_to_source_title:')
-    raise ValueError('should not be called anymore')
-    print(f'OUTER len: split_single_prompt_response_dedup_smc: {(len(retval_split_prompt_response_text_smc.url_to_source_title))=}')
-    # for url, title in retval_split_prompt_response_dedup_smc.url_to_source_title.items():
-    #     print('{url=}, {title=}')
-    #display(retval_split_prompt_response_dedup_smc.url_to_source_title)
-    #display(retval_split_prompt_response_dedup_smc.citenums_to_url_source)
-    return retval_split_prompt_response_text_smc
+#     retval_split_prompt_response_text_smc = relinker.split_prompt_response_dedup(markdown_text, split_prompt_response_text_smc)
+#     print('retval_split_prompt_response_text_smc.url_to_source_title:')
+#     raise ValueError('should not be called anymore')
+#     print(f'OUTER len: split_single_prompt_response_dedup_smc: {(len(retval_split_prompt_response_text_smc.url_to_source_title))=}')
+#     # for url, title in retval_split_prompt_response_dedup_smc.url_to_source_title.items():
+#     #     print('{url=}, {title=}')
+#     #display(retval_split_prompt_response_dedup_smc.url_to_source_title)
+#     #display(retval_split_prompt_response_dedup_smc.citenums_to_url_source)
+#     return retval_split_prompt_response_text_smc
 
 def read_markdown_file(file_path: pl.Path) -> str:
     """Reads a markdown file and returns its content as a string.

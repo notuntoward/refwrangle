@@ -1520,3 +1520,13 @@ def summarize_prompt(prompt: str, num_words: int, stop_phrase: str, heading_leve
     """Makes a heading that summarizes a prompt string."""
     prompt = get_first_n_words(prompt, num_words, stop_phrase)
     return make_atx_header(f'User: "{capitalize_first_word_if_needed(prompt)}..."', heading_level)
+
+def unique_rows(df: pd.DataFrame, column_names: list = None) -> pd.DataFrame:
+    """Returns a sorted dataframe of unique rows in the rows, combo_col_names.
+    Returned columns will be in order of column_names if given."""
+    
+    cols = list(df.columns) if column_names is None else column_names
+    return (df[cols]
+           .sort_values(cols)
+           .drop_duplicates()
+           .reset_index(drop=True)) # index=0:(len(df)-1)
