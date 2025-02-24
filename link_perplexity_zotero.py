@@ -32,7 +32,9 @@ class PromptResponseSplit:
     prompt: str
     response: str
     citenum_url_pairs: List[Tuple]
-    url_to_source_title: Dict[str, str] = field(default_factory=dict)
+    url_to_source_title: pd.Series
+    # url_to_source_title: Dict[str, str]    
+    #url_to_source_title: Dict[str, str] = field(default_factory=dict)
 
 @dataclass
 class PromptResponseSplitDeDup:
@@ -41,7 +43,9 @@ class PromptResponseSplitDeDup:
     prompt: str
     response_dedup: str
     citenums_to_url_source: pd.DataFrame
-    url_to_source_title: Dict[str, str] = field(default_factory=dict)
+    url_to_source_title: pd.Series
+    # url_to_source_title: Dict[str, str]    
+    # url_to_source_title: Dict[str, str] = field(default_factory=dict)    
 
 class ZoteroLinkConverter:
     """Converts web links to Zotero/Obsidian links in content sections"""
@@ -239,7 +243,7 @@ class ZoteroLinkConverter:
         response_dedup = self.replace_response_citenums(prsplit.response, citenums_to_url_source.dedup_num.to_dict())
         response_dedup = rfw.remove_markdown_dividers(response_dedup) # too many in o3-mini (2/2025)
         
-        return PromptResponseSplitDeDup(prsplit.preamble, prsplit.prompt, response_dedup, citenums_to_url_source)
+        return PromptResponseSplitDeDup(prsplit.preamble, prsplit.prompt, response_dedup, citenums_to_url_source, url_to_source_title=prsplit.url_to_source_title)
 
 # a relinker use here and by any importer of this file.  Only make one of these and share it.
 relinker = ZoteroLinkConverter()
@@ -256,8 +260,6 @@ def split_prompt_response_text_smc(input_string: str) -> PromptResponseSplit:
 
     if (num_parts := len(parts)) < 1:
         raise ValueError("Empty document or failed to find any headers in expected places")
-
-    #ic(num_parts)
     
     if num_parts < 3 or not re.match(rf'^{PROMPT_HEADER_SMC}.*',parts[1]):
         raise ValueError(f"Failed to find prompt header ({PROMPT_HEADER_SMC}) in expected place")
@@ -270,37 +272,25 @@ def split_prompt_response_text_smc(input_string: str) -> PromptResponseSplit:
         
     preamble, prompt, response = parts[0], parts[2], parts[4]
     
-    #ic(re.match(rf'^{SOURCES_HEADER_SMC}.*', parts[4]))
-    
-    # try:
-    #     ic(parts[4])
-    # except:
-    #     print('no parts[4]')
-        
-    sources = ''
     if num_parts > 6 and re.match(rf'^{SOURCES_HEADER_SMC}.*',parts[5]):
         sources = parts[6]
     else:
         print(f"Sources header({SOURCES_HEADER_SMC}) not in expected place or no source list: Assume no sources.")
+        sources = ''
     
-    # print(f'{preamble=}')
-    # print(f'{response=}')
-    #print(f'{prompt=}, {sources=}')
-
     citenum_url_pairs_response = rfw.get_link_tu_pairs(response, r'\[(.*?)\]\((https?://\S+)\)')
 
-    # add plain citenums on to list (a constantant problem w/ SMC)
+    # include plain citenums (a constantant problem w/ SMC)
     citenums_in_pairs = set([cupair[0] for cupair in citenum_url_pairs_response])
     for citenum_plain in set([m for m in re.findall(citenum_plain_re, response)]):
         if citenum_plain not in citenums_in_pairs:
-            warning_url = f"https://NO_URL_IN_RESPONSE_FOR_BARE_CITE_NUMBER_{citenum_plain}"
+            warning_url = f"https://BARE_CITE_NUMBER_{citenum_plain}_IN_RESPONSE_WITH_NO_URL"
             print(f'Malformed Plain citenum [{citenum_plain}] appears without URL in response')
             citenum_url_pairs_response.append((citenum_plain, warning_url))
     
     citenum_url_pairs, url_to_source_title = [], {}
     if len(sources)>0:
-        print(f'getting citenum_url_pairs from sources. {sources=}')
-        # citenum/url/title from sources list
+        print(f'getting citenum_url_pairs from sources.')
         for link_text, url in rfw.get_link_tu_pairs(sources, r'- \[(.*?)\]\((https?://\S+)\)'):
             if match := re.match(source_citenum_title_re, link_text):
                 citenum, title = match['citenum'], match['title']
@@ -314,17 +304,31 @@ def split_prompt_response_text_smc(input_string: str) -> PromptResponseSplit:
             if num_url_pair not in citenum_url_pairs:
                 print(f'{num_url_pair[0]=}, {num_url_pair[1]=} in response but not source list')
                 citenum_url_pairs.append(num_url_pair)
-                url_to_source_title[num_url_pair[1]] = 'No entry in sources list'
+                url_to_source_title[num_url_pair[1]] = 'Cite in response but no entry in sources list'
     else:
-        print(f'getting citenum_url_pairs from response.  {sources=}')
+        print(f'getting citenum_url_pairs from response')
+        for (num, url) in citenum_url_pairs_response:
+            url_to_source_title[num] = 'Response with following no sources list'
         citenum_url_pairs = citenum_url_pairs_response
 
-    display(citenum_url_pairs)
-    #print(f'split_prompt_response_text_smc: {citenum_url_pairs=}')
+    print(f'INNER len: split_prompt_response_text_smc: {(len(url_to_source_title))=}')
+    # display(url_to_source_title)
+    # display(citenum_url_pairs)
+    
+    url_to_source_title = pd.Series(url_to_source_title, dtype='str')
+    url_to_source_title.name = 'url'
 
-    # print('hack')
-    # preamble = ''
-    return PromptResponseSplit(preamble, prompt, response, citenum_url_pairs, url_to_source_title)
+    # if url_to_source_title:
+    #     url_to_source_title = pd.Series(url_to_source_title, dtype='str')
+    #     url_to_source_title.name = 'url'
+    # else:
+    #     url_to_source_title = None
+    
+    retval = PromptResponseSplit(preamble, prompt, response, citenum_url_pairs, url_to_source_title)
+    #print(f'INNER in retval len: split_prompt_response_text_smc: {retval.url_to_source_titl)=}')
+    
+    #return PromptResponseSplit(preamble, prompt, response, citenum_url_pairs, url_to_source_title)
+    return retval
 
 
 def split_single_prompt_response_dedup_smc(markdown_text: str) -> PromptResponseSplitDeDup:
@@ -332,10 +336,15 @@ def split_single_prompt_response_dedup_smc(markdown_text: str) -> PromptResponse
     In the response, duplicate citenums are removed, and the mapping from original 
     to deduplicated numbers is in citenumes_to_url_source"""
     
-    retval_split_prompt_response_dedup_smc = relinker.split_prompt_response_dedup(markdown_text, split_prompt_response_text_smc)
-    #ic(retval_split_prompt_response_dedup_smc)
+    retval_split_prompt_response_text_smc = relinker.split_prompt_response_dedup(markdown_text, split_prompt_response_text_smc)
+    print('retval_split_prompt_response_text_smc.url_to_source_title:')
+    raise ValueError('should not be called anymore')
+    print(f'OUTER len: split_single_prompt_response_dedup_smc: {(len(retval_split_prompt_response_text_smc.url_to_source_title))=}')
+    # for url, title in retval_split_prompt_response_dedup_smc.url_to_source_title.items():
+    #     print('{url=}, {title=}')
+    #display(retval_split_prompt_response_dedup_smc.url_to_source_title)
     #display(retval_split_prompt_response_dedup_smc.citenums_to_url_source)
-    return retval_split_prompt_response_dedup_smc
+    return retval_split_prompt_response_text_smc
 
 def read_markdown_file(file_path: pl.Path) -> str:
     """Reads a markdown file and returns its content as a string.
@@ -363,36 +372,42 @@ def make_obsidian_front_matter():
     """Makes obsidian note front mater"""
     return f'---\ncategory: aichat\ncreated date: {dt.datetime.now()}\n---\n'
 
-def relink_single_file_smc(perplexity_smc_file: pl.Path, relinked_file: pl.Path):
-    """Reads a perplexity save my chatbot file and writes its relinked file"""
-    with open(perplexity_smc_file, 'r', encoding='utf-8') as infile:
-        content = infile.read()
+# No need for this if "merge" single files to keep a single looper for both SMC and stock perplex
+#
+# def relink_single_file_smc(perplexity_smc_file: pl.Path, relinked_file: pl.Path):
+#     """Reads a perplexity save my chatbot file and writes its relinked file"""
+#     with open(perplexity_smc_file, 'r', encoding='utf-8') as infile:
+#         content = infile.read()
 
-    #sections = re.split(rf'(?<=\n)({PROMPT_HEADER_SMC})', content)
-    sections = re.split(rf'(?<=\n){PROMPT_HEADER_SMC}', content)
+#     raise ValueError('should not be called.  soon-to-be obsolete function')
+#     #sections = re.split(rf'(?<=\n)({PROMPT_HEADER_SMC})', content)
+#     sections = re.split(rf'(?<=\n){PROMPT_HEADER_SMC}', content)
     
-    chat_source = rfw.file_link_md('source', perplexity_smc_file) # " ".join(sections[0].split("\n")[1:])  # Remove redundant header
-    relinked_sections = [make_obsidian_front_matter() + f'{chat_source.lstrip()}\n']
+#     chat_source = rfw.file_link_md('source', perplexity_smc_file) # " ".join(sections[0].split("\n")[1:])  # Remove redundant header
+#     relinked_sections = [make_obsidian_front_matter() + f'{chat_source.lstrip()}\n']
     
-    for section in sections[1:]:  # Process each user section
-        section = f'{PROMPT_HEADER_SMC}\n{section}' # stick header back on for more certtain matching
-        prsplit = split_single_prompt_response_dedup_smc(section)
-        #ic(prsplit)
-        response_relinked, relinked_sources = relinker.relink_body_and_make_source_links(prsplit,'url_link')
-        response_relinked = rfw.hierarch_shift_markdown_headers(response_relinked, top_level=2)
+#     for section in sections[1:]:  # Process each user section
+#         section = f'{PROMPT_HEADER_SMC}\n{section}' # stick header back on for more certtain matching
+#         #prsplit = split_single_prompt_response_dedup_smc(section)
+#         prsplit = relinker.split_prompt_response_dedup(section, split_prompt_response_text_smc)      
+#         #ic(prsplit)
+#         response_relinked, relinked_sources = relinker.relink_body_and_make_source_links(prsplit,'url_link')
+#         response_relinked = rfw.hierarch_shift_markdown_headers(response_relinked, top_level=2)
+        
+#         print('TODO: not handling titles here')
 
-        relinked_sources = "\n".join(sorted(relinked_sources, key=lambda line: int(re.search(citenum_plain_re, line).group('num'))))
+#         relinked_sources = "\n".join(sorted(relinked_sources, key=lambda line: int(re.search(citenum_plain_re, line).group('num'))))
 
-        short_prompt = rfw.get_first_n_words(prsplit.prompt, MAX_WORDS_PROMPT_HEADING)
+#         short_prompt = rfw.get_first_n_words(prsplit.prompt, MAX_WORDS_PROMPT_HEADING)
 
-        # SMC sometimes has underlined headers instead of ATX '#' headers
-        response_relinked = rfw.setext_headers_to_atx(response_relinked, TOP_HEADING_LEVEL_IN_AI + 1)
-        response_relinked += rfw.hierarch_shift_markdown_headers(response_relinked, top_level=3)
+#         # SMC sometimes has underlined headers instead of ATX '#' headers
+#         response_relinked = rfw.setext_headers_to_atx(response_relinked, TOP_HEADING_LEVEL_IN_AI + 1)
+#         response_relinked += rfw.hierarch_shift_markdown_headers(response_relinked, top_level=3)
 
-        relinked_sections += "\n\n".join([f'\n# {short_prompt}', response_relinked, '## Sources', relinked_sources])
+#         relinked_sections += "\n\n".join([f'\n# {short_prompt}', response_relinked, '## Sources', relinked_sources])
 
-    with open(relinked_file, 'w', encoding='utf-8') as outfile:
-        outfile.write('\n'.join(relinked_sections))
+#     with open(relinked_file, 'w', encoding='utf-8') as outfile:
+#         outfile.write('\n'.join(relinked_sections))
 
 
 def is_smc_content(markdown_content: str) -> bool:
