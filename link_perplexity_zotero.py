@@ -202,7 +202,8 @@ class ZoteroLinkConverter:
         
         return re.sub(citenum_plain_re, lambda m: f'[{oldnum_to_new[m.group(1)]}]', response) # assumed 1st group scitenum
     
-    FINISH THIS HERE
+    FINISH THIS HERE.  The relinked source need to include all sources, evne if this boy (reponse!) didn't use them.dict
+    This is at least one of the things this is missing.
     
     def relink_body_and_make_source_links(self, prsplit: PromptResponseSplitDeDup, citenum_col) -> Tuple[str, list[str]]:
         """For both body and source, replaces links with Zotero or Obsidian links. Assumes that duplicate citenums
