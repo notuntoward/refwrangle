@@ -243,8 +243,8 @@ class ZoteroLinkConverter:
 
         return response_relinked, relinked_source_lines
     
-    def split_prompt_response_dedup(self, markdown_text: str, split_func: Callable[[str], PromptResponseSplit]) -> PromptResponseSplitDeDup:
-        """Splits perplexity output markdown text into prompt, response and source sections.
+    def split_single_prs_dedup(self, markdown_text: str, split_func: Callable[[str], PromptResponseSplit]) -> PromptResponseSplitDeDup:
+        """Splits a single perplexity output markdown text into prompt, response and source sections.
         In the response, duplicate citenums are removed, and the mapping from original 
         to deduplicated numbers is in citenumes_to_url_source"""
         
@@ -266,7 +266,7 @@ PROMPT_HEADER_SMC = '## User'
 RESPONSE_HEADER_SMC = '## AI answer'
 SOURCES_HEADER_SMC = r'\*\*Sources:\*\*'
 
-def split_prompt_response_text_smc(input_string: str) -> PromptResponseSplit:
+def split_prs_text_smc(input_string: str) -> PromptResponseSplit:
     """Splits a single prompt/response/source string from Save My Chatbot output markdown"""
     
     pattern = rf"(?m)^({PROMPT_HEADER_SMC}|{RESPONSE_HEADER_SMC}|{SOURCES_HEADER_SMC})"    
@@ -294,10 +294,10 @@ def split_prompt_response_text_smc(input_string: str) -> PromptResponseSplit:
     
     citenum_url_pairs_response = rfw.get_link_tu_pairs(response, r'\[(.*?)\]\((https?://\S+)\)')
 
-    # include plain citenums (a constantant problem w/ SMC)
-    citenums_in_pairs = set([cupair[0] for cupair in citenum_url_pairs_response])
+    # Include plain response citenums (SMC is supposed to be [num](url) but it's inconsistent)
+    OK_response_citenums = set([cupair[0] for cupair in citenum_url_pairs_response])
     for citenum_plain in set([m for m in re.findall(citenum_plain_re, response)]):
-        if citenum_plain not in citenums_in_pairs:
+        if citenum_plain not in OK_response_citenums:
             warning_url = f"https://BARE_CITE_NUMBER_{citenum_plain}_IN_RESPONSE_WITH_NO_URL"
             print(f'Malformed Plain citenum [{citenum_plain}] appears without URL in response')
             citenum_url_pairs_response.append((citenum_plain, warning_url))
