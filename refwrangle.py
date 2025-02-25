@@ -16,6 +16,7 @@ from xml.sax.saxutils import escape
 import chardet
 import markdown
 import pandas as pd
+import numpy as np
 import plotly.graph_objects as go
 import pymupdf4llm
 from bs4 import BeautifulSoup
@@ -1521,12 +1522,24 @@ def summarize_prompt(prompt: str, num_words: int, stop_phrase: str, heading_leve
     prompt = get_first_n_words(prompt, num_words, stop_phrase)
     return make_atx_header(f'User: "{capitalize_first_word_if_needed(prompt)}..."', heading_level)
 
+
 def unique_rows(df: pd.DataFrame, column_names: list = None) -> pd.DataFrame:
     """Returns a sorted dataframe of unique rows in the rows, combo_col_names.
-    Returned columns will be in order of column_names if given."""
-    
+    Returned columns will be in order of column_names if given, numerically,
+    when possible, and the index will be reset."""
+
     cols = list(df.columns) if column_names is None else column_names
-    return (df[cols]
-           .sort_values(cols)
-           .drop_duplicates()
-           .reset_index(drop=True)) # index=0:(len(df)-1)
+
+    # new index = 0:(len(df)-1) (avoids non-unique index problems)
+    df_orig_cols = df[cols].copy().reset_index(drop=True) 
+
+    # sort numerically when possible
+    df_sort = df_orig_cols.copy()
+    for col_non_num in df_sort.select_dtypes(exclude=np.number).columns:
+        col_dat_to_numeric = pd.to_numeric(df_sort[col_non_num], errors='coerce')
+        if col_dat_to_numeric.notnull().all():
+            df_sort[col_non_num] = col_dat_to_numeric
+
+    index_unique = df_sort.sort_values(cols).drop_duplicates().index
+        
+    return df_orig_cols.loc[index_unique].reset_index(drop=True)

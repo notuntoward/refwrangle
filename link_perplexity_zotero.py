@@ -195,27 +195,23 @@ class ZoteroLinkConverter:
         number/url duplicates, the duplication was the same in both the source list and the body. 
         On stock perplexity outputs, this appeared to be the case."""
         
-        # return re.sub(citenum_plain_re, lambda m: f'[{oldnum_to_new[m.group("num")]}]', body)
-        #ic(oldnum_to_new)
-        #resp_groups = [m for m in re.findall(citenum_plain_re, response)]
-        #ic(resp_groups)
-        
         return re.sub(citenum_plain_re, lambda m: f'[{oldnum_to_new[m.group(1)]}]', response) # assumed 1st group scitenum
     
-    FINISH THIS HERE.  The relinked source need to include all sources, evne if this boy (reponse!) didn't use them.dict
-    This is at least one of the things this is missing.
+    # FINISH THIS HERE.  The relinked source need to include all sources, evne if this boy (reponse!) didn't use them.dict
+    # This is at least one of the things this is missing.
     
-    def relink_body_and_make_source_links(self, prsplit: PromptResponseSplitDeDup, citenum_col) -> Tuple[str, list[str]]:
-        """For both body and source, replaces links with Zotero or Obsidian links. Assumes that duplicate citenums
-        have already been removed from the body text (body_dedup)""" 
+    def relink_body_and_make_source_links(self, prsplit: PromptResponseSplitDeDup, citenum_col: str = 'dedup_num') -> Tuple[str, list[str]]:
+        """For both body and source, replaces links with Zotero or Obsidian links.""" 
 
-        dedup_num_to_url = (prsplit.citenum_to_url_df.copy()
-                          .set_index('dedup_num').url.drop_duplicates().to_dict())
+        citenum_to_url = rfw.unique_rows(prsplit.citenum_to_url_df,[citenum_col, 'url'])
+        citenum_to_url = dict(zip(citenum_to_url[citenum_col], citenum_to_url.url))
+        print(f'{citenum_to_url=}')
         
         all_response_nums = set(re.findall(citenum_plain_re, prsplit.response_dedup))
         
         source_num_to_link, relinked_source_lines = {}, []
-        for num, url in dedup_num_to_url.items():
+        for num, url in citenum_to_url.items():
+            ic(num, url)
             title = prsplit.url_to_source_title[url] if prsplit.url_to_source_title else None
             response_link, relinked_source = self.make_relinks(num, url, all_response_nums, title)
             source_num_to_link[num] = response_link
