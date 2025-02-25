@@ -899,6 +899,31 @@ def setext_headers_to_atx(markdown_text: str, top_header_level: int):
 
     return markdown_text
 
+def shrink_lists(markdown_text: str) -> str:
+    """Remove blank lines between list elements while preserving others."""
+    lines = markdown_text.split("\n")
+    list_flags = [False] * len(lines)  # Track list items
+    
+    # First pass: Identify list items
+    for i, line in enumerate(lines):
+        stripped = line.strip()
+        if stripped.startswith(("- ", "* ", "+ ")) or any(stripped.startswith(f"{n}.") for n in range(1, 10)):
+            list_flags[i] = True
+    
+    cleaned = []
+    # Second pass: Remove blank lines only between list items
+    for i, line in enumerate(lines):
+        stripped = line.strip()
+        if stripped == "":
+            prev_list = list_flags[i-1] if i > 0 else False
+            next_list = list_flags[i+1] if i+1 < len(lines) else False
+            if prev_list and next_list:
+                continue  # Skip blank lines between list items
+        cleaned.append(line)
+    
+    return "\n".join(cleaned)
+
+
 def file_link_md(link_text: str, file_path: pl.Path) -> str:
     """Makes a markdown link to a file."""
     if not isinstance(file_path, pl.Path):

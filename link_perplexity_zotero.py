@@ -196,22 +196,17 @@ class ZoteroLinkConverter:
         On stock perplexity outputs, this appeared to be the case."""
         
         return re.sub(citenum_plain_re, lambda m: f'[{oldnum_to_new[m.group(1)]}]', response) # assumed 1st group scitenum
-    
-    # FINISH THIS HERE.  The relinked source need to include all sources, evne if this boy (reponse!) didn't use them.dict
-    # This is at least one of the things this is missing.
-    
-    def relink_body_and_make_source_links(self, prsplit: PromptResponseSplitDeDup, citenum_col: str = 'dedup_num') -> Tuple[str, list[str]]:
+
+    def relink_response_and_sources(self, prsplit: PromptResponseSplitDeDup, citenum_col: str = 'dedup_num') -> Tuple[str, list[str]]:
         """For both body and source, replaces links with Zotero or Obsidian links.""" 
 
         citenum_to_url = rfw.unique_rows(prsplit.citenum_to_url_df,[citenum_col, 'url'])
         citenum_to_url = dict(zip(citenum_to_url[citenum_col], citenum_to_url.url))
-        print(f'{citenum_to_url=}')
         
         all_response_nums = set(re.findall(citenum_plain_re, prsplit.response_dedup))
         
         source_num_to_link, relinked_source_lines = {}, []
         for num, url in citenum_to_url.items():
-            ic(num, url)
             title = prsplit.url_to_source_title[url] if prsplit.url_to_source_title else None
             response_link, relinked_source = self.make_relinks(num, url, all_response_nums, title)
             source_num_to_link[num] = response_link
@@ -232,8 +227,16 @@ class ZoteroLinkConverter:
         citenum_to_url_df = self.dedup_citenums_to_urls(prs_split.citenum_url_pairs)
         
         response_dedup = self.replace_response_citenums(prs_split.response, citenum_to_url_df.dedup_num.to_dict())
-        response_dedup = rfw.remove_markdown_dividers(response_dedup) # too many in o3-mini (2/2025)
         
+        # no blank lines btween list elements
+        response_dedup = rfw.shrink_lists(response_dedup)
+        
+        # omni3 overuses them, and also sometimes get converted to headers below
+        response_dedup = rfw.remove_markdown_dividers(response_dedup)
+
+        # replace underline-style headings.  May need to go lower level than this, depending
+        response_dedup = rfw.setext_headers_to_atx(response_dedup, 2) 
+
         return PromptResponseSplitDeDup(prs_split.preamble, prs_split.prompt, response_dedup,
                                         citenum_to_url_df, url_to_source_title=prs_split.url_to_source_title)
 
@@ -315,25 +318,9 @@ def split_single_prs_text_smc(single_prs_markdown: str) -> PromptResponseSplit:
         
     # substitue plain citenum links into the response, for easier downstream merging
     response = re.sub(citenum_url_link_re, lambda m: f'[{m.group("num")}]', response)
-
+    
     url_to_source_title = pd.Series(url_to_source_title, dtype='str')
     return PromptResponseSplit(preamble, prompt, response, citenum_url_pairs, url_to_source_title)
-
-
-# def split_single_prompt_response_dedup_smc(markdown_text: str) -> PromptResponseSplitDeDup:
-#     """Splits perplexity Save my Chatbot output markdown text into prompt, response and source sections.
-#     In the response, duplicate citenums are removed, and the mapping from original 
-#     to deduplicated numbers is in citenumes_to_url_source"""
-    
-#     retval_split_prompt_response_text_smc = relinker.split_prompt_response_dedup(markdown_text, split_prompt_response_text_smc)
-#     print('retval_split_prompt_response_text_smc.url_to_source_title:')
-#     raise ValueError('should not be called anymore')
-#     print(f'OUTER len: split_single_prompt_response_dedup_smc: {(len(retval_split_prompt_response_text_smc.url_to_source_title))=}')
-#     # for url, title in retval_split_prompt_response_dedup_smc.url_to_source_title.items():
-#     #     print('{url=}, {title=}')
-#     #display(retval_split_prompt_response_dedup_smc.url_to_source_title)
-#     #display(retval_split_prompt_response_dedup_smc.citenums_to_url_source)
-#     return retval_split_prompt_response_text_smc
 
 def read_markdown_file(file_path: pl.Path) -> str:
     """Reads a markdown file and returns its content as a string.
@@ -360,44 +347,6 @@ def read_markdown_file(file_path: pl.Path) -> str:
 def make_obsidian_front_matter():
     """Makes obsidian note front mater"""
     return f'---\ncategory: aichat\ncreated date: {dt.datetime.now()}\n---\n'
-
-# No need for this if "merge" single files to keep a single looper for both SMC and stock perplex
-#
-# def relink_single_file_smc(perplexity_smc_file: pl.Path, relinked_file: pl.Path):
-#     """Reads a perplexity save my chatbot file and writes its relinked file"""
-#     with open(perplexity_smc_file, 'r', encoding='utf-8') as infile:
-#         content = infile.read()
-
-#     raise ValueError('should not be called.  soon-to-be obsolete function')
-#     #sections = re.split(rf'(?<=\n)({PROMPT_HEADER_SMC})', content)
-#     sections = re.split(rf'(?<=\n){PROMPT_HEADER_SMC}', content)
-    
-#     chat_source = rfw.file_link_md('source', perplexity_smc_file) # " ".join(sections[0].split("\n")[1:])  # Remove redundant header
-#     relinked_sections = [make_obsidian_front_matter() + f'{chat_source.lstrip()}\n']
-    
-#     for section in sections[1:]:  # Process each user section
-#         section = f'{PROMPT_HEADER_SMC}\n{section}' # stick header back on for more certtain matching
-#         #prsplit = split_single_prompt_response_dedup_smc(section)
-#         prsplit = relinker.split_prompt_response_dedup(section, split_prompt_response_text_smc)      
-#         #ic(prsplit)
-#         response_relinked, relinked_sources = relinker.relink_body_and_make_source_links(prsplit,'url_link')
-#         response_relinked = rfw.hierarch_shift_markdown_headers(response_relinked, top_level=2)
-        
-#         print('TODO: not handling titles here')
-
-#         relinked_sources = "\n".join(sorted(relinked_sources, key=lambda line: int(re.search(citenum_plain_re, line).group('num'))))
-
-#         short_prompt = rfw.get_first_n_words(prsplit.prompt, MAX_WORDS_PROMPT_HEADING)
-
-#         # SMC sometimes has underlined headers instead of ATX '#' headers
-#         response_relinked = rfw.setext_headers_to_atx(response_relinked, TOP_HEADING_LEVEL_IN_AI + 1)
-#         response_relinked += rfw.hierarch_shift_markdown_headers(response_relinked, top_level=3)
-
-#         relinked_sections += "\n\n".join([f'\n# {short_prompt}', response_relinked, '## Sources', relinked_sources])
-
-#     with open(relinked_file, 'w', encoding='utf-8') as outfile:
-#         outfile.write('\n'.join(relinked_sections))
-
 
 def is_smc_content(markdown_content: str) -> bool:
     """Returns True if the given markdown content came from the SaveMyChatbot browser plugin."""
