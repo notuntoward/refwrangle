@@ -30,11 +30,6 @@ import link_perplexity_zotero as lpz
 # %%
 relinker = lpz.ZoteroLinkConverter()
 
-# TODO: remove the constants that aren't used
-TOP_HEADING_LEVEL_IN_AI = 2
-ANSWER_HEADING = "## AI answer"
-USER_HEADING = '## User'
-MAX_WORDS_PROMPT_HEADING = 10
 PROMPT_HEADER_SMC = '## User'
 RESPONSE_HEADER_SMC = '## AI answer'
 SOURCES_HEADER_SMC = r'\*\*Sources:\*\*'
@@ -151,40 +146,12 @@ def is_smc_content(markdown_content: str) -> bool:
     except Exception as e:
         raise Exception(f"Error processing markdown content: {e}")
 
-def count_prompts_smc_content(file_contents: str) -> int:
-    """ Counts user/response prompts in the contents of an smc perplexity output file.
-    A prompt is defined as a pair of ## User and ## AI Answer headers."""
-    
-    lines = file_contents.splitlines()
-
-    prompt_count, user_found = 0, False
-    for line in lines:
-        line = line.strip()
-        if line == "## User":
-            if user_found:
-                raise ValueError("Unmatched ## User header found without a corresponding ## AI Answer.")
-            user_found = True  # Mark that a user header is found
-        elif line == "## AI Answer":
-            if not user_found:
-                raise ValueError("Unmatched ## AI Answer header found without a preceding ## User.")
-            # if here, prompt pair is complete.  Restart pair search
-            prompt_count += 1  
-            user_found = False 
-
-    if user_found:
-        raise ValueError("Unmatched ## User header found without a corresponding ## AI Answer.")
-
-    if prompt_count == 0:
-        raise ValueError("No valid prompt pairs (## User, ## AI Answer) found in the file.")
-
-    return prompt_count
-
 # %%
-def split_single_prs_text_perplex(pr_text: str) -> Tuple[str, str, str, str]:
+def split_single_prs_text_perplex(pr_text: str) -> lpz.PromptResponseSplit:
     """Splits stock perplexity export markdown text into prompt, response and source sections,
     returning the source information in citenum_url_pairs.  This is the only way
-    to associate citenums to urls, as stock perplexity response citenum are markdown footnotes,
-    with plain citenums, like this: [citenum] or [^citenum].  These are left plain, as is."""
+    to associate citenums to urls, as stock perplexity response citenums are markdown footnotes,
+    with plain citenums, like this: [citenum] or [^citenum].  Here, these are left as is."""
 
     match = re.search(r'(?m)^# (?P<heading_text>.+)', pr_text)
     if (heading_start_index := match.start('heading_text')) == -1:
@@ -216,20 +183,6 @@ def split_single_prs_text_perplex(pr_text: str) -> Tuple[str, str, str, str]:
     citenum_url_pairs = rfw.get_link_tu_pairs(sources, source_list_pattern_perplex)
     
     return lpz.PromptResponseSplit(preamble, prompt, response, citenum_url_pairs, None) # no source titles
-
-# %%
-# def relink_single_file_perplexity(perplexity_file: pl.Path, relinked_file: pl.Path, verbose: bool = False) -> None:
-#     "Relinks and writes to a file a single prompt/response from perplexity."
-#     file_text = rfw.read_markdown_file(perplexity_file)
-#     prsplit = relinker.split_single_prs_dedup(file_text, split_single_prs_text_perplex)
-        
-#     body_relinked, relinked_sources = relinker.relink_response_and_sources(prsplit)
-#     body_relinked = rfw.hierarch_shift_markdown_headers(body_relinked, top_level=2)
-#     source_link = rfw.file_link_md('source', perplexity_file)
-
-#     relinked_file.write_text(f'{lpz.make_obsidian_front_matter()}\n*{source_link}*\n# Prompt\n\n{prsplit.prompt}\n'
-#                              f'# Response\n\n{body_relinked}\n# Citations\n{"\n".join(relinked_sources)}', 
-#                              encoding='utf-8')
 
 # %% [markdown]
 # ##### Fix any duplicate cite numbers inside of each body and collect them
@@ -338,7 +291,7 @@ def unify_citenums(all_citenums_to_url: pd.DataFrame) -> pd.DataFrame:
 
 # %%
 
-def concat_prompts_responses(all_prompts: list, all_responses: list, chat_files: list, all_citenums_to_url: pd.DataFrame, relinker) -> str:
+def concat_prompts_responses(all_prompts: list, all_responses: list, chat_files: list, all_citenums_to_url: pd.DataFrame) -> str:
     """Concatenate prompts, responses and appropriate headings into a single markdown string."""
     
     chat_files = rfw.ensure_iterable(chat_files)
@@ -430,7 +383,7 @@ def concat_prompts_responses(all_prompts: list, all_responses: list, chat_files:
 # ##### Insert links to Obsidian or Zotero
 
 # %%
-def relink_to_obsidian_and_zotero_merge(all_citenums_to_url, all_promptresp, relinker):
+def relink_to_obsidian_and_zotero_merge(all_citenums_to_url, all_promptresp):
     """Insert links to Obsidian or Zotero and writes the merged file"""
     url_to_source_title = {}
     if 'title' in all_citenums_to_url.columns:
@@ -446,19 +399,19 @@ def relink_to_obsidian_and_zotero_merge(all_citenums_to_url, all_promptresp, rel
     return f'{make_obsidian_front_matter()}\n{all_promptresp_unified_relinked}\n# Citations\n{relinked_sources}'
 
 # %%
-def relink_chats(chat_files, merged_output_file, verbose=True):
+def relink_chats(chat_files: List[pl.Path], merged_output_file: pl.Path, verbose: bool = True) -> None:
     
-    all_prompts, all_responses, all_citenums_to_url = load_and_dedup_chat_files(chat_files, verbose = True)
-    
+    all_prompts, all_responses, all_citenums_to_url = load_and_dedup_chat_files(chat_files, verbose)
+
     all_citenums_to_url = unify_citenums(all_citenums_to_url)
 
     all_promptresp = concat_prompts_responses(all_prompts, all_responses, chat_files, 
-                                              all_citenums_to_url, relinker)
+                                              all_citenums_to_url)
     
-    merged_chat = relink_to_obsidian_and_zotero_merge(all_citenums_to_url, all_promptresp, relinker)
+    merged_chat = relink_to_obsidian_and_zotero_merge(all_citenums_to_url, all_promptresp)
 
     print(f'writing to {merged_output_file=}')
-    merged_output_file.write_text(merged_chat,encoding='utf-8')
+    merged_output_file.write_text(merged_chat, encoding='utf-8')
     print("Done.")
 
 # %%
@@ -480,7 +433,7 @@ if __name__ == "__main__":
     # single smc file but multiprompt
     #chat_files = [pl.Path(r"C:\Users\scott\OneDrive\share\ref\refwrangle\test\dat\perplexity_multi_prompt_savemychatbot_example.md")]
     
-    chat_files = pl.Path(r"C:\Users\scott\OneDrive\share\ref\refwrangle\test\dat\bannon_smc_test.md")
+    chat_files = [pl.Path(r"C:\Users\scott\OneDrive\share\ref\refwrangle\test\dat\bannon_smc_test.md")]
 
     output_dir = pl.Path(r"C:\Users\scott\OneDrive\share\ref\obsidian\Obsidian Share Vault\Scratch Space")
     merged_output_file = output_dir / 'tmp_perplexy_merged.md'
