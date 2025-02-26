@@ -2,7 +2,6 @@
 import re
 from collections import Counter, defaultdict
 from typing import Optional, Dict, Tuple, List, Callable
-import datetime as dt
 import pathlib as pl
 from outcome import Value
 import pandas as pd
@@ -10,20 +9,8 @@ import refwrangle as rfw
 from dataclasses import dataclass, field
 from icecream import ic
 
-# TODO: remove the constants that aren't used
-TOP_HEADING_LEVEL_IN_AI = 2
-ANSWER_HEADING = "## AI answer"
-USER_HEADING = '## User'
-MAX_WORDS_PROMPT_HEADING = 10
-PROMPT_HEADER_SMC = '## User'
-RESPONSE_HEADER_SMC = '## AI answer'
-SOURCES_HEADER_SMC = r'\*\*Sources:\*\*'
-
-# handles both ^ and plain number syntax
-citenum_url_link_re = re.compile(r'\[\^?(?P<num>\d+)\]\((?P<url>https?://[^\)]+)\)')
 # like in smc source list
 source_link_re = re.compile(r'\[\((\d+)\)\s*(.*?)\]\((https?://\S+)\)')
-source_citenum_title_re = re.compile(r'^\((?P<citenum>\d+)\)\s*(?P<title>.+)')
 citenum_plain_re = re.compile(r'\[\^?(?P<num>\d+)\]') # handles both ^ and plain number syntax
 
 @dataclass
@@ -243,155 +230,20 @@ class ZoteroLinkConverter:
                                         citenum_to_url_df, url_to_source_title=prs_split.url_to_source_title)
 
 # A relinker for use here and by any importer of this file.  Only make one of these and share it.
-relinker = ZoteroLinkConverter()
+#relinker = ZoteroLinkConverter()
 
-def split_single_prs_text_smc(single_prs_markdown: str) -> PromptResponseSplit:
-    """Splits a single prompt-response-source chunk from a Save my Chatbot perplexity export
-    into prompt, response and source sections, returning the source information in citenum_url_pairs 
-    and url_to_source_title.  The response parts of SMC exports also have [citenum][url] markdown links; 
-    the citenum_url pairs extracted from them are often inconsistent with those
-    in the sources list.  This function merges source list and response citenum_url pairs
-    and attempts to unify them.  In the response, [citenum][url] markdown links are
-    replaced with plain [citenum] links, simplifying downstream merging of multiple 
-    prompt-response-sources."""
-    
-    pattern = rf"(?m)^({PROMPT_HEADER_SMC}|{RESPONSE_HEADER_SMC}|{SOURCES_HEADER_SMC})"    
-    parts = re.split(pattern, single_prs_markdown)
-
-    if (num_parts := len(parts)) < 1:
-        raise ValueError("Empty document or failed to find any headers in expected places")
-    
-    if num_parts < 3 or not re.match(rf'^{PROMPT_HEADER_SMC}.*',parts[1]):
-        raise ValueError(f"Failed to find prompt header ({PROMPT_HEADER_SMC}) in expected place")
-
-    if num_parts < 4 or not re.match(rf'^{RESPONSE_HEADER_SMC}.*',parts[3]):
-        raise ValueError(f"Failed to find response header ({RESPONSE_HEADER_SMC}) in expected place")
-
-    if num_parts < 5:
-        raise ValueError("Incomplete prompt/response pair")
-        
-    preamble, prompt, response = parts[0], parts[2], parts[4]
-    
-    if num_parts > 6 and re.match(rf'^{SOURCES_HEADER_SMC}.*',parts[5]):
-        sources = parts[6]
-    else:
-        print(f"Sources header({SOURCES_HEADER_SMC}) not in expected place or no source list: Assume no sources.")
-        sources = ''
-
-    citenum_url_pairs_response = rfw.get_link_tu_pairs(response, citenum_url_link_re)
-
-    # Include plain response citenums (SMC is supposed to be [num](url) but it's inconsistent)
-    ok_response_citenums = set([cupair[0] for cupair in citenum_url_pairs_response])
-    for citenum_plain in set([m for m in re.findall(citenum_plain_re, response)]):
-        if citenum_plain not in ok_response_citenums:
-            warning_url = f"https://BARE_CITE_NUMBER_{citenum_plain}_IN_RESPONSE_WITH_NO_URL"
-            print(f'Malformed Plain citenum [{citenum_plain}] appears without URL in response')
-            citenum_url_pairs_response.append((citenum_plain, warning_url))
-    
-    citenum_url_pairs, url_to_source_title = [], {}
-    if len(sources)>0:
-        #print(f'getting citenum_url_pairs from sources.')
-        for link_text, url in rfw.get_link_tu_pairs(sources, r'- \[(.*?)\]\((https?://\S+)\)'):
-            if match := re.match(source_citenum_title_re, link_text):
-                citenum, title = match['citenum'], match['title']
-                citenum_url_pairs.append((citenum, url))
-                url_to_source_title[url] = title.strip()
-            else:
-                raise ValueError(f'Failed to parse source link text: {link_text=}')
-        
-        # Append response num/url pairs not in sources list (sometimes happens in SMC)
-        for num_url_pair in citenum_url_pairs_response:
-            if num_url_pair not in citenum_url_pairs:
-                print(f'{num_url_pair[0]=}, {num_url_pair[1]=} in response but not source list')
-                citenum_url_pairs.append(num_url_pair)
-                url_to_source_title[num_url_pair[1]] = 'Cite in response but no entry in sources list'
-    else:
-        #print(f'getting citenum_url_pairs from response')
-        for (num, url) in citenum_url_pairs_response:
-            url_to_source_title[num] = 'Response with following no sources list'
-        citenum_url_pairs = citenum_url_pairs_response
-        
-    # substitue plain citenum links into the response, for easier downstream merging
-    response = re.sub(citenum_url_link_re, lambda m: f'[{m.group("num")}]', response)
-    
-    url_to_source_title = pd.Series(url_to_source_title, dtype='str')
-    return PromptResponseSplit(preamble, prompt, response, citenum_url_pairs, url_to_source_title)
-
-def make_obsidian_front_matter():
-    """Makes obsidian note front mater"""
-    return f'---\ncategory: aichat\ncreated date: {dt.datetime.now()}\n---\n'
-
-def is_smc_content(markdown_content: str) -> bool:
-    """Returns True if the given markdown content came from the SaveMyChatbot browser plugin."""
-    try:
-        lines = markdown_content.splitlines()
-        
-        if len(lines) < 2:
-            return False
-        
-        heading = lines[0].strip()
-        metadata = lines[1].strip()
-        
-        if not heading.startswith("# "):
-            return False
-        
-        exported_pattern = r"Exported on (\d{2}/\d{2}/\d{4}) at (\d{2}:\d{2}:\d{2})"
-        match = re.search(exported_pattern, metadata)
-        if not match:
-            return False
-        
-        try:
-            dt.datetime.strptime(f"{match.group(1)} {match.group(2)}", "%d/%m/%Y %H:%M:%S")
-        except ValueError:
-            return False
-        
-        if not ("Perplexity.ai" in metadata and "SaveMyChatbot" in metadata):
-            return False
-        
-        return True
-
-    except Exception as e:
-        raise Exception(f"Error processing markdown content: {e}")
-
-def count_prompts_smc_content(file_contents: str) -> int:
-    """ Counts user/response prompts in the contents of an smc perplexity output file.
-    A prompt is defined as a pair of ## User and ## AI Answer headers."""
-    
-    lines = file_contents.splitlines()
-
-    prompt_count, user_found = 0, False
-    for line in lines:
-        line = line.strip()
-        if line == "## User":
-            if user_found:
-                raise ValueError("Unmatched ## User header found without a corresponding ## AI Answer.")
-            user_found = True  # Mark that a user header is found
-        elif line == "## AI Answer":
-            if not user_found:
-                raise ValueError("Unmatched ## AI Answer header found without a preceding ## User.")
-            # if here, prompt pair is complete.  Restart pair search
-            prompt_count += 1  
-            user_found = False 
-
-    if user_found:
-        raise ValueError("Unmatched ## User header found without a corresponding ## AI Answer.")
-
-    if prompt_count == 0:
-        raise ValueError("No valid prompt pairs (## User, ## AI Answer) found in the file.")
-
-    return prompt_count
 
 
     
-# Example usage
-if __name__ == "__main__":
-    #input_file = pl.Path(r"C:\Users\scott\OneDrive\share\ref\refwrangle\test\dat\merge_chats_smc\GPT-4o-BGtrail.md")
-    #input_file = rfw.refwrangle_test_dir / "dat" / 'perplexity_multi_prompt_savemychatbot_example.md'
-    input_file = rfw.refwrangle_test_dir / "dat" / 'perplexity_single_prompt_savemychatbot_example.md'
-    output_dir = pl.Path(r"C:\Users\scott\OneDrive\share\ref\obsidian\Obsidian Share Vault\Scratch Space")
-    output_file = output_dir / 'tmp_savemychatbot_output.md'
+# # Example usage
+# if __name__ == "__main__":
+#     #input_file = pl.Path(r"C:\Users\scott\OneDrive\share\ref\refwrangle\test\dat\merge_chats_smc\GPT-4o-BGtrail.md")
+#     #input_file = rfw.refwrangle_test_dir / "dat" / 'perplexity_multi_prompt_savemychatbot_example.md'
+#     input_file = rfw.refwrangle_test_dir / "dat" / 'perplexity_single_prompt_savemychatbot_example.md'
+#     output_dir = pl.Path(r"C:\Users\scott\OneDrive\share\ref\obsidian\Obsidian Share Vault\Scratch Space")
+#     output_file = output_dir / 'tmp_savemychatbot_output.md'
     
-    print(f'{input_file=}\n-->\n{output_file=}')
-    relink_single_file_smc(input_file, output_file)
-    print('Done.')
+#     print(f'{input_file=}\n-->\n{output_file=}')
+#     relink_single_file_smc(input_file, output_file)
+#     print('Done.')
 # %%

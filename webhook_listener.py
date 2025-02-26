@@ -17,7 +17,8 @@ refwrangle_dir = pl.Path('~/ref/refwrangle').expanduser() # can't reliably get d
 sys.path.append(str(refwrangle_dir))
 # import refwrangle as rfw
 import refwrangle as rfw
-import link_perplexity_zotero as lpz
+#import link_perplexity_zotero as lpz
+import link_ai_lit as lal
 
 WRITE_LOG_FILE = True
 
@@ -105,7 +106,11 @@ def webhook():
             if output_relinked_file:
                 print(f'{input_smc_file}\n-->\n{output_relinked_file}')
                 #lpz.relink_perplexity_export_smc(input_smc_file, output_relinked_file, zot_db_items)
-                lpz.relink_single_file_smc(input_smc_file, output_relinked_file)
+                #lpz.relink_single_file_smc(input_smc_file, output_relinked_file)
+                chat_files = rfw.ensure_iterable(pl.Path(output_relinked_file))
+                ic(chat_files)
+
+                lal.relink_chats(pl.Path(input_smc_file), pl.Path(output_relinked_file))
                 print('Done.')
             else:
                 print('Save operation cancelled')
