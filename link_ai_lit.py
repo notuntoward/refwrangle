@@ -17,7 +17,7 @@ import datetime as dt
 import numpy as np
 import pandas as pd
 from icecream import ic
-from typing import Dict, Tuple
+from typing import Dict, Tuple, List, Union
 
 refwrangle_dir = pl.Path('~/ref/refwrangle').expanduser() # can't reliably get dir of an .ipynb 
 sys.path.append(str(refwrangle_dir))
@@ -236,13 +236,11 @@ def split_single_prs_text_perplex(pr_text: str) -> Tuple[str, str, str, str]:
 
 # %%
 
-def load_and_dedup_chat_files(chat_files: list, verbose: bool = True) -> Tuple[int, list, list, list, pd.DataFrame]:
+def load_and_dedup_chat_files(chat_files: list, verbose: bool = True) -> Tuple[list, list, pd.DataFrame]:
     """Read chat files and fix any duplicate cite numbers in the responses and organize them."""
     
     chat_files = rfw.ensure_iterable(chat_files)
-    num_chat_files = len(chat_files)
     
-    is_multi_prompt_file = []
     all_prompts, all_responses, all_citenums_to_url = [], [], []
     
     for file_index, chat_file in enumerate(chat_files):
@@ -264,8 +262,6 @@ def load_and_dedup_chat_files(chat_files: list, verbose: bool = True) -> Tuple[i
             # stock perplexity files have only a single prompt-response pair
             prs_splits = [relinker.split_single_prs_dedup(file_text, split_single_prs_text_perplex)]
 
-        is_multi_prompt_file.append(len(prs_splits) > 1)
-        
         for prompt_index, prsplit in enumerate(prs_splits):
             all_prompts.append(prsplit.prompt)
             all_responses.append(prsplit.response_dedup)
@@ -303,7 +299,7 @@ def load_and_dedup_chat_files(chat_files: list, verbose: bool = True) -> Tuple[i
         # fix at the end to allow possible title fill-in from other responses
         all_citenums_to_url['title'] = all_citenums_to_url.title.fillna('NO TITLE: likely bare citenum in response w/ no URL')
     
-    return num_chat_files, is_multi_prompt_file, all_prompts, all_responses, all_citenums_to_url
+    return all_prompts, all_responses, all_citenums_to_url
 
 # %% [markdown]
 # #### Make a unified cite number set for the merged document
@@ -341,97 +337,94 @@ def unify_citenums(all_citenums_to_url: pd.DataFrame) -> pd.DataFrame:
 # #### Assign new, unified cite numbers to each body and concatenate them into a single string
 
 # %%
-def concat_prompts_responses(all_prompts: list, all_responses: list, chat_files: list, all_citenums_to_url: pd.DataFrame, relinker,is_multi_prompt_file: list) -> Tuple[str, list]:
-    """Concatenate prompts and responses into a single markdown string with appropriate headings."""
+
+def concat_prompts_responses(all_prompts: list, all_responses: list, chat_files: list, all_citenums_to_url: pd.DataFrame, relinker) -> str:
+    """Concatenate prompts, responses and appropriate headings into a single markdown string."""
     
     chat_files = rfw.ensure_iterable(chat_files)
     num_chat_files = len(chat_files)
     
-    all_prompts_same = True
-    for i in range(0, len(all_prompts) - 1):
-        is_same = all_prompts[i].strip().lower() == all_prompts[i + 1].strip().lower()
-        all_prompts_same &= is_same
+    all_prompts_same = all(all_prompts[i].strip().lower() == all_prompts[i + 1].strip().lower() 
+                          for i in range(len(all_prompts) - 1)) if all_prompts else True
 
-    full_prompt_indices = rfw.unique_rows(all_citenums_to_url.reset_index(), ['file_index', 'prompt_index'])
-    all_citenums_to_url = (all_citenums_to_url
-                           .reset_index()
-                           .set_index(['file_index', 'prompt_index'])
-                           .sort_index())
+    output_markdown = [] # put here for helper funcs below.
+    
+    def heading_add(name, level):
+        output_markdown.append(f'{rfw.make_atx_header(name, level)}\n')
 
-    all_promptresp, chat_source_file_link = '', []
+    def text_add(text, top_level):
+        text = rfw.hierarch_shift_markdown_headers(text, top_level).strip()
+        output_markdown.append(f'{text}\n')
+
+    def prompt_add(global_index, top_level):
+        text_add(all_prompts[global_index], top_level)
+
+    def heading_short_prompt_add(global_index, level):
+        name = rfw.get_first_n_words(all_prompts[global_index], n=10)
+        heading_add(name, level)
+
+    def heading_short_filename_add(file_index, level):
+        heading_add(chat_files[file_index].name, level)
+
+    def response_add(response, top_level):
+        text_add(response, top_level)
+
+    def file_link_add(file_index):
+        this_file = chat_files[file_index]
+        output_markdown.append(f'{rfw.file_link_md("source", this_file)}\n')
+
+    # setup for loop indexing
+    is_multi_prompt_file = all_citenums_to_url.groupby('file_index')['prompt_index'].nunique()>1
+    all_citenums_to_url = all_citenums_to_url.reset_index() 
+    full_prompt_indices = rfw.unique_rows(all_citenums_to_url, ['file_index', 'prompt_index'])
+    all_citenums_to_url = all_citenums_to_url.set_index(['file_index', 'prompt_index'])
+    
     for global_index, (file_index, prompt_index) in full_prompt_indices.iterrows():
+        
+        # remap the response's deduped citenums to unified citenums
+        citenum_dedup_to_unified = (all_citenums_to_url.loc[file_index, prompt_index]
+                                    .set_index('dedup_num').unif_num.to_dict())
+        response_unified = relinker.replace_response_citenums(all_responses[global_index], 
+                                                              citenum_dedup_to_unified)
 
-        # remap deduped citenums to unified citenums
-        citenums_to_url_this = all_citenums_to_url.loc[file_index, prompt_index].copy()
-        citenums_dedup_to_unified = citenums_to_url_this.set_index('dedup_num').unif_num.to_dict()
-        response_unified = relinker.replace_response_citenums(all_responses[global_index], citenums_dedup_to_unified)  # unified citenums
-
-        def header_add(name, level):
-            nonlocal all_promptresp
-            all_promptresp += f'{rfw.make_atx_header(name, level)}\n'
-
-        def text_add(text, top_level):
-            nonlocal all_promptresp
-            text = rfw.hierarch_shift_markdown_headers(text, top_level).strip()
-            all_promptresp += f'{text}\n'
-
-        def prompt_add(top_level):
-            text_add(all_prompts[global_index], top_level)
-
-        def header_short_prompt_add(level):
-            name = rfw.get_first_n_words(all_prompts[global_index], n=10)
-            header_add(name, level)
-
-        def header_short_filename_add(level):
-            header_add(chat_files[file_index].name, level)
-
-        def response_add(top_level):
-            text_add(response_unified, top_level)
-
-        def file_link_add():
-            nonlocal all_promptresp
-            this_file = chat_files[file_index]
-            all_promptresp += f'{rfw.file_link_md("source", this_file)}\n'
-
-        # Put this prompt-response within the appropriate merged dialog headings
+        # appropriately insert prompts and responses between headings
+        is_first_prompt_in_file = prompt_index == 0
         if num_chat_files == 1:
-            if prompt_index == 0:
-                file_link_add()
+            if is_first_prompt_in_file:
+                file_link_add(file_index)
                 if is_multi_prompt_file[file_index]:
-                    header_short_prompt_add(1)
+                    heading_short_prompt_add(global_index, 1)
                 else:
-                    header_add("Prompt", 1)
-                prompt_add(3)
-                header_add("Response", 2)
-                response_add(3)
+                    heading_add("Prompt", 1)
+                prompt_add(global_index, 3)
             else:
-                header_short_prompt_add(1)
-                prompt_add(3)
-                header_add("Response", 2)
-                response_add(3)
+                heading_short_prompt_add(global_index, 1)
+                prompt_add(global_index, 3)
+            
+            heading_add("Response", 2)
+            response_add(response_unified, 3)
+        elif all_prompts_same and not is_multi_prompt_file[file_index]:
+            # Print prompt once at top, then responses
+            if file_index == 0 and is_first_prompt_in_file:
+                heading_add("Prompt", 1)
+                prompt_add(global_index, 2)
+                heading_add("Responses", 1)
+
+            heading_short_filename_add(file_index, 2)
+            file_link_add(file_index)
+            response_add(response_unified, 3)
         else:
-            if all_prompts_same and not is_multi_prompt_file[file_index]:
-                # Print prompt once at top, then responses
-                if file_index == 0 and prompt_index == 0:
-                    header_add("Prompt", 1)
-                    prompt_add(2)
-                    header_add("Responses", 1)
+            # print all prompt/response w/ separate prompt/resp headers
+            if is_first_prompt_in_file:
+                heading_short_filename_add(file_index, 1)
+                file_link_add(file_index)
 
-                header_short_filename_add(2)
-                file_link_add()
-                response_add(3)
-            else:
-                # print all prompt/response w/ separate prompt/resp headers
-                if prompt_index == 0:
-                    header_short_filename_add(1)
-                    file_link_add()
+            heading_add("Prompt", 2)
+            prompt_add(global_index, 3)
+            heading_add("Response", 2)
+            response_add(response_unified, 3)
 
-                header_add("Prompt", 2)
-                prompt_add(3)
-                header_add("Response", 2)
-                response_add(3)
-
-    return all_promptresp, chat_source_file_link
+    return ''.join(output_markdown)
 
 # %% [markdown]
 # ##### Insert links to Obsidian or Zotero
@@ -455,14 +448,12 @@ def relink_to_obsidian_and_zotero_merge(all_citenums_to_url, all_promptresp, rel
 # %%
 def relink_chats(chat_files, merged_output_file, verbose=True):
     
-    num_chat_files, is_multi_prompt_file, all_prompts, all_responses, all_citenums_to_url = load_and_dedup_chat_files(chat_files, verbose = True)
+    all_prompts, all_responses, all_citenums_to_url = load_and_dedup_chat_files(chat_files, verbose = True)
     
     all_citenums_to_url = unify_citenums(all_citenums_to_url)
 
-    (all_promptresp,
-    chat_source_file_link) = concat_prompts_responses(all_prompts, all_responses, chat_files, 
-                                                        all_citenums_to_url, relinker, 
-                                                        is_multi_prompt_file)
+    all_promptresp = concat_prompts_responses(all_prompts, all_responses, chat_files, 
+                                              all_citenums_to_url, relinker)
     
     merged_chat = relink_to_obsidian_and_zotero_merge(all_citenums_to_url, all_promptresp, relinker)
 
