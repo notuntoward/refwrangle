@@ -59,7 +59,7 @@ class ZoteroLinkConverter:
             item_data = item['data']
             if not (title := item_data.get('title')):
                 if verbose:
-                    print(f'{item['key']}: skipping parent with no title')
+                    rfw.error_message(f'{item['key']}: skipping parent with no title')
                 continue # messes up title search, must be malformed anyway?
                 
             citekey = rfw.get_citation_key(item_data)
@@ -76,9 +76,9 @@ class ZoteroLinkConverter:
             zotero_items.append(item_row) # items with at least a title
 
             if url_conflicts := {u: c for u, c in url_to_citekey.items() if len(c) > 1}:
-                print(f"Found {len(url_conflicts)} URLs with multiple citekeys:")
+                rfw.error_message("Found {len(url_conflicts)} URLs with multiple citekeys:")
                 for url, cites in url_conflicts.items():
-                    print(f"  {url}: {', '.join(cites)}")
+                    rfw.error_message("  {url}: {', '.join(cites)}")
                 raise ValueError("URL collisions in Zotero database")
 
         return pd.DataFrame(zotero_items)
@@ -160,22 +160,24 @@ class ZoteroLinkConverter:
         lut = []
         display_citenums_map = False
         for url, nums in url_to_citenums.items():
-            #print(f'{url=}, {nums}')
             if (num_dups := len(nums)) > 1 and verbose:
                 display_citenums_map = True
-                print(f'URL has {num_dups} dups: {nums=}, {url=}')
+                rfw.error_message('URL has {num_dups} dups: {nums=}, {url=}')
                 
             for num in nums:
-                #print(f'{num}')
                 lut.append({'orig_num': num, 'dedup_num': str(dedup_cite_num), 'url': url})
             
             dedup_cite_num += 1
-        
+
+        if len(lut) == 0:
+            return pd.DataFrame(columns=['orig_num','dedup_num', 'url'])
+
         citenums_to_url = pd.DataFrame(lut).drop_duplicates().set_index(['orig_num'])
         if display_citenums_map:
             ic(citenums_to_url)
-        
+    
         return citenums_to_url
+        
     
     def replace_response_citenums(self, response: str, oldnum_to_new: Dict[str, str]) -> str:
         """Replace citation numbers in the body with new ones.  
@@ -243,7 +245,7 @@ class ZoteroLinkConverter:
 #     output_dir = pl.Path(r"C:\Users\scott\OneDrive\share\ref\obsidian\Obsidian Share Vault\Scratch Space")
 #     output_file = output_dir / 'tmp_savemychatbot_output.md'
     
-#     print(f'{input_file=}\n-->\n{output_file=}')
+#     print((f'{input_file=}\n-->\n{output_file=}')
 #     relink_single_file_smc(input_file, output_file)
-#     print('Done.')
+#     print(('Done.')
 # %%

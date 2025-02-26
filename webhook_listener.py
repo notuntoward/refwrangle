@@ -77,10 +77,10 @@ def webhook():
         files = request.files
         input_smc_files = []
         for filename, file in files.items():
-            print(f"File Received: {filename}")
+            print(f"File Received: {str(filename)}")
             file_counter = f'_{len(input_smc_files)}' if len(files) > 1 else ''
             file_raw_path = raw_inputs_dir / f'{file_basename}_data{file_counter}.md'
-            print(f"Saving data: {file_raw_path}")
+            print(f"Saving data: {str(file_raw_path)}")
             file.save(file_raw_path)
             input_smc_files.append(file_raw_path)
 
@@ -91,7 +91,7 @@ def webhook():
 
         if WRITE_LOG_FILE:
             file_raw_path = raw_inputs_dir / f'{file_basename}.log'
-            print(f'Writing webhook log to {file_raw_path}')
+            print(f'Writing webhook log to {str(file_raw_path)}')
             with open(file_raw_path, "w", encoding='utf-8') as log_file:
                 if logstr:
                     log_file.write(logstr)

@@ -73,7 +73,7 @@ def split_single_prs_text_smc(single_prs_markdown: str) -> lpz.PromptResponseSpl
     if num_parts > 6 and re.match(rf'^{SOURCES_HEADER_SMC}.*',parts[5]):
         sources = parts[6]
     else:
-        print(f"Sources header({SOURCES_HEADER_SMC}) not in expected place or no source list: Assume no sources.")
+        rfw.error_message(f"Sources header({SOURCES_HEADER_SMC}) not in expected place or no source list: Assume no sources.")
         sources = ''
 
     citenum_url_pairs_response = rfw.get_link_tu_pairs(response, citenum_url_link_re)
@@ -83,12 +83,12 @@ def split_single_prs_text_smc(single_prs_markdown: str) -> lpz.PromptResponseSpl
     for citenum_plain in set([m for m in re.findall(lpz.citenum_plain_re, response)]):
         if citenum_plain not in ok_response_citenums:
             warning_url = f"https://BARE_CITE_NUMBER_{citenum_plain}_IN_RESPONSE_WITH_NO_URL"
-            print(f'Malformed Plain citenum [{citenum_plain}] appears without URL in response')
+            rfw.error_message(f'Malformed Plain citenum [{citenum_plain}] appears without URL in response')
             citenum_url_pairs_response.append((citenum_plain, warning_url))
     
     citenum_url_pairs, url_to_source_title = [], {}
     if len(sources)>0:
-        #print(f'getting citenum_url_pairs from sources.')
+        #rfw.error_message(f'getting citenum_url_pairs from sources.')
         for link_text, url in rfw.get_link_tu_pairs(sources, r'- \[(.*?)\]\((https?://\S+)\)'):
             if match := re.match(source_citenum_title_re, link_text):
                 citenum, title = match['citenum'], match['title']
@@ -100,11 +100,11 @@ def split_single_prs_text_smc(single_prs_markdown: str) -> lpz.PromptResponseSpl
         # Append response num/url pairs not in sources list (sometimes happens in SMC)
         for num_url_pair in citenum_url_pairs_response:
             if num_url_pair not in citenum_url_pairs:
-                print(f'{num_url_pair[0]=}, {num_url_pair[1]=} in response but not source list')
+                rfw.error_message(f'{num_url_pair[0]=}, {num_url_pair[1]=} in response but not source list')
                 citenum_url_pairs.append(num_url_pair)
                 url_to_source_title[num_url_pair[1]] = 'Cite in response but no entry in sources list'
     else:
-        #print(f'getting citenum_url_pairs from response')
+        #rfw.error_message(f'getting citenum_url_pairs from response')
         for (num, url) in citenum_url_pairs_response:
             url_to_source_title[num] = 'Response with following no sources list'
         citenum_url_pairs = citenum_url_pairs_response
@@ -296,7 +296,9 @@ def load_and_dedup_chat_files(chat_files: list, verbose: bool = True) -> Tuple[i
                     df = df.fillna({'title': titles[0]})
 
             fixed_title_dfs.append(df.copy())
-        all_citenums_to_url = pd.concat(fixed_title_dfs)
+        
+        if len(fixed_title_dfs) > 0:
+            all_citenums_to_url = pd.concat(fixed_title_dfs)
 
         # fix at the end to allow possible title fill-in from other responses
         all_citenums_to_url['title'] = all_citenums_to_url.title.fillna('NO TITLE: likely bare citenum in response w/ no URL')

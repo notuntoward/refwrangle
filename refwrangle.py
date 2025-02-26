@@ -282,12 +282,24 @@ def ensure_iterable(obj: Any) -> Iterable:
     """Wraps a scalar or string in a list if it's not iterable."""
     if isinstance(obj, str):  
         return [obj]  # Strings are iterable but don't want to iterate over chars
-
-    if isinstance(obj, Iterable):
-        return obj
     
-    return [obj]  # make it iterable
+    try:
+        iter(obj)  # Check if the object is iterable
+        return obj  # It's already iterable
+    except TypeError:
+        # Not iterable; wrap in a list
+        return [obj]
 
+    # if isinstance(obj, Iterable):
+    #     return obj
+    
+    # return [obj]  # make it iterable
+
+def error_message(message: str) -> None:
+    """Prints a message to stderr.
+    In the future, this could include a timestamp, file path, could log errors, etc."""
+    print(message, file=sys.stderr)
+    
 def extra2dict(extra: str) -> Dict[str, str]:
     """Converts zotero extra field string into dict of keys and values"""
     dictionary = {}
