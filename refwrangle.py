@@ -828,6 +828,28 @@ def is_file_big(file_path: pl.Path, min_bytes_for_big: int) -> bool:
     nbytes_dest = file_path.stat().st_size if file_path.exists() else 0
     
     return nbytes_dest >= min_bytes_for_big
+
+def read_markdown_file(file_path: pl.Path) -> str:
+    """Reads a markdown file and returns its content as a string.
+    Always read with utf-8, and converts to python standard \n newlines, 
+    as some AI files have windows-styple \r\n e.g. ChatGPT-4o exported from Perplexity."""
+    
+    try:
+        if isinstance(file_path, str):
+            file_path = pl.Path(file_path)
+    except Exception as e:
+        raise ValueError(f"Invalid file path: {file_path}") from e
+        
+    if file_path.suffix != '.md':
+        raise ValueError(f"File does not have a .md extension: {file_path}")
+
+    try:
+        with file_path.open('r', encoding='utf-8', newline=None) as file:
+            markdown_content = file.read()
+    except Exception as e:
+        raise Exception(e)
+    
+    return markdown_content
 class DividerNotFoundError(Exception):
     pass
 
@@ -1544,9 +1566,8 @@ def get_first_n_words(text: str, n: int, stop_phrase: Optional[str] = None) -> s
 
 def summarize_prompt(prompt: str, num_words: int, stop_phrase: str, heading_level) -> str:
     """Makes a heading that summarizes a prompt string."""
-    prompt = get_first_n_words(prompt, num_words, stop_phrase)
+    prompt = get_first_n_words(prompt, num_words, stop_phrase)    
     return make_atx_header(f'User: "{capitalize_first_word_if_needed(prompt)}..."', heading_level)
-
 
 def unique_rows(df: pd.DataFrame, column_names: list = None) -> pd.DataFrame:
     """Returns a sorted dataframe of unique rows in the rows, combo_col_names.

@@ -10,19 +10,20 @@ import refwrangle as rfw
 from dataclasses import dataclass, field
 from icecream import ic
 
-
+# TODO: remove the constants that aren't used
 TOP_HEADING_LEVEL_IN_AI = 2
 ANSWER_HEADING = "## AI answer"
 USER_HEADING = '## User'
 MAX_WORDS_PROMPT_HEADING = 10
+PROMPT_HEADER_SMC = '## User'
+RESPONSE_HEADER_SMC = '## AI answer'
+SOURCES_HEADER_SMC = r'\*\*Sources:\*\*'
 
-# like in smc body
-#citenum_url_link_re = re.compile(r'\[(?P<orig>\d+)\]\((?P<url>https?://[^\)]+)\)')
-citenum_url_link_re = re.compile(r'\[\^?(?P<num>\d+)\]\((?P<url>https?://[^\)]+)\)') # handles both ^ and plain number syntax
+# handles both ^ and plain number syntax
+citenum_url_link_re = re.compile(r'\[\^?(?P<num>\d+)\]\((?P<url>https?://[^\)]+)\)')
 # like in smc source list
 source_link_re = re.compile(r'\[\((\d+)\)\s*(.*?)\]\((https?://\S+)\)')
 source_citenum_title_re = re.compile(r'^\((?P<citenum>\d+)\)\s*(?P<title>.+)')
-#citenum_plain_re = re.compile(r'\[(?P<num>\d+)\]')
 citenum_plain_re = re.compile(r'\[\^?(?P<num>\d+)\]') # handles both ^ and plain number syntax
 
 @dataclass
@@ -33,8 +34,6 @@ class PromptResponseSplit:
     response: str
     citenum_url_pairs: List[Tuple]
     url_to_source_title: pd.Series
-    # url_to_source_title: Dict[str, str]    
-    #url_to_source_title: Dict[str, str] = field(default_factory=dict)
 
 @dataclass
 class PromptResponseSplitDeDup:
@@ -44,11 +43,14 @@ class PromptResponseSplitDeDup:
     response_dedup: str
     citenum_to_url_df: pd.DataFrame
     url_to_source_title: pd.Series
-    # url_to_source_title: Dict[str, str]    
-    # url_to_source_title: Dict[str, str] = field(default_factory=dict)    
 
 class ZoteroLinkConverter:
-    """Converts web links to Zotero/Obsidian links in content sections"""
+    """Scans web links in a markdown file and looks for links to the same source in a Zotero database or Obsidian vault.  
+    If it finds matches, it replaces the them with links to obsidian literature notes (preferably) or to a
+    to the zotero database if an obsidian literature note hasn't been created yet.
+    
+    This was written to parse markdown files exported from AI chats, so it it assumes that there are prompts, 
+    responses and sources derived from web links."""
     
     def __init__(self, verbose: bool = False):
         """Initialize with Zotero data and literature note status"""
@@ -240,12 +242,8 @@ class ZoteroLinkConverter:
         return PromptResponseSplitDeDup(prs_split.preamble, prs_split.prompt, response_dedup,
                                         citenum_to_url_df, url_to_source_title=prs_split.url_to_source_title)
 
-# a relinker use here and by any importer of this file.  Only make one of these and share it.
+# A relinker for use here and by any importer of this file.  Only make one of these and share it.
 relinker = ZoteroLinkConverter()
-
-PROMPT_HEADER_SMC = '## User'
-RESPONSE_HEADER_SMC = '## AI answer'
-SOURCES_HEADER_SMC = r'\*\*Sources:\*\*'
 
 def split_single_prs_text_smc(single_prs_markdown: str) -> PromptResponseSplit:
     """Splits a single prompt-response-source chunk from a Save my Chatbot perplexity export
@@ -281,9 +279,6 @@ def split_single_prs_text_smc(single_prs_markdown: str) -> PromptResponseSplit:
         sources = ''
 
     citenum_url_pairs_response = rfw.get_link_tu_pairs(response, citenum_url_link_re)
-    # separate link needed?
-    #num_url_link_re = re.compile(r'\[(.*?)\]\((https?://\S+)\)')
-    #citenum_url_pairs_response = rfw.get_link_tu_pairs(response, num_url_link_re)
 
     # Include plain response citenums (SMC is supposed to be [num](url) but it's inconsistent)
     ok_response_citenums = set([cupair[0] for cupair in citenum_url_pairs_response])
@@ -321,28 +316,6 @@ def split_single_prs_text_smc(single_prs_markdown: str) -> PromptResponseSplit:
     
     url_to_source_title = pd.Series(url_to_source_title, dtype='str')
     return PromptResponseSplit(preamble, prompt, response, citenum_url_pairs, url_to_source_title)
-
-def read_markdown_file(file_path: pl.Path) -> str:
-    """Reads a markdown file and returns its content as a string.
-    Always read with utf-8, and converts to python standard \n newlines, 
-    as some AI files have windows-styple \r\n e.g. ChatGPT-4o exported from Perplexity."""
-    
-    try:
-        if isinstance(file_path, str):
-            file_path = pl.Path(file_path)
-    except Exception as e:
-        raise ValueError(f"Invalid file path: {file_path}") from e
-        
-    if file_path.suffix != '.md':
-        raise ValueError(f"File does not have a .md extension: {file_path}")
-
-    try:
-        with file_path.open('r', encoding='utf-8', newline=None) as file:
-            markdown_content = file.read()
-    except Exception as e:
-        raise Exception(e)
-    
-    return markdown_content
 
 def make_obsidian_front_matter():
     """Makes obsidian note front mater"""
