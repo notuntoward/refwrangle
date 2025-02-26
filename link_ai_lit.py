@@ -118,13 +118,11 @@ def is_smc_content(markdown_content: str) -> bool:
     """Returns True if the given markdown content came from the SaveMyChatbot browser plugin."""
     try:
         lines = markdown_content.splitlines()
-        
         if len(lines) < 2:
             return False
         
         heading = lines[0].strip()
         metadata = lines[1].strip()
-        
         if not heading.startswith("# "):
             return False
         
@@ -142,7 +140,6 @@ def is_smc_content(markdown_content: str) -> bool:
             return False
         
         return True
-
     except Exception as e:
         raise Exception(f"Error processing markdown content: {e}")
 
@@ -327,7 +324,7 @@ def concat_prompts_responses(all_prompts: list, all_responses: list, chat_files:
         output_markdown.append(f'{rfw.file_link_md("source", this_file)}\n')
 
     # setup for loop indexing
-    is_multi_prompt_file = all_citenums_to_url.groupby('file_index')['prompt_index'].nunique()>1
+    is_multi_prompt_file = all_citenums_to_url.groupby('file_index')['prompt_index'].nunique() > 1
     all_citenums_to_url = all_citenums_to_url.reset_index() 
     full_prompt_indices = rfw.unique_rows(all_citenums_to_url, ['file_index', 'prompt_index'])
     all_citenums_to_url = all_citenums_to_url.set_index(['file_index', 'prompt_index'])

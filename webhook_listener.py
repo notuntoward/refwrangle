@@ -72,8 +72,6 @@ def webhook():
         # get and save the expected payload
 
         form_data = request.form.to_dict()
-        #print("Form Data:", form_data)
-
         files = request.files
         input_smc_files = []
         for filename, file in files.items():
@@ -85,8 +83,8 @@ def webhook():
             input_smc_files.append(file_raw_path)
 
         logstr = ''         
-        if (nGotFiles := len(input_smc_files)) > 1:
-            logstr = f'Expected to receive only one file, got {nGotFiles}: Converting only the first.'
+        if (num_got_files := len(input_smc_files)) > 1:
+            logstr = f'Expected to receive only one file, got {num_got_files}: Converting only the first.'
             print(logstr)
 
         if WRITE_LOG_FILE:
@@ -105,8 +103,6 @@ def webhook():
 
             if output_relinked_file:
                 print(f'{input_smc_file}\n-->\n{output_relinked_file}')
-                #lpz.relink_perplexity_export_smc(input_smc_file, output_relinked_file, zot_db_items)
-                #lpz.relink_single_file_smc(input_smc_file, output_relinked_file)
                 chat_files = rfw.ensure_iterable(pl.Path(output_relinked_file))
                 ic(chat_files)
 
