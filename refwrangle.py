@@ -1584,12 +1584,12 @@ def summarize_prompt(prompt: str, num_words: int, stop_phrase: str, heading_leve
 def unique_rows(df: pd.DataFrame, column_names: list = None) -> pd.DataFrame:
     """Returns a sorted dataframe of unique rows in the rows, combo_col_names.
     Returned columns will be in order of column_names if given, numerically,
-    when possible, and the index will be reset."""
+    when possible, and the index will be reset as an integer-based index."""
 
     cols = list(df.columns) if column_names is None else column_names
 
     # new index = 0:(len(df)-1) (avoids non-unique index problems)
-    df_orig_cols = df[cols].copy().reset_index(drop=True) 
+    df_orig_cols = df[cols].copy().reset_index(drop=True)
 
     # sort numerically when possible
     df_sort = df_orig_cols.copy()
@@ -1599,5 +1599,10 @@ def unique_rows(df: pd.DataFrame, column_names: list = None) -> pd.DataFrame:
             df_sort[col_non_num] = col_dat_to_numeric
 
     index_unique = df_sort.sort_values(cols).drop_duplicates().index
-        
-    return df_orig_cols.loc[index_unique].reset_index(drop=True)
+    df_unique = df_orig_cols.loc[index_unique].reset_index(drop=True)
+
+    # Try to convince MyPy that index is interger, when used to index, say, a list
+    # (didn't work, but maybe someday, somewhere, it will)
+    df_unique.index = pd.RangeIndex(start=0, stop=len(df_unique), step=1)
+    
+    return df_unique

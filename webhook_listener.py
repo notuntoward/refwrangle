@@ -106,7 +106,7 @@ def webhook():
                 chat_files = rfw.ensure_iterable(pl.Path(output_relinked_file))
                 ic(chat_files)
 
-                lal.relink_chats(pl.Path(input_smc_file), pl.Path(output_relinked_file))
+                lal.relink_chat_files(pl.Path(input_smc_file), pl.Path(output_relinked_file))
                 print('Done.')
             else:
                 print('Save operation cancelled')

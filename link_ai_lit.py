@@ -1,28 +1,25 @@
 # %% [markdown]
-# # WORKSPACE FOR GETTING THIS INTO PURE PYTHON
+#
 #  ### Zoteroize and Obsidianize a Perplexity Dialogue
 # 
-# 
-# 
 #  In a Perplexity dialogue copied to the clipboard by the perplexity copy button and then saved to a file, replace
-# 
 #  the citation numbers with matching Obsidian literature note or Zotero item links
 
+import datetime as dt
+import pathlib as pl
 # %%
 import re
-import pathlib as pl
 import sys
-from collections import defaultdict
-import datetime as dt
+from typing import List, Tuple
+
 import numpy as np
 import pandas as pd
 from icecream import ic
-from typing import Dict, Tuple, List, Union
 
 refwrangle_dir = pl.Path('~/ref/refwrangle').expanduser() # can't reliably get dir of an .ipynb 
 sys.path.append(str(refwrangle_dir))
-import refwrangle as rfw
 import link_perplexity_zotero as lpz
+import refwrangle as rfw
 
 # %load_ext autoreload
 # %autoreload 2
@@ -30,13 +27,14 @@ import link_perplexity_zotero as lpz
 # %%
 relinker = lpz.ZoteroLinkConverter()
 
+# Save my chatbot output section separator headings
 PROMPT_HEADER_SMC = '## User'
 RESPONSE_HEADER_SMC = '## AI answer'
 SOURCES_HEADER_SMC = r'\*\*Sources:\*\*'
 
-# handles both ^ and plain number syntax
-citenum_url_link_re = re.compile(r'\[\^?(?P<num>\d+)\]\((?P<url>https?://[^\)]+)\)')
-source_citenum_title_re = re.compile(r'^\((?P<citenum>\d+)\)\s*(?P<title>.+)')
+# Matches both ^ and plain number syntax
+CITENUM_URL_LINK_RE = r'\[\^?(?P<num>\d+)\]\((?P<url>https?://[^\)]+)\)'
+SOURCE_CITENUM_TITLE_RE = re.compile(r'^\((?P<citenum>\d+)\)\s*(?P<title>.+)')
 
 def split_single_prs_text_smc(single_prs_markdown: str) -> lpz.PromptResponseSplit:
     """Splits a single prompt-response-source chunk from a Save my Chatbot perplexity export
@@ -71,7 +69,7 @@ def split_single_prs_text_smc(single_prs_markdown: str) -> lpz.PromptResponseSpl
         rfw.error_message(f"Sources header({SOURCES_HEADER_SMC}) not in expected place or no source list: Assume no sources.")
         sources = ''
 
-    citenum_url_pairs_response = rfw.get_link_tu_pairs(response, citenum_url_link_re)
+    citenum_url_pairs_response = rfw.get_link_tu_pairs(response, CITENUM_URL_LINK_RE)
 
     # Include plain response citenums (SMC is supposed to be [num](url) but it's inconsistent)
     ok_response_citenums = set([cupair[0] for cupair in citenum_url_pairs_response])
@@ -81,11 +79,10 @@ def split_single_prs_text_smc(single_prs_markdown: str) -> lpz.PromptResponseSpl
             rfw.error_message(f'Malformed Plain citenum [{citenum_plain}] appears without URL in response')
             citenum_url_pairs_response.append((citenum_plain, warning_url))
     
-    citenum_url_pairs, url_to_source_title = [], {}
+    citenum_url_pairs, url_to_source_title = [], pd.Series(dtype=str)
     if len(sources)>0:
-        #rfw.error_message(f'getting citenum_url_pairs from sources.')
         for link_text, url in rfw.get_link_tu_pairs(sources, r'- \[(.*?)\]\((https?://\S+)\)'):
-            if match := re.match(source_citenum_title_re, link_text):
+            if match := re.match(SOURCE_CITENUM_TITLE_RE, link_text):
                 citenum, title = match['citenum'], match['title']
                 citenum_url_pairs.append((citenum, url))
                 url_to_source_title[url] = title.strip()
@@ -99,19 +96,17 @@ def split_single_prs_text_smc(single_prs_markdown: str) -> lpz.PromptResponseSpl
                 citenum_url_pairs.append(num_url_pair)
                 url_to_source_title[num_url_pair[1]] = 'Cite in response but no entry in sources list'
     else:
-        #rfw.error_message(f'getting citenum_url_pairs from response')
         for (num, url) in citenum_url_pairs_response:
             url_to_source_title[num] = 'Response with following no sources list'
         citenum_url_pairs = citenum_url_pairs_response
         
     # substitue plain citenum links into the response, for easier downstream merging
-    response = re.sub(citenum_url_link_re, lambda m: f'[{m.group("num")}]', response)
+    response = re.sub(CITENUM_URL_LINK_RE, lambda m: f'[{m.group("num")}]', response)
     
-    url_to_source_title = pd.Series(url_to_source_title, dtype='str')
     return lpz.PromptResponseSplit(preamble, prompt, response, citenum_url_pairs, url_to_source_title)
 
 def make_obsidian_front_matter():
-    """Makes obsidian note front mater"""
+    """Returns obsidian note front matter."""
     return f'---\ncategory: aichat\ncreated date: {dt.datetime.now()}\n---\n'
 
 def is_smc_content(markdown_content: str) -> bool:
@@ -141,7 +136,7 @@ def is_smc_content(markdown_content: str) -> bool:
         
         return True
     except Exception as e:
-        raise Exception(f"Error processing markdown content: {e}")
+        raise ValueError(f"Error processing markdown content: {e}") from e
 
 # %%
 def split_single_prs_text_perplex(pr_text: str) -> lpz.PromptResponseSplit:
@@ -151,7 +146,7 @@ def split_single_prs_text_perplex(pr_text: str) -> lpz.PromptResponseSplit:
     with plain citenums, like this: [citenum] or [^citenum].  Here, these are left as is."""
 
     match = re.search(r'(?m)^# (?P<heading_text>.+)', pr_text)
-    if (heading_start_index := match.start('heading_text')) == -1:
+    if match is None or ((heading_start_index := match.start('heading_text')) == -1):
         raise ValueError('Could not find prompt heading')
     
     preamble = pr_text[:heading_start_index].strip()
@@ -176,24 +171,23 @@ def split_single_prs_text_perplex(pr_text: str) -> lpz.PromptResponseSplit:
     response = f"{pr_text[response_start_index:response_sources_divider_index]}".strip()
     
     sources = pr_text[response_sources_divider_index:]
-    source_list_pattern_perplex = re.compile(r'\[\^?(?P<num>\d+)\]:\s*(?P<url>http[s]?://\S+)')
+    source_list_pattern_perplex = r'\[\^?(?P<num>\d+)\]:\s*(?P<url>http[s]?://\S+)'
     citenum_url_pairs = rfw.get_link_tu_pairs(sources, source_list_pattern_perplex)
     
-    return lpz.PromptResponseSplit(preamble, prompt, response, citenum_url_pairs, None) # no source titles
+    return lpz.PromptResponseSplit(preamble, prompt, response, citenum_url_pairs, pd.Series()) # no source titles
 
 # %% [markdown]
 # ##### Fix any duplicate cite numbers inside of each body and collect them
 
 # %%
 
-def load_and_dedup_chat_files(chat_files: list, verbose: bool = True) -> Tuple[list, list, pd.DataFrame]:
+def load_and_dedup_chat_files(files: list, verbose: bool = True) -> Tuple[list, list, pd.DataFrame]:
     """Read chat files and fix any duplicate cite numbers in the responses and organize them."""
     
-    chat_files = rfw.ensure_iterable(chat_files)
+    files = files if isinstance(files, list) else [files]
+    all_prompts, all_responses, citenums_to_url_list = [], [], []
     
-    all_prompts, all_responses, all_citenums_to_url = [], [], []
-    
-    for file_index, chat_file in enumerate(chat_files):
+    for file_index, chat_file in enumerate(files):
         if verbose:
             print(f'Parsing {chat_file.name}')
             
@@ -223,12 +217,12 @@ def load_and_dedup_chat_files(chat_files: list, verbose: bool = True) -> Tuple[l
                 citenum_to_url_df['title'] = prsplit.url_to_source_title            
                 citenum_to_url_df = citenum_to_url_df.reset_index()
 
-            all_citenums_to_url.append(citenum_to_url_df)
+            citenums_to_url_list.append(citenum_to_url_df)
         
-    all_citenums_to_url = pd.concat(all_citenums_to_url)
+    all_citenums_to_url = pd.concat(citenums_to_url_list)
 
     if 'title' in all_citenums_to_url.columns:
-        # Fill in titles when find them in other smc prompt-response pairs (useful for debugging?)"""
+        # Fill in missing titles with same-url titles from other prompt-response pair source lists
         fixed_title_dfs = []
         for url, df in all_citenums_to_url.groupby('url'):
             has_no_title = df.title.isna()
@@ -246,7 +240,6 @@ def load_and_dedup_chat_files(chat_files: list, verbose: bool = True) -> Tuple[l
         if len(fixed_title_dfs) > 0:
             all_citenums_to_url = pd.concat(fixed_title_dfs)
 
-        # fix at the end to allow possible title fill-in from other responses
         all_citenums_to_url['title'] = all_citenums_to_url.title.fillna('NO TITLE: likely bare citenum in response w/ no URL')
     
     return all_prompts, all_responses, all_citenums_to_url
@@ -288,13 +281,13 @@ def unify_citenums(all_citenums_to_url: pd.DataFrame) -> pd.DataFrame:
 
 # %%
 
-def concat_prompts_responses(all_prompts: list, all_responses: list, chat_files: list, all_citenums_to_url: pd.DataFrame) -> str:
+def concat_prompts_responses(all_prompts: list, all_responses: list, source_chat_files: list, all_citenums_to_url: pd.DataFrame) -> str:
     """Concatenate prompts, responses and appropriate headings into a single markdown string."""
     
-    chat_files = rfw.ensure_iterable(chat_files)
-    num_chat_files = len(chat_files)
+    source_chat_files = source_chat_files if isinstance(source_chat_files, list) else [source_chat_files]
+    num_chat_files = len(source_chat_files)
     
-    all_prompts_same = all(all_prompts[i].strip().lower() == all_prompts[i + 1].strip().lower() 
+    all_prompts_same = all(all_prompts[i].strip().lower() == all_prompts[i + 1].strip().lower()
                           for i in range(len(all_prompts) - 1)) if all_prompts else True
 
     output_markdown = [] # put here for helper funcs below.
@@ -314,13 +307,13 @@ def concat_prompts_responses(all_prompts: list, all_responses: list, chat_files:
         heading_add(name, level)
 
     def heading_short_filename_add(file_index, level):
-        heading_add(chat_files[file_index].name, level)
+        heading_add(source_chat_files[file_index].name, level)
 
     def response_add(response, top_level):
         text_add(response, top_level)
 
     def file_link_add(file_index):
-        this_file = chat_files[file_index]
+        this_file = source_chat_files[file_index]
         output_markdown.append(f'{rfw.file_link_md("source", this_file)}\n')
 
     # setup for loop indexing
@@ -330,11 +323,11 @@ def concat_prompts_responses(all_prompts: list, all_responses: list, chat_files:
     all_citenums_to_url = all_citenums_to_url.set_index(['file_index', 'prompt_index'])
     
     for global_index, (file_index, prompt_index) in full_prompt_indices.iterrows():
-        
+
         # remap the response's deduped citenums to unified citenums
         citenum_dedup_to_unified = (all_citenums_to_url.loc[file_index, prompt_index]
                                     .set_index('dedup_num').unif_num.to_dict())
-        response_unified = relinker.replace_response_citenums(all_responses[global_index], 
+        response_unified = relinker.replace_response_citenums(all_responses[global_index],
                                                               citenum_dedup_to_unified)
 
         # appropriately insert prompts and responses between headings
@@ -384,7 +377,7 @@ def relink_to_obsidian_and_zotero_merge(all_citenums_to_url, all_promptresp):
     """Insert links to Obsidian or Zotero and writes the merged file"""
     url_to_source_title = {}
     if 'title' in all_citenums_to_url.columns:
-        for unif_num, df in all_citenums_to_url.reset_index().groupby('unif_num'):
+        for _, df in all_citenums_to_url.reset_index().groupby('unif_num'):
             url_to_source_title[df.iloc[0].url] = df.iloc[0].title
 
     prsplit_all = lpz.PromptResponseSplitDeDup('', '', all_promptresp, all_citenums_to_url, url_to_source_title)
@@ -396,19 +389,23 @@ def relink_to_obsidian_and_zotero_merge(all_citenums_to_url, all_promptresp):
     return f'{make_obsidian_front_matter()}\n{all_promptresp_unified_relinked}\n# Citations\n{relinked_sources}'
 
 # %%
-def relink_chats(chat_files: List[pl.Path], merged_output_file: pl.Path, verbose: bool = True) -> None:
-    
-    all_prompts, all_responses, all_citenums_to_url = load_and_dedup_chat_files(chat_files, verbose)
+def relink_chat_files(input_files: List[pl.Path], output_file: pl.Path,
+                      verbose: bool = True) -> None:
+    """Replaces web links in perplexity export markdown files with links to Obsidian lit notes
+    or Zotero items.  It then merges them into a single file, with a single source list 
+    and unified citation numbers."""
+
+    all_prompts, all_responses, all_citenums_to_url = load_and_dedup_chat_files(input_files, verbose)
 
     all_citenums_to_url = unify_citenums(all_citenums_to_url)
 
-    all_promptresp = concat_prompts_responses(all_prompts, all_responses, chat_files, 
+    all_promptresp = concat_prompts_responses(all_prompts, all_responses, input_files,
                                               all_citenums_to_url)
-    
+
     merged_chat = relink_to_obsidian_and_zotero_merge(all_citenums_to_url, all_promptresp)
 
-    print(f'writing to {merged_output_file=}')
-    merged_output_file.write_text(merged_chat, encoding='utf-8')
+    print(f'writing to {output_file=}')
+    output_file.write_text(merged_chat, encoding='utf-8')
     print("Done.")
 
 # %%
@@ -435,6 +432,6 @@ if __name__ == "__main__":
     output_dir = pl.Path(r"C:\Users\scott\OneDrive\share\ref\obsidian\Obsidian Share Vault\Scratch Space")
     merged_output_file = output_dir / 'tmp_perplexy_merged.md'
 
-    relink_chats(chat_files, merged_output_file, verbose=True)
+    relink_chat_files(chat_files, merged_output_file, verbose=True)
 
 
