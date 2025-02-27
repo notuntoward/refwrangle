@@ -3,21 +3,20 @@ Advice from: https://www.perplexity.ai/search/what-is-a-webhook-url-0DbzcuJ4TRav
 
 To run it:  python webhook_listener.py"""
 
-import pathlib as pl
 import datetime as dt
-import tkinter as tk
-import threading
+import pathlib as pl
 import queue
 import sys
+import threading
+import tkinter as tk
 from tkinter import filedialog
-from flask import Flask, request, Response
+
+from flask import Flask, Response, request
 from icecream import ic
 
 refwrangle_dir = pl.Path('~/ref/refwrangle').expanduser() # can't reliably get dir of an .ipynb 
 sys.path.append(str(refwrangle_dir))
-# import refwrangle as rfw
 import refwrangle as rfw
-#import link_perplexity_zotero as lpz
 import link_ai_lit as lal
 
 WRITE_LOG_FILE = True

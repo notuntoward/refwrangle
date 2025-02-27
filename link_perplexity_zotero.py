@@ -220,7 +220,7 @@ class ZoteroLinkConverter:
         response_dedup = self.replace_response_citenums(prs_split.response, citenum_to_url_df.dedup_num.to_dict())
         
         # no blank lines btween list elements
-        response_dedup = rfw.shrink_lists(response_dedup)
+        response_dedup = rfw.condense_markdown_lists(response_dedup)
         
         # omni3 overuses them, and also sometimes get converted to headers below
         response_dedup = rfw.remove_markdown_dividers(response_dedup)

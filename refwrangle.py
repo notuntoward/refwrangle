@@ -863,6 +863,7 @@ def read_markdown_file(file_path: pl.Path) -> str:
     
     return markdown_content
 class DividerNotFoundError(Exception):
+    """When the a Markdown divider '---' is searched for and not found."""
     pass
 
 def find_markdown_divider_boundaries(markdown_string: str) -> Tuple[int, int]:
@@ -907,13 +908,7 @@ def make_atx_header(text: str, header_level: int) -> str:
         raise ValueError("header_level must be between 1 and 6.")
 
 def setext_headers_to_atx(markdown_text: str, top_header_level: int):
-    """Converts Setext-style headers in the given Markdown text to ATX-style headers.
-
-    Args:
-        markdown_text (str): The input Markdown text.
-
-    Returns:
-        str: The Markdown text with Setext-style headers converted to ATX-style headers."""
+    """Converts Setext-style headers in the given Markdown text to ATX-style headers."""
         
     # Convert first-level Setext headers (underlined with '-')
     markdown_text = re.sub(
@@ -933,7 +928,7 @@ def setext_headers_to_atx(markdown_text: str, top_header_level: int):
 
     return markdown_text
 
-def shrink_lists(markdown_text: str) -> str:
+def condense_markdown_lists(markdown_text: str) -> str:
     """Remove blank lines between list elements while preserving others."""
     lines = markdown_text.split("\n")
     list_flags = [False] * len(lines)  # Track list items
@@ -966,6 +961,7 @@ def file_link_md(link_text: str, file_path: pl.Path) -> str:
     return f'[{link_text}]({file_path.as_uri()})'
 
 def heirarch_shift_markdown_headers(markdown_text: int, top_level: int = None):
+    """A post-rename old code catcher."""
     print('bad spelling: change your code.')
     return hierarch_shift_markdown_headers(markdown_text, top_level)
 
@@ -1068,7 +1064,7 @@ def normalize_odd_chars(text: str) -> str:
     
     return text
 
-def preproc_BS4_lenient(html: str) -> str:
+def preproc_bs4_lenient(html: str) -> str:
     """Preprocesses HTML content, removing images and extracting text while preserving structure.
     I haven't seen this delete meaninful text, but it sometimes leaves sequences 
     of leading and trailing link sequences and junk in the middle of some WA post articles."""
@@ -1112,7 +1108,7 @@ def html2md_BS_html_to_markdown(input_html_file: pl.Path, output_md_file: pl.Pat
     with open(input_html_file, 'r', encoding='utf-8') as infile:
         input_data = infile.read()
 
-    input_data = preproc_BS4_lenient(input_data)
+    input_data = preproc_bs4_lenient(input_data)
 
     # html2markdown doesn't like some utf8 chars
     processed_input = normalize_odd_chars(input_data)
@@ -1127,7 +1123,7 @@ def html2md_BS_html_to_markdown(input_html_file: pl.Path, output_md_file: pl.Pat
     stdout, stderr = process.communicate(processed_input.encode('utf-8'))
 
     if stderr:
-        raise Exception("html2markdown encountered an error", stderr.decode('utf-8'))
+        raise ValueError("html2markdown encountered an error", stderr.decode('utf-8'))
 
     output = stdout.decode('utf-8')
 
@@ -1232,7 +1228,7 @@ def fix_markdown_errors(content: str) -> str:
     return content
 
 def pdf2md_pymupdf4llm(input_pdf: pl.Path, output_md: pl.Path):
-    "Reads a pdf file and writes it as utf-8 markdown"    
+    "Reads a pdf file, cleans it, and writes it as utf-8 markdown"    
 
     md_text = pymupdf4llm.to_markdown(input_pdf, write_images=False,
                                       show_progress=False)
@@ -1241,7 +1237,7 @@ def pdf2md_pymupdf4llm(input_pdf: pl.Path, output_md: pl.Path):
     
     pl.Path(output_md).write_bytes(md_text.encode()) # encode w/ no args uses utf-8
 
-def bin_items_FFD(item_weights: list, max_bin_weight: float) -> pd.DataFrame:
+def bin_items_ffd(item_weights: list[float], max_bin_weight: float) -> pd.DataFrame:
     """
     Allocates items to bins, with the goal of the most equal bin packing with no bin exceeding max_bin_weight
     Uses the First-Fit Decreasing (FFD) bin packing algorithm.
@@ -1264,8 +1260,8 @@ def bin_items_FFD(item_weights: list, max_bin_weight: float) -> pd.DataFrame:
     sorted_weights = sorted(enumerate(item_weights), key=lambda x: x[1], reverse=True)
 
     # Place each item into the first available bin that can accommodate it
-    item_index_bins = []  # each bin contains original item indices
-    total_weight_bin = [] # total weight of items in bin
+    item_index_bins: List[List[int]] = []  # each bin contains original item indices
+    total_weight_bin: List[float] = []  # total weight of items in bin
 
     for item_index_orig, item_weight in sorted_weights:  # Heaviest item first
         # Put item in the 1st bin that fits
