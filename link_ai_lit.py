@@ -174,7 +174,11 @@ def split_single_prs_text_perplex(pr_text: str) -> lpz.PromptResponseSplit:
     source_list_pattern_perplex = r'\[\^?(?P<num>\d+)\]:\s*(?P<url>http[s]?://\S+)'
     citenum_url_pairs = rfw.get_link_tu_pairs(sources, source_list_pattern_perplex)
     
-    return lpz.PromptResponseSplit(preamble, prompt, response, citenum_url_pairs, pd.Series()) # no source titles
+    # Perplexity source list has no title but want to put something in the title part 
+    # of the output source list.  Do as perplexity, and make the title the URL.
+    url_to_source_title = pd.Series({pair[1]: pair[1] for pair in citenum_url_pairs})
+    
+    return lpz.PromptResponseSplit(preamble, prompt, response, citenum_url_pairs, url_to_source_title) 
 
 # %% [markdown]
 # ##### Fix any duplicate cite numbers inside of each body and collect them
@@ -240,7 +244,8 @@ def load_and_dedup_chat_files(files: list, verbose: bool = True) -> Tuple[list, 
         if len(fixed_title_dfs) > 0:
             all_citenums_to_url = pd.concat(fixed_title_dfs)
 
-        all_citenums_to_url['title'] = all_citenums_to_url.title.fillna('NO TITLE: likely bare citenum in response w/ no URL')
+        all_citenums_to_url['title'] = (all_citenums_to_url.title
+                                        .fillna('NO TITLE: likely bare citenum in response w/ no URL'))
     
     return all_prompts, all_responses, all_citenums_to_url
 
@@ -250,17 +255,17 @@ def load_and_dedup_chat_files(files: list, verbose: bool = True) -> Tuple[list, 
 # %%
 def unify_citenums(all_citenums_to_url: pd.DataFrame) -> pd.DataFrame:
     """ Make a unified cite number set for the merged chat.
-    Reorder the merged citenums, giving each url a new, unique citenum. 
-    Urls get lower new citenums when they're mostly in early prompts of early files and with
-    mostly low original citenums."""
+    Reorder the merged citenums, giving each unique url a new and unique citenum. 
+    Urls get lower new citenums when they're mostly found in early prompts of 
+    early files and with mostly low original citenums."""
+
     df = all_citenums_to_url.copy()
-    df['dedup_num_int'] = df['dedup_num'].astype(int)  # so can sort
+    df['dedup_num_int'] = df['dedup_num'].astype(int)  # for numeric sort
 
     url_ranks = df.groupby('url').agg(
         mean_file_index=('file_index', 'mean'),
-        mean_dedup_num_int=('dedup_num_int', 'mean'),
-        mean_prompt_index=('prompt_index', 'mean')
-    ).reset_index()
+        mean_prompt_index=('prompt_index', 'mean'),
+        mean_dedup_num_int=('dedup_num_int', 'mean')).reset_index()
 
     url_ranks = url_ranks.sort_values(by=['mean_file_index', 'mean_prompt_index', 'mean_dedup_num_int'], 
                                       ascending=True).reset_index(drop=True)
@@ -320,7 +325,7 @@ def concat_prompts_responses(all_prompts: list, all_responses: list, source_chat
     is_multi_prompt_file = all_citenums_to_url.groupby('file_index')['prompt_index'].nunique() > 1
     all_citenums_to_url = all_citenums_to_url.reset_index() 
     full_prompt_indices = rfw.unique_rows(all_citenums_to_url, ['file_index', 'prompt_index'])
-    all_citenums_to_url = all_citenums_to_url.set_index(['file_index', 'prompt_index'])
+    all_citenums_to_url = all_citenums_to_url.set_index(['file_index', 'prompt_index']).sort_index()
     
     for global_index, (file_index, prompt_index) in full_prompt_indices.iterrows():
 
@@ -418,7 +423,7 @@ if __name__ == "__main__":
     datdir.mkdir(parents=True, exist_ok=True)
 
     # multi-file perplex, same prompt
-    #chat_files = list(datdir.glob('*.md'))
+    chat_files = list(datdir.glob('*.md'))
     # multi-file, different prompt
     #chat_files = [chat_files[3], pl.Path(r"C:\Users\scott\OneDrive\share\ref\refwrangle\test\dat\perplexity_example.md")]
     # single file
@@ -427,7 +432,7 @@ if __name__ == "__main__":
     # single smc file but multiprompt
     #chat_files = [pl.Path(r"C:\Users\scott\OneDrive\share\ref\refwrangle\test\dat\perplexity_multi_prompt_savemychatbot_example.md")]
     
-    chat_files = [pl.Path(r"C:\Users\scott\OneDrive\share\ref\refwrangle\test\dat\bannon_smc_test.md")]
+    #chat_files = [pl.Path(r"C:\Users\scott\OneDrive\share\ref\refwrangle\test\dat\bannon_smc_test.md")]
 
     output_dir = pl.Path(r"C:\Users\scott\OneDrive\share\ref\obsidian\Obsidian Share Vault\Scratch Space")
     merged_output_file = output_dir / 'tmp_perplexy_merged.md'
