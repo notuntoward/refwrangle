@@ -1,12 +1,10 @@
 # %%
 import re
-from collections import Counter, defaultdict
+from collections import defaultdict
 from typing import Optional, Dict, Tuple, List, Callable
-import pathlib as pl
-from outcome import Value
 import pandas as pd
 import refwrangle as rfw
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from icecream import ic
 
 # like in smc source list
@@ -131,9 +129,11 @@ class ZoteroLinkConverter:
         else:
             resp_link = f"=={numbered_link}==" # "in body, not in zotero"
 
+        # TODO: here, depending upon a flag substitute a URL if there is no title ??
+        
         source_link = f'({numbered_link})'
         if not (zotero_item or source_title):
-            source_link += f" {doc_url}"
+            source_link += f" {doc_url}"\
         elif not zotero_item and source_title:
             source_link += f" {source_title}"
         elif zotero_item and not source_title:
@@ -144,7 +144,6 @@ class ZoteroLinkConverter:
         if cite_num in all_resp_cite_nums and not zotero_item:
             source_link = f'=={source_link} ==' # "in ressponse, not in zotero"
         
-        # ic(body_link, source_link)
         return resp_link, source_link
     
     def dedup_citenums_to_urls(self, num_url_pairs: list[Tuple[str, str]], verbose: bool = False) -> pd.DataFrame:
@@ -178,7 +177,6 @@ class ZoteroLinkConverter:
     
         return citenums_to_url
         
-    
     def replace_response_citenums(self, response: str, oldnum_to_new: Dict[str, str]) -> str:
         """Replace citation numbers in the body with new ones.  
         Works for both plain cites, as in perplexity outputs, and web links, as in SMC outputs.
@@ -196,6 +194,9 @@ class ZoteroLinkConverter:
         
         all_response_nums = set(re.findall(citenum_plain_re, prsplit.response_dedup))
         
+        # TODO: depending upon a flag, install missing titles w/ URLs instead of meaningless messages.
+        # TODO: do it here b/c it can be after self.make_relinks() does its title search (don't do title searches on fake URL titles)
+        # so maybe the flat goes to self.make_relinks()
         source_num_to_link, relinked_source_lines = {}, []
         for num, url in citenum_to_url.items():
             title = prsplit.url_to_source_title[url] if prsplit.url_to_source_title else None
@@ -210,16 +211,16 @@ class ZoteroLinkConverter:
     
     def split_single_prs_dedup(self, markdown_text: str, prs_split_func: Callable[[str], PromptResponseSplit]) -> PromptResponseSplitDeDup:
         """Splits a single perplexity output markdown text into prompt, response and source sections.
-        In the response, the prs_split_func is assumed to have replaced any [citenum](url) links with plain [citenum] link.
-        Duplicate citenums are removed, and the mapping from original 
+        In the response, the prs_split_func is assumed to have replaced any [citenum](url) links with 
+        plain [citenum] links. Duplicate citenums are removed, and the mapping from original 
         to deduplicated numbers is in citenumes_to_url_source"""
         
-        prs_split = prs_split_func(markdown_text)
+        prs_split = prs_split_func(markdown_text) # split apart and parse prompt-response-sources
         citenum_to_url_df = self.dedup_citenums_to_urls(prs_split.citenum_url_pairs)
         
         response_dedup = self.replace_response_citenums(prs_split.response, citenum_to_url_df.dedup_num.to_dict())
         
-        # no blank lines btween list elements
+        # no blank lines between list elements
         response_dedup = rfw.condense_markdown_lists(response_dedup)
         
         # omni3 overuses them, and also sometimes get converted to headers below
@@ -230,22 +231,3 @@ class ZoteroLinkConverter:
 
         return PromptResponseSplitDeDup(prs_split.preamble, prs_split.prompt, response_dedup,
                                         citenum_to_url_df, url_to_source_title=prs_split.url_to_source_title)
-
-# A relinker for use here and by any importer of this file.  Only make one of these and share it.
-#relinker = ZoteroLinkConverter()
-
-
-
-    
-# # Example usage
-# if __name__ == "__main__":
-#     #input_file = pl.Path(r"C:\Users\scott\OneDrive\share\ref\refwrangle\test\dat\merge_chats_smc\GPT-4o-BGtrail.md")
-#     #input_file = rfw.refwrangle_test_dir / "dat" / 'perplexity_multi_prompt_savemychatbot_example.md'
-#     input_file = rfw.refwrangle_test_dir / "dat" / 'perplexity_single_prompt_savemychatbot_example.md'
-#     output_dir = pl.Path(r"C:\Users\scott\OneDrive\share\ref\obsidian\Obsidian Share Vault\Scratch Space")
-#     output_file = output_dir / 'tmp_savemychatbot_output.md'
-    
-#     print((f'{input_file=}\n-->\n{output_file=}')
-#     relink_single_file_smc(input_file, output_file)
-#     print(('Done.')
-# %%

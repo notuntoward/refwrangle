@@ -9,15 +9,10 @@ import datetime as dt
 import pathlib as pl
 # %%
 import re
-import sys
 from typing import List, Tuple
-
 import numpy as np
 import pandas as pd
 from icecream import ic
-
-refwrangle_dir = pl.Path('~/ref/refwrangle').expanduser() # can't reliably get dir of an .ipynb 
-sys.path.append(str(refwrangle_dir))
 import link_perplexity_zotero as lpz
 import refwrangle as rfw
 
@@ -101,6 +96,7 @@ def split_single_prs_text_smc(single_prs_markdown: str) -> lpz.PromptResponseSpl
         citenum_url_pairs = citenum_url_pairs_response
         
     # substitue plain citenum links into the response, for easier downstream merging
+    ic('move fake URL titles for stock perplex to after title matches are searched.  Really slows things down!')
     response = re.sub(CITENUM_URL_LINK_RE, lambda m: f'[{m.group("num")}]', response)
     
     return lpz.PromptResponseSplit(preamble, prompt, response, citenum_url_pairs, url_to_source_title)
@@ -387,7 +383,14 @@ def relink_to_obsidian_and_zotero_merge(all_citenums_to_url, all_promptresp):
 
     prsplit_all = lpz.PromptResponseSplitDeDup('', '', all_promptresp, all_citenums_to_url, url_to_source_title)
 
+    # TODO: subsitute a URL for missing title here
+    # putting it in higher caused big slowdowns b/c many articles weren't in zotero, and so a big
+    # and futile title match search was done for each one, because the had a fake URL title.
+    # Either add a flag to relinker.relink_response_and_sources or post process its source list.
+    # I'm guessing the flag will be simpler to codel=.
+
     all_promptresp_unified_relinked, relinked_sources = relinker.relink_response_and_sources(prsplit_all, 'unif_num')
+    
     relinked_sources = "\n".join(sorted(relinked_sources, key=lambda line: int(re.search(lpz.citenum_plain_re, line).group('num'))))
 
 
