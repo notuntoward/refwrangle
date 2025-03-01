@@ -182,7 +182,7 @@ def split_single_prs_text_perplex(pr_text: str) -> lpz.PromptResponseSplit:
 # %%
 
 def load_and_dedup_chat_files(files: list, verbose: bool = True) -> Tuple[list, list, pd.DataFrame]:
-    """Read chat files and fix any duplicate cite numbers in the responses and organize them."""
+    """Read chat files and fix any duplicate cite numbers in the responses, then organize them."""
     
     files = files if isinstance(files, list) else [files]
     all_prompts, all_responses, citenums_to_url_list = [], [], []
@@ -374,7 +374,7 @@ def concat_prompts_responses(all_prompts: list, all_responses: list, source_chat
 # ##### Insert links to Obsidian or Zotero
 
 # %%
-def relink_to_obsidian_and_zotero_merge(all_citenums_to_url, all_promptresp):
+def relink_to_obsidian_and_zotero_merge(all_promptresp: str, all_citenums_to_url: pd.DataFrame) -> str:
     """Insert links to Obsidian or Zotero and writes the merged file"""
     url_to_source_title = {}
     if 'title' in all_citenums_to_url.columns:
@@ -393,7 +393,6 @@ def relink_to_obsidian_and_zotero_merge(all_citenums_to_url, all_promptresp):
     
     relinked_sources = "\n".join(sorted(relinked_sources, key=lambda line: int(re.search(lpz.citenum_plain_re, line).group('num'))))
 
-
     return f'{make_obsidian_front_matter()}\n{all_promptresp_unified_relinked}\n# Citations\n{relinked_sources}'
 
 # %%
@@ -410,7 +409,7 @@ def relink_chat_files(input_files: List[pl.Path], output_file: pl.Path,
     all_promptresp = concat_prompts_responses(all_prompts, all_responses, input_files,
                                               all_citenums_to_url)
 
-    merged_chat = relink_to_obsidian_and_zotero_merge(all_citenums_to_url, all_promptresp)
+    merged_chat = relink_to_obsidian_and_zotero_merge(all_promptresp, all_citenums_to_url)
 
     print(f'writing to {output_file=}')
     output_file.write_text(merged_chat, encoding='utf-8')

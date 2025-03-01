@@ -296,8 +296,9 @@ def ensure_iterable(obj: Any) -> Iterable:
     # return [obj]  # make it iterable
 
 def error_message(message: str) -> None:
-    """Prints a message to stderr.
+    """Prints a message to both stdout and stderr.
     In the future, this could include a timestamp, file path, could log errors, etc."""
+    print(message)
     print(message, file=sys.stderr)
     
 def extra2dict(extra: str) -> Dict[str, str]:

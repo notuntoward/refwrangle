@@ -133,7 +133,7 @@ class ZoteroLinkConverter:
         
         source_link = f'({numbered_link})'
         if not (zotero_item or source_title):
-            source_link += f" {doc_url}"\
+            source_link += f" {doc_url}"
         elif not zotero_item and source_title:
             source_link += f" {source_title}"
         elif zotero_item and not source_title:
@@ -161,7 +161,7 @@ class ZoteroLinkConverter:
         for url, nums in url_to_citenums.items():
             if (num_dups := len(nums)) > 1 and verbose:
                 display_citenums_map = True
-                rfw.error_message('URL has {num_dups} dups: {nums=}, {url=}')
+                rfw.error_message(f'URL has {num_dups} dups: {nums=}, {url=}')
                 
             for num in nums:
                 lut.append({'orig_num': num, 'dedup_num': str(dedup_cite_num), 'url': url})
