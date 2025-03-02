@@ -189,13 +189,13 @@ def load_and_dedup_chat_files(files: list, verbose: bool = True) -> Tuple[list, 
             
         file_text = rfw.read_markdown_file(chat_file)
 
-        # split the file into prompt, response and source section (if SMC)
+        # split the file into one or more prompt, response and source sections
         if is_smc_content(file_text):
             # SMC files can have multiple prompts and responses
             prs_splits = []    
             sections = re.split(rf'(?<=\n){PROMPT_HEADER_SMC}', file_text)
             for section in sections[1:]:  # Process each user section
-                section = f'{PROMPT_HEADER_SMC}\n{section}' # stick header back on for more certtain matching
+                section = f'{PROMPT_HEADER_SMC}\n{section}' # stick header back on for more certain matching later
                 dedup_prs = relinker.split_single_prs_dedup(section, split_single_prs_text_smc)
                 prs_splits.append(dedup_prs)
         else:
@@ -237,7 +237,7 @@ def load_and_dedup_chat_files(files: list, verbose: bool = True) -> Tuple[list, 
             all_citenums_to_url = pd.concat(fixed_title_dfs)
 
         all_citenums_to_url['title'] = (all_citenums_to_url.title
-                                        .fillna('NO TITLE: likely bare citenum in response w/ no URL'))
+                                        .fillna('NO TITLE: likely a bare citenum in response w/ no URL'))
     
     return all_prompts, all_responses, all_citenums_to_url
 
