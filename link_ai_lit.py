@@ -87,16 +87,14 @@ def split_single_prs_text_smc(single_prs_markdown: str) -> lpz.PromptResponseSpl
         # Append response num/url pairs not in sources list (sometimes happens in SMC)
         for num_url_pair in citenum_url_pairs_response:
             if num_url_pair not in citenum_url_pairs:
-                rfw.error_message(f'{num_url_pair[0]=}, {num_url_pair[1]=} in response but not source list')
                 citenum_url_pairs.append(num_url_pair)
-                url_to_source_title[num_url_pair[1]] = 'Cite in response but no entry in sources list'
+                url_to_source_title[num_url_pair[1]] = r'\[citenum\](url) link in response but no entry in sources list'
     else:
         for (num, url) in citenum_url_pairs_response:
             url_to_source_title[num] = 'Response with following no sources list'
         citenum_url_pairs = citenum_url_pairs_response
         
     # substitue plain citenum links into the response, for easier downstream merging
-    ic('move fake URL titles for stock perplex to after title matches are searched.  Really slows things down!')
     response = re.sub(CITENUM_URL_LINK_RE, lambda m: f'[{m.group("num")}]', response)
     
     return lpz.PromptResponseSplit(preamble, prompt, response, citenum_url_pairs, url_to_source_title)
@@ -170,9 +168,10 @@ def split_single_prs_text_perplex(pr_text: str) -> lpz.PromptResponseSplit:
     source_list_pattern_perplex = r'\[\^?(?P<num>\d+)\]:\s*(?P<url>http[s]?://\S+)'
     citenum_url_pairs = rfw.get_link_tu_pairs(sources, source_list_pattern_perplex)
     
-    # Perplexity source list has no title but want to put something in the title part 
-    # of the output source list.  Do as perplexity, and make the title the URL.
-    url_to_source_title = pd.Series({pair[1]: pair[1] for pair in citenum_url_pairs})
+    # # Perplexity source list has no title but want to put something in the title part 
+    # # of the output source list.  Do as perplexity, and make the title the URL.
+    # url_to_source_title = pd.Series({pair[1]: pair[1] for pair in citenum_url_pairs})
+    url_to_source_title = None
     
     return lpz.PromptResponseSplit(preamble, prompt, response, citenum_url_pairs, url_to_source_title) 
 
@@ -221,7 +220,7 @@ def load_and_dedup_chat_files(files: list, verbose: bool = True) -> Tuple[list, 
         
     all_citenums_to_url = pd.concat(citenums_to_url_list)
 
-    if 'title' in all_citenums_to_url.columns:
+    if 'title' in all_citenums_to_url:
         # Fill in missing titles with same-url titles from other prompt-response pair source lists
         fixed_title_dfs = []
         for url, df in all_citenums_to_url.groupby('url'):
@@ -383,12 +382,6 @@ def relink_to_obsidian_and_zotero_merge(all_promptresp: str, all_citenums_to_url
 
     prsplit_all = lpz.PromptResponseSplitDeDup('', '', all_promptresp, all_citenums_to_url, url_to_source_title)
 
-    # TODO: subsitute a URL for missing title here
-    # putting it in higher caused big slowdowns b/c many articles weren't in zotero, and so a big
-    # and futile title match search was done for each one, because the had a fake URL title.
-    # Either add a flag to relinker.relink_response_and_sources or post process its source list.
-    # I'm guessing the flag will be simpler to codel=.
-
     all_promptresp_unified_relinked, relinked_sources = relinker.relink_response_and_sources(prsplit_all, 'unif_num')
     
     relinked_sources = "\n".join(sorted(relinked_sources, key=lambda line: int(re.search(lpz.citenum_plain_re, line).group('num'))))
@@ -425,19 +418,19 @@ if __name__ == "__main__":
     datdir.mkdir(parents=True, exist_ok=True)
 
     # multi-file perplex, same prompt
-    chat_files = list(datdir.glob('*.md'))
+    # chat_files = list(datdir.glob('*.md'))
     # multi-file, different prompt
     #chat_files = [chat_files[3], pl.Path(r"C:\Users\scott\OneDrive\share\ref\refwrangle\test\dat\perplexity_example.md")]
     # single file
     #chat_files = [chat_files[3]]
 
     # single smc file but multiprompt
-    #chat_files = [pl.Path(r"C:\Users\scott\OneDrive\share\ref\refwrangle\test\dat\perplexity_multi_prompt_savemychatbot_example.md")]
+    chat_files = [pl.Path(r"C:\Users\scott\OneDrive\share\ref\refwrangle\test\dat\perplexity_multi_prompt_savemychatbot_example.md")]
     
     #chat_files = [pl.Path(r"C:\Users\scott\OneDrive\share\ref\refwrangle\test\dat\bannon_smc_test.md")]
 
     output_dir = pl.Path(r"C:\Users\scott\OneDrive\share\ref\obsidian\Obsidian Share Vault\Scratch Space")
-    merged_output_file = output_dir / 'tmp_perplexy_merged.md'
+    merged_output_file = output_dir / 'tmp_link_ai_lit_output.md'
 
     relink_chat_files(chat_files, merged_output_file, verbose=True)
 

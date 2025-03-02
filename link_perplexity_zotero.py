@@ -83,6 +83,7 @@ class ZoteroLinkConverter:
     
     def find_zotero_item_via_url(self, url: str) -> Optional[Dict]:
         """Find Zotero item using normalized URL from content"""
+        
         norm_url = rfw.normalize_url(url)
         if norm_url not in self._note_url_zotero_cache:
             matches = self.zotero_items[self.zotero_items['url'] == norm_url]
@@ -92,6 +93,7 @@ class ZoteroLinkConverter:
 
     def find_zotero_item_via_title(self, target_title: str) -> Optional[Dict[str, Optional[Dict]]]:
         """Find best title match from content using similarity scoring"""
+        
         if not target_title or len(target_title) < 1:
             return None
         
@@ -121,7 +123,8 @@ class ZoteroLinkConverter:
         Save my Chatbot output, but not in stock perplexity"""
         
         if not (zotero_item := self.find_zotero_item_via_url(doc_url)):
-            zotero_item = self.find_zotero_item_via_title(source_title)
+            if source_title is not None:
+                zotero_item = self.find_zotero_item_via_title(source_title)
 
         numbered_link = f"[{cite_num}]({doc_url})"
         if zotero_item:
@@ -129,8 +132,6 @@ class ZoteroLinkConverter:
         else:
             resp_link = f"=={numbered_link}==" # "in body, not in zotero"
 
-        # TODO: here, depending upon a flag substitute a URL if there is no title ??
-        
         source_link = f'({numbered_link})'
         if not (zotero_item or source_title):
             source_link += f" {doc_url}"
@@ -194,9 +195,6 @@ class ZoteroLinkConverter:
         
         all_response_nums = set(re.findall(citenum_plain_re, prsplit.response_dedup))
         
-        # TODO: depending upon a flag, install missing titles w/ URLs instead of meaningless messages.
-        # TODO: do it here b/c it can be after self.make_relinks() does its title search (don't do title searches on fake URL titles)
-        # so maybe the flat goes to self.make_relinks()
         source_num_to_link, relinked_source_lines = {}, []
         for num, url in citenum_to_url.items():
             title = prsplit.url_to_source_title[url] if prsplit.url_to_source_title else None
