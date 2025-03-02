@@ -160,7 +160,7 @@ def split_single_prs_text_perplex(pr_text: str) -> lpz.PromptResponseSplit:
         raise ValueError('Could not find divider between AI response and sources list')
 
     if response_sources_divider_index <= response_start_index:
-        raise ValueError('body_sources_divider_index <= response_sources_divider_index')
+        raise ValueError('response_sources_divider_index <= response_sources_divider_index')
     
     response = f"{pr_text[response_start_index:response_sources_divider_index]}".strip()
     
