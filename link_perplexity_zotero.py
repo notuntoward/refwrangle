@@ -197,7 +197,7 @@ class ZoteroLinkConverter:
         
         source_num_to_link, relinked_source_lines = {}, []
         for num, url in citenum_to_url.items():
-            title = prsplit.url_to_source_title[url] if prsplit.url_to_source_title else None
+            title = prsplit.url_to_source_title[url] if prsplit.url_to_source_title.empty else None
             response_link, relinked_source = self.make_relinks(num, url, all_response_nums, title)
             source_num_to_link[num] = response_link
             relinked_source_lines.append(relinked_source)

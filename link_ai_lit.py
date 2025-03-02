@@ -9,6 +9,7 @@ import datetime as dt
 import pathlib as pl
 # %%
 import re
+import sys
 from typing import List, Tuple
 import numpy as np
 import pandas as pd
@@ -249,7 +250,7 @@ def unify_citenums(all_citenums_to_url: pd.DataFrame) -> pd.DataFrame:
     """ Make a unified cite number set for the merged chat.
     Reorder the merged citenums, giving each unique url a new and unique citenum. 
     Urls get lower new citenums when they're mostly found in early prompts of 
-    early files and with mostly low original citenums."""
+    early files, and with mostly low original citenums."""
 
     df = all_citenums_to_url.copy()
     df['dedup_num_int'] = df['dedup_num'].astype(int)  # for numeric sort
@@ -372,18 +373,23 @@ def concat_prompts_responses(all_prompts: list, all_responses: list, source_chat
 # %%
 def relink_to_obsidian_and_zotero_merge(all_promptresp: str, all_citenums_to_url: pd.DataFrame) -> str:
     """Insert links to Obsidian or Zotero and writes the merged file"""
-    url_to_source_title = {}
+
+    url_to_source_title = pd.Series()
     if 'title' in all_citenums_to_url.columns:
         for _, df in all_citenums_to_url.reset_index().groupby('unif_num'):
             url_to_source_title[df.iloc[0].url] = df.iloc[0].title
 
     prsplit_all = lpz.PromptResponseSplitDeDup('', '', all_promptresp, all_citenums_to_url, url_to_source_title)
 
-    all_promptresp_unified_relinked, relinked_sources = relinker.relink_response_and_sources(prsplit_all, 'unif_num')
-    
-    relinked_sources = "\n".join(sorted(relinked_sources, key=lambda line: int(re.search(lpz.citenum_plain_re, line).group('num'))))
+    all_promptresp_unif_rlnk, sources_rlnk = relinker.relink_response_and_sources(prsplit_all, 'unif_num')
 
-    return f'{make_obsidian_front_matter()}\n{all_promptresp_unified_relinked}\n# Citations\n{relinked_sources}'
+    def extract_num(line: str) -> int:
+        match = re.search(lpz.citenum_plain_re, line)
+        return int(match.group('num')) if match else sys.maxsize
+
+    sources_rlnk_str = "\n".join(sorted(sources_rlnk, key=extract_num))
+
+    return f'{make_obsidian_front_matter()}\n{all_promptresp_unif_rlnk}\n# Citations\n{sources_rlnk_str}'
 
 # %%
 def relink_chat_files(input_files: List[pl.Path], output_file: pl.Path,
