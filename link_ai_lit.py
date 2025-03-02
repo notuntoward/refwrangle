@@ -168,10 +168,7 @@ def split_single_prs_text_perplex(pr_text: str) -> lpz.PromptResponseSplit:
     source_list_pattern_perplex = r'\[\^?(?P<num>\d+)\]:\s*(?P<url>http[s]?://\S+)'
     citenum_url_pairs = rfw.get_link_tu_pairs(sources, source_list_pattern_perplex)
     
-    # # Perplexity source list has no title but want to put something in the title part 
-    # # of the output source list.  Do as perplexity, and make the title the URL.
-    # url_to_source_title = pd.Series({pair[1]: pair[1] for pair in citenum_url_pairs})
-    url_to_source_title = None
+    url_to_source_title = None  # no titles in stock perplexity chat source lists
     
     return lpz.PromptResponseSplit(preamble, prompt, response, citenum_url_pairs, url_to_source_title) 
 
