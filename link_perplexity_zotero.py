@@ -75,7 +75,7 @@ class ZoteroLinkConverter:
 
             if url_conflicts := {u: c for u, c in url_to_citekey.items() if len(c) > 1}:
                 rfw.error_message("Found {len(url_conflicts)} URLs with multiple citekeys:")
-                for url, cites in url_conflicts.items():
+                for url, _ in url_conflicts.items():
                     rfw.error_message("  {url}: {', '.join(cites)}")
                 raise ValueError("URL collisions in Zotero database")
 
@@ -190,8 +190,8 @@ class ZoteroLinkConverter:
     def relink_response_and_sources(self, prsplit: PromptResponseSplitDeDup, citenum_col: str = 'dedup_num') -> Tuple[str, list[str]]:
         """For both body and source, replaces links with Zotero or Obsidian links.""" 
 
-        citenum_to_url = rfw.unique_rows(prsplit.citenum_to_url_df,[citenum_col, 'url'])
-        citenum_to_url = dict(zip(citenum_to_url[citenum_col], citenum_to_url.url))
+        citenum_to_url_df = rfw.unique_rows(prsplit.citenum_to_url_df,[citenum_col, 'url'])
+        citenum_to_url = dict(zip(citenum_to_url_df[citenum_col], citenum_to_url_df.url))
         
         all_response_nums = set(re.findall(citenum_plain_re, prsplit.response_dedup))
         

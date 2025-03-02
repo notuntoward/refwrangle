@@ -1052,7 +1052,6 @@ def normalize_odd_chars(text: str) -> str:
         ''': "'",
         ''': "'",
         '"': '"',
-        '"': '"',
         '…': '...',
         '—': '-',
         '–': '-',
@@ -1351,7 +1350,7 @@ def remove_unsupported_html_tags(html_content: str) -> str:
     soup = BeautifulSoup(html_content, 'html.parser')
     
     # Define allowed tags and their allowed attributes
-    ALLOWED_TAGS = {
+    ALLOWED_TAGS: Dict[str, List[str]] = {
         'p': [],
         'h1': [], 'h2': [], 'h3': [], 'h4': [], 'h5': [], 'h6': [],
         'b': [], 'strong': [],
@@ -1382,7 +1381,6 @@ def remove_unsupported_html_tags(html_content: str) -> str:
         clean_tag(tag)
     
     return str(soup)
-
 
 def md2pdf_markdown_reportlab(markdown_data: str, output_file: pl.Path, verbose: bool = False) -> None:
     """Convert markdown to PDF with debug information.""" 

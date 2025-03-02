@@ -169,9 +169,9 @@ def split_single_prs_text_perplex(pr_text: str) -> lpz.PromptResponseSplit:
     source_list_pattern_perplex = r'\[\^?(?P<num>\d+)\]:\s*(?P<url>http[s]?://\S+)'
     citenum_url_pairs = rfw.get_link_tu_pairs(sources, source_list_pattern_perplex)
     
-    url_to_source_title = None  # no titles in stock perplexity chat source lists
+    url_to_source_title = pd.Series()  # no titles in stock perplexity chat source lists
     
-    return lpz.PromptResponseSplit(preamble, prompt, response, citenum_url_pairs, url_to_source_title) 
+    return lpz.PromptResponseSplit(preamble, prompt, response, citenum_url_pairs, url_to_source_title)
 
 # %% [markdown]
 # ##### Fix any duplicate cite numbers inside of each body and collect them
@@ -320,7 +320,7 @@ def concat_prompts_responses(all_prompts: list, all_responses: list, source_chat
     full_prompt_indices = rfw.unique_rows(all_citenums_to_url, ['file_index', 'prompt_index'])
     all_citenums_to_url = all_citenums_to_url.set_index(['file_index', 'prompt_index']).sort_index()
     
-    for global_index, (file_index, prompt_index) in full_prompt_indices.iterrows():
+    for global_index, file_index, prompt_index in full_prompt_indices.itertuples():
 
         # remap the response's deduped citenums to unified citenums
         citenum_dedup_to_unified = (all_citenums_to_url.loc[file_index, prompt_index]
@@ -421,14 +421,14 @@ if __name__ == "__main__":
     datdir.mkdir(parents=True, exist_ok=True)
 
     # multi-file perplex, same prompt
-    # chat_files = list(datdir.glob('*.md'))
+    chat_files = list(datdir.glob('*.md'))
     # multi-file, different prompt
     #chat_files = [chat_files[3], pl.Path(r"C:\Users\scott\OneDrive\share\ref\refwrangle\test\dat\perplexity_example.md")]
     # single file
     #chat_files = [chat_files[3]]
 
     # single smc file but multiprompt
-    chat_files = [pl.Path(r"C:\Users\scott\OneDrive\share\ref\refwrangle\test\dat\perplexity_multi_prompt_savemychatbot_example.md")]
+    # chat_files = [pl.Path(r"C:\Users\scott\OneDrive\share\ref\refwrangle\test\dat\perplexity_multi_prompt_savemychatbot_example.md")]
     
     #chat_files = [pl.Path(r"C:\Users\scott\OneDrive\share\ref\refwrangle\test\dat\bannon_smc_test.md")]
 
