@@ -316,7 +316,7 @@ def concat_prompts_responses(all_prompts: list, all_responses: list, source_chat
 
     # setup for loop indexing
     is_multi_prompt_file = all_citenums_to_url.groupby('file_index')['prompt_index'].nunique() > 1
-    all_citenums_to_url = all_citenums_to_url.reset_index() 
+    all_citenums_to_url = all_citenums_to_url.reset_index()
     full_prompt_indices = rfw.unique_rows(all_citenums_to_url, ['file_index', 'prompt_index'])
     all_citenums_to_url = all_citenums_to_url.set_index(['file_index', 'prompt_index']).sort_index()
     
@@ -414,12 +414,7 @@ def relink_chat_files(input_files: List[pl.Path], output_file: pl.Path,
 # %%
 
 if __name__ == "__main__":
-    tmpdir = rfw.refwrangle_test_dir / 'tmp'
-    tmpdir.mkdir(parents=True, exist_ok=True)
-
     datdir = rfw.refwrangle_test_dir / 'dat' / 'merge_chats_perplex'
-    datdir.mkdir(parents=True, exist_ok=True)
-
     # multi-file perplex, same prompt
     chat_files = list(datdir.glob('*.md'))
     # multi-file, different prompt
