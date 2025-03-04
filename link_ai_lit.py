@@ -288,8 +288,9 @@ def concat_prompts_responses(all_prompts: list, all_responses: list, input_chat_
     all_prompts_same = all(all_prompts[i].strip().lower() == all_prompts[i + 1].strip().lower()
                           for i in range(len(all_prompts) - 1)) if all_prompts else True
 
-    output_markdown = [] # put here for helper funcs below.
-    
+    # declare loop variables above helper functions so that they don't require nonglobal directives
+    output_markdown, global_index, file_index = [], -1, -1
+
     def heading_add(name, level):
         output_markdown.append(f'{rfw.make_atx_header(name, level)}\n')
 
@@ -297,20 +298,20 @@ def concat_prompts_responses(all_prompts: list, all_responses: list, input_chat_
         text = rfw.hierarch_shift_markdown_headers(text, top_level).strip()
         output_markdown.append(f'{text}\n')
 
-    def prompt_add(global_index, top_level):
+    def prompt_add(top_level):
         text_add(all_prompts[global_index], top_level)
 
-    def heading_short_prompt_add(global_index, level):
+    def heading_short_prompt_add(level):
         name = rfw.get_first_n_words(all_prompts[global_index], n=10)
         heading_add(name, level)
 
-    def heading_short_filename_add(file_index, level):
+    def heading_short_filename_add(level):
         heading_add(input_chat_files[file_index].name, level)
 
     def response_add(response, top_level):
         text_add(response, top_level)
 
-    def file_link_add(file_index):
+    def file_link_add():
         this_file = input_chat_files[file_index]
         output_markdown.append(f'{rfw.file_link_md("source", this_file)}\n')
 
@@ -322,7 +323,7 @@ def concat_prompts_responses(all_prompts: list, all_responses: list, input_chat_
     
     for global_index, file_index, prompt_index in full_prompt_indices.itertuples():
 
-        # remap the response's deduped citenums to unified citenums
+        # remap this response's deduped citenums to unified citenums
         citenum_dedup_to_unified = (all_citenums_to_url.loc[file_index, prompt_index]
                                     .set_index('dedup_num').unif_num.to_dict())
         response_unified = relinker.replace_response_citenums(all_responses[global_index],
@@ -332,15 +333,15 @@ def concat_prompts_responses(all_prompts: list, all_responses: list, input_chat_
         is_first_prompt_in_file = prompt_index == 0
         if num_chat_files == 1:
             if is_first_prompt_in_file:
-                file_link_add(file_index)
+                file_link_add()
                 if is_multi_prompt_file[file_index]:
-                    heading_short_prompt_add(global_index, 1)
+                    heading_short_prompt_add(1)
                 else:
                     heading_add("Prompt", 1)
-                prompt_add(global_index, 3)
+                prompt_add(3)
             else:
-                heading_short_prompt_add(global_index, 1)
-                prompt_add(global_index, 3)
+                heading_short_prompt_add(1)
+                prompt_add(3)
             
             heading_add("Response", 2)
             response_add(response_unified, 3)
@@ -348,20 +349,20 @@ def concat_prompts_responses(all_prompts: list, all_responses: list, input_chat_
             # Print prompt once at top, then responses
             if file_index == 0 and is_first_prompt_in_file:
                 heading_add("Prompt", 1)
-                prompt_add(global_index, 2)
+                prompt_add(2)
                 heading_add("Responses", 1)
 
-            heading_short_filename_add(file_index, 2)
-            file_link_add(file_index)
+            heading_short_filename_add(2)
+            file_link_add()
             response_add(response_unified, 3)
         else:
             # print all prompt/response w/ separate prompt/resp headers
             if is_first_prompt_in_file:
-                heading_short_filename_add(file_index, 1)
-                file_link_add(file_index)
+                heading_short_filename_add(1)
+                file_link_add()
 
             heading_add("Prompt", 2)
-            prompt_add(global_index, 3)
+            prompt_add(3)
             heading_add("Response", 2)
             response_add(response_unified, 3)
 
