@@ -247,7 +247,7 @@ def load_and_dedup_chat_files(files: list, verbose: bool = True) -> Tuple[list, 
 
 # %%
 def unify_citenums(all_citenums_to_url: pd.DataFrame) -> pd.DataFrame:
-    """ Make a unified cite number set for the merged chat.
+    """ Make a unified cite number set for the merged chats.
     Reorder the merged citenums, giving each unique url a new and unique citenum. 
     Urls get lower new citenums when they're mostly found in early prompts of 
     early files, and with mostly low original citenums."""
@@ -279,11 +279,11 @@ def unify_citenums(all_citenums_to_url: pd.DataFrame) -> pd.DataFrame:
 
 # %%
 
-def concat_prompts_responses(all_prompts: list, all_responses: list, source_chat_files: list, all_citenums_to_url: pd.DataFrame) -> str:
+def concat_prompts_responses(all_prompts: list, all_responses: list, input_chat_files: list, all_citenums_to_url: pd.DataFrame) -> str:
     """Concatenate prompts, responses and appropriate headings into a single markdown string."""
     
-    source_chat_files = source_chat_files if isinstance(source_chat_files, list) else [source_chat_files]
-    num_chat_files = len(source_chat_files)
+    input_chat_files = input_chat_files if isinstance(input_chat_files, list) else [input_chat_files]
+    num_chat_files = len(input_chat_files)
     
     all_prompts_same = all(all_prompts[i].strip().lower() == all_prompts[i + 1].strip().lower()
                           for i in range(len(all_prompts) - 1)) if all_prompts else True
@@ -305,13 +305,13 @@ def concat_prompts_responses(all_prompts: list, all_responses: list, source_chat
         heading_add(name, level)
 
     def heading_short_filename_add(file_index, level):
-        heading_add(source_chat_files[file_index].name, level)
+        heading_add(input_chat_files[file_index].name, level)
 
     def response_add(response, top_level):
         text_add(response, top_level)
 
     def file_link_add(file_index):
-        this_file = source_chat_files[file_index]
+        this_file = input_chat_files[file_index]
         output_markdown.append(f'{rfw.file_link_md("source", this_file)}\n')
 
     # setup for loop indexing
