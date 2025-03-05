@@ -288,7 +288,7 @@ def concat_prompts_responses(all_prompts: list, all_responses: list, input_chat_
     all_prompts_same = all(all_prompts[i].strip().lower() == all_prompts[i + 1].strip().lower()
                           for i in range(len(all_prompts) - 1)) if all_prompts else True
 
-    # declare loop variables above helper functions so that they don't require nonglobal directives
+    # declare these loop variables here so helper functions below know they're in local function scope
     output_markdown, global_index, file_index = [], -1, -1
 
     def heading_add(name, level):
