@@ -279,17 +279,19 @@ def unify_citenums(all_citenums_to_url: pd.DataFrame) -> pd.DataFrame:
 
 # %%
 
-def concat_prompts_responses(all_prompts: list, all_responses: list, input_chat_files: list, all_citenums_to_url: pd.DataFrame) -> str:
-    """Concatenate prompts, responses and appropriate headings into a single markdown string."""
+def concat_unified_prompts_responses(all_prompts: list, all_responses: list, input_chat_files: list, 
+                                        all_citenums_to_url: pd.DataFrame) -> str:
+    """Concatenate prompts, responses and appropriate headings into a single markdown string.  
+    Also maps each prompt's deduped citnumns to unified citenms."""
     
     input_chat_files = input_chat_files if isinstance(input_chat_files, list) else [input_chat_files]
     num_chat_files = len(input_chat_files)
     
-    all_prompts_same = all(all_prompts[i].strip().lower() == all_prompts[i + 1].strip().lower()
-                          for i in range(len(all_prompts) - 1)) if all_prompts else True
+    are_all_prompts_same = all(all_prompts[i].strip().lower() == all_prompts[i + 1].strip().lower()
+                               for i in range(len(all_prompts) - 1)) if all_prompts else True
 
-    # declare these loop variables here so helper functions below know they're in local function scope
-    output_markdown, global_index, file_index = [], -1, -1
+    # declare loop variables here so helper functions below know they're in local function scope
+    output_markdown, all_prompts_ix, file_ix = [], -1, -1
 
     def heading_add(name, level):
         output_markdown.append(f'{rfw.make_atx_header(name, level)}\n')
@@ -299,42 +301,42 @@ def concat_prompts_responses(all_prompts: list, all_responses: list, input_chat_
         output_markdown.append(f'{text}\n')
 
     def prompt_add(top_level):
-        text_add(all_prompts[global_index], top_level)
+        text_add(all_prompts[all_prompts_ix], top_level)
 
     def heading_short_prompt_add(level):
-        name = rfw.get_first_n_words(all_prompts[global_index], n=10)
+        name = rfw.get_first_n_words(all_prompts[all_prompts_ix], n=10)
         heading_add(name, level)
 
     def heading_short_filename_add(level):
-        heading_add(input_chat_files[file_index].name, level)
+        heading_add(input_chat_files[file_ix].name, level)
 
     def response_add(response, top_level):
         text_add(response, top_level)
 
     def file_link_add():
-        this_file = input_chat_files[file_index]
+        this_file = input_chat_files[file_ix]
         output_markdown.append(f'{rfw.file_link_md("source", this_file)}\n')
 
-    # setup for loop indexing
-    is_multi_prompt_file = all_citenums_to_url.groupby('file_index')['prompt_index'].nunique() > 1
+    # setup for renumbering and loop indexing
+    is_file_multi_prompt = all_citenums_to_url.groupby('file_index')['prompt_index'].nunique() > 1
     all_citenums_to_url = all_citenums_to_url.reset_index()
-    full_prompt_indices = rfw.unique_rows(all_citenums_to_url, ['file_index', 'prompt_index'])
+    file_prompt_indices = rfw.unique_rows(all_citenums_to_url, ['file_index', 'prompt_index'])
     all_citenums_to_url = all_citenums_to_url.set_index(['file_index', 'prompt_index']).sort_index()
     
-    for global_index, file_index, prompt_index in full_prompt_indices.itertuples():
+    for all_prompts_ix, file_ix, prompt_in_file_ix in file_prompt_indices.itertuples():
 
         # remap this response's deduped citenums to unified citenums
-        citenum_dedup_to_unified = (all_citenums_to_url.loc[file_index, prompt_index]
+        citenum_dedup_to_unified = (all_citenums_to_url.loc[file_ix, prompt_in_file_ix]
                                     .set_index('dedup_num').unif_num.to_dict())
-        response_unified = relinker.replace_response_citenums(all_responses[global_index],
+        response_unified = relinker.replace_response_citenums(all_responses[all_prompts_ix],
                                                               citenum_dedup_to_unified)
 
         # appropriately insert prompts and responses between headings
-        is_first_prompt_in_file = prompt_index == 0
+        is_first_prompt_in_file = prompt_in_file_ix == 0
         if num_chat_files == 1:
             if is_first_prompt_in_file:
                 file_link_add()
-                if is_multi_prompt_file[file_index]:
+                if is_file_multi_prompt[file_ix]:
                     heading_short_prompt_add(1)
                 else:
                     heading_add("Prompt", 1)
@@ -345,9 +347,9 @@ def concat_prompts_responses(all_prompts: list, all_responses: list, input_chat_
             
             heading_add("Response", 2)
             response_add(response_unified, 3)
-        elif all_prompts_same and not is_multi_prompt_file[file_index]:
+        elif are_all_prompts_same and not is_file_multi_prompt[file_ix]:
             # Print prompt once at top, then responses
-            if file_index == 0 and is_first_prompt_in_file:
+            if file_ix == 0 and is_first_prompt_in_file:
                 heading_add("Prompt", 1)
                 prompt_add(2)
                 heading_add("Responses", 1)
@@ -372,17 +374,18 @@ def concat_prompts_responses(all_prompts: list, all_responses: list, input_chat_
 # ##### Insert links to Obsidian or Zotero
 
 # %%
-def relink_to_obsidian_and_zotero_merge(all_promptresp: str, all_citenums_to_url: pd.DataFrame) -> str:
-    """Insert links to Obsidian or Zotero and writes the merged file"""
+def relink_to_obsidian_and_zotero_merge(prompt_resp: str, citenums_to_url: pd.DataFrame) -> str:
+    """Insert links to Obsidian or Zotero, and renumber to unified citenums.  Then merge 
+    prompts, responses and sources to one string"""
 
     url_to_source_title = pd.Series()
-    if 'title' in all_citenums_to_url.columns:
-        for _, df in all_citenums_to_url.reset_index().groupby('unif_num'):
+    if 'title' in citenums_to_url.columns:
+        for _, df in citenums_to_url.reset_index().groupby('unif_num'):
             url_to_source_title[df.iloc[0].url] = df.iloc[0].title
 
-    prsplit_all = lpz.PromptResponseSplitDeDup('', '', all_promptresp, all_citenums_to_url, url_to_source_title)
+    prsplit = lpz.PromptResponseSplitDeDup('', '', prompt_resp, citenums_to_url, url_to_source_title)
 
-    all_promptresp_unif_rlnk, sources_rlnk = relinker.relink_response_and_sources(prsplit_all, 'unif_num')
+    prompt_resp_unif_rlnk, sources_rlnk = relinker.relink_response_and_sources(prsplit, 'unif_num')
 
     def extract_num(line: str) -> int:
         match = re.search(lpz.citenum_plain_re, line)
@@ -390,7 +393,7 @@ def relink_to_obsidian_and_zotero_merge(all_promptresp: str, all_citenums_to_url
 
     sources_rlnk_str = "\n".join(sorted(sources_rlnk, key=extract_num))
 
-    return f'{make_obsidian_front_matter()}\n{all_promptresp_unif_rlnk}\n# Citations\n{sources_rlnk_str}'
+    return f'{make_obsidian_front_matter()}\n{prompt_resp_unif_rlnk}\n# Citations\n{sources_rlnk_str}'
 
 # %%
 def relink_chat_files(input_files: List[pl.Path], output_file: pl.Path,
@@ -403,13 +406,13 @@ def relink_chat_files(input_files: List[pl.Path], output_file: pl.Path,
 
     all_citenums_to_url = unify_citenums(all_citenums_to_url)
 
-    all_promptresp = concat_prompts_responses(all_prompts, all_responses, input_files,
-                                              all_citenums_to_url)
+    all_promptresp = concat_unified_prompts_responses(all_prompts, all_responses, input_files,
+                                                      all_citenums_to_url)
 
-    merged_chat = relink_to_obsidian_and_zotero_merge(all_promptresp, all_citenums_to_url)
+    merged_chats = relink_to_obsidian_and_zotero_merge(all_promptresp, all_citenums_to_url)
 
     print(f'writing to {output_file=}')
-    output_file.write_text(merged_chat, encoding='utf-8')
+    output_file.write_text(merged_chats, encoding='utf-8')
     print("Done.")
 
 # %%
