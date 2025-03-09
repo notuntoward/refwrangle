@@ -282,7 +282,7 @@ def unify_citenums(all_citenums_to_url: pd.DataFrame) -> pd.DataFrame:
 def concat_unified_prompts_responses(all_prompts: list, all_responses: list, input_chat_files: list, 
                                         all_citenums_to_url: pd.DataFrame) -> str:
     """Concatenate prompts, responses and appropriate headings into a single markdown string.  
-    Also maps each prompt's deduped citnumns to unified citenms."""
+    Also maps each prompt's deduped citnumns to unified citenums."""
     
     input_chat_files = input_chat_files if isinstance(input_chat_files, list) else [input_chat_files]
     num_chat_files = len(input_chat_files)
@@ -378,21 +378,22 @@ def relink_to_obsidian_and_zotero_merge(prompt_resp: str, citenums_to_url: pd.Da
     """Insert links to Obsidian or Zotero, and renumber to unified citenums.  Then merge 
     prompts, responses and sources to one string"""
 
+    # insert obsidian and zotero links
     url_to_source_title = pd.Series()
     if 'title' in citenums_to_url.columns:
         for _, df in citenums_to_url.reset_index().groupby('unif_num'):
             url_to_source_title[df.iloc[0].url] = df.iloc[0].title
 
     prsplit = lpz.PromptResponseSplitDeDup('', '', prompt_resp, citenums_to_url, url_to_source_title)
-
     prompt_resp_unif_rlnk, sources_rlnk = relinker.relink_response_and_sources(prsplit, 'unif_num')
 
-    def extract_num(line: str) -> int:
+    # numerically sort and concatenate sources list
+    def get_numeric_citenum(line: str) -> int:
         match = re.search(lpz.citenum_plain_re, line)
         return int(match.group('num')) if match else sys.maxsize
+    sources_rlnk_str = "\n".join(sorted(sources_rlnk, key=get_numeric_citenum))
 
-    sources_rlnk_str = "\n".join(sorted(sources_rlnk, key=extract_num))
-
+    # make a single string
     return f'{make_obsidian_front_matter()}\n{prompt_resp_unif_rlnk}\n# Citations\n{sources_rlnk_str}'
 
 # %%
