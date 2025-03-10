@@ -7,7 +7,6 @@ from jinja2 import Template
 from datetime import datetime
 from dateutil import parser as date_parser
 import pathlib as pl
-import requests
 import re
 import sys
 from markdownify import markdownify
@@ -32,8 +31,8 @@ LIBRARY_ID = rfw.library_id
 LIBRARY_TYPE = 'user'  # or 'group'
 API_KEY = rfw.api_key
 #ITEM_KEY = 'QCVVWIGL'
-#ITEM_KEY = 'I4G6IXQS'
-ITEM_KEY = 'SAUNMD5H'
+ITEM_KEY = 'I4G6IXQS'
+#ITEM_KEY = 'SAUNMD5H'
 # Initialize Zotero client
 try:
     zot = zotero.Zotero(LIBRARY_ID, LIBRARY_TYPE, API_KEY)
@@ -105,17 +104,7 @@ try:
                 'key': child['data'].get('key'),
                 'uri': child['data'].get('uri'),
                 'tags': child['data'].get('tags', [])
-            })            
-            # # Convert HTML notes to Markdown
-            # html_note = child['data'].get('note', '')
-            # markdown_note = markdownify(html_note) if html_note else ''
-            # notes.append({
-            #     'note': markdown_note,
-            #     'dateModified': parse_date(child['data'].get('dateModified')),
-            #     'key': child['data'].get('key'),
-            #     'uri': child['data'].get('uri'),
-            #     'tags': child['data'].get('tags', [])
-            # })
+            })
 except Exception as e:
     print(f"Could not fetch notes: {e}")
     raise
@@ -139,9 +128,11 @@ except Exception as e:
     raise
 
 # Prepare data dictionary for the template
+citekey = rfw.get_citation_key(item_data)
+#citekey = item_data.get('citekey', '')
 data = {
     'title': item_data.get('title', ''),
-    'citekey': item_data.get('citekey', ''),
+    'citekey': citekey,
     'tags': item_data.get('tags', []),
     'collections': collections,
     'exportDate': datetime.now(),
@@ -162,12 +153,13 @@ data = {
     'ISBN': item_data.get('ISBN', ''),
     'allTags': [tag['tag'] for tag in item_data.get('tags', [])],
     'relations': related_items,
-    'bibliography': '',  # Requires separate bibliography generation if needed
+    'bibliography': rfw.get_bibliography_bbt_api(citekey),
     'notes': notes,
     'attachments': attachments,
 }
 
-ic(data['attachments'], data['collections'], data['tags'])
+ic(citekey, data['bibliography'])
+
 
 # Jinja2 template
 template_str = """{%- macro truncateTitle(title, n) -%}
@@ -235,8 +227,9 @@ modified date:
 > **ISBN**:: {{ ISBN }}
 > **ZoteroTags**:: {{ allTags }}
 > **Related**::{% for relation in relations if relation.citekey %} [[@{{ relation.citekey }}]]{% if not loop.last %}, {% endif %}{% endfor %}
-> {% if bibliography %} {{ bibliography }}{% endif %}
 
+
+> {% if bibliography %} {{ bibliography }}{% endif %}
 {% block persist_Obsidian_Notes %}
 
 %% begin Obsidian Notes %%

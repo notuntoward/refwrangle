@@ -7,6 +7,8 @@ import re
 import struct
 import subprocess
 import sys
+import requests
+import json
 import traceback
 import unicodedata
 from datetime import datetime
@@ -278,6 +280,39 @@ def plot_my_zotero_collections(top_collection_name: Optional[str] = None) -> Non
     # Show the plot
     fig.show()
     
+def get_bibliography_bbt_api(item_citekey_bbt: str) -> str:
+    """Fetches bibliography entry from Better BibTeX using the provided citation key."""
+    # See: https://retorque.re/zotero-better-bibtex/exporting/json-rpc/index.html
+    # See: https://www.perplexity.ai/search/can-pyzotero-get-a-bibliograph-GOBZjDewTvOsa0uKBnB2Tw
+    # See: https://www.zotero.org/styles?q=idb%3Amodern-language-association"""
+    
+    url = "http://localhost:23119/better-bibtex/json-rpc"
+    headers = {
+        "Content-Type": "application/json",
+        "Accept": "application/json"
+    }
+    data = {
+        "jsonrpc": "2.0",
+        "method": "item.bibliography",
+        "params": [
+            [item_citekey_bbt],
+            {
+                "contentType": "text",
+                "id": "modern-language-association",
+                "locale": "en-US",
+                "quickCopy": False
+            }
+        ]
+    }
+
+    response = requests.post(url, headers=headers, data=json.dumps(data), timeout=5)
+    if response.status_code == 200:
+        result = response.json()
+        return result["result"]
+    
+    print(f"Error getting BBT biography: {response.status_code=}, {response.text=}", file=sys.stderr)
+    return ""
+
 def ensure_iterable(obj: Any) -> Iterable:
     """Wraps a scalar or string in a list if it's not iterable."""
     if isinstance(obj, str):  
