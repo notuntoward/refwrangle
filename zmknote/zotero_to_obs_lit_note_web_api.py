@@ -17,14 +17,11 @@ refwrangle_dir = pl.Path('~/ref/refwrangle').expanduser()
 sys.path.append(str(refwrangle_dir))
 import refwrangle as rfw  # Import your custom refwrangle module
 
-output_file = pl.Path(
-    r'C:\Users\scott\OneDrive\share\ref\obsidian\Obsidian Share Vault\Scratch Space\tmp_zotero_to_obs_lit_note_jinja2.md'
+output_dir = pl.Path(
+    r'C:\Users\scott\OneDrive\share\ref\obsidian\Obsidian Share Vault\Scratch Space'
 )
 
-ATTACHMENT_FOLDER = pl.Path(
-    r'C:\Users\scott\OneDrive\share\ref\obsidian\Obsidian Share Vault\lit\lit_sources'
-)
-
+output_file = output_dir / 'tmp_zotero_to_obs_lit_note_jinja2.md'
 
 # Replace these with your actual Zotero credentials and item key:
 LIBRARY_ID = rfw.library_id
@@ -50,8 +47,6 @@ except Exception as e:
     raise
 
 # Fetch collections for this item
-# Verified: There is no zot.collections_for_item() method [1][4]
-# Using zot.collections() and filtering manually.  This is less efficient but correct.
 try:
     collection_key_to_name = {collection['key']:collection['data']['name'] for collection in zot.all_collections()} 
     collections = [{'key':key, 'name': collection_key_to_name[key]} for key in item['data']['collections']]
@@ -81,7 +76,6 @@ for uri in related_keys:
 
 # Fetch notes attached to this item by getting the item's children and filtering for notes
 notes = []
-# Verified: zot.children() exists and takes itemID as a parameter [1][4]
 try:
     children = zot.children(ITEM_KEY)
     for child in children:
@@ -93,7 +87,6 @@ try:
             # Custom formatting adjustments
             markdown_note = re.sub(r'\*\*%', r'**', markdown_note)  # Fix bolded percentages
             markdown_note = markdown_note.replace('+', '-')  # Escape '+' characters
-            # markdown_note = markdown_note.replace('+', '\\+')  # Escape '+' characters
 
             # Improved list formatting
             markdown_note = re.sub(r'^\s*([+\-*])\s*(.*)$', r'\1 \2', markdown_note, flags=re.MULTILINE) #Fix up lists
@@ -111,7 +104,6 @@ except Exception as e:
 
 # Fetch attachments for this item
 attachments = []
-# Verified: zot.children() exists and takes itemID as a parameter [1][4]
 try:
     children = zot.children(ITEM_KEY)
     for child in children:
@@ -129,7 +121,6 @@ except Exception as e:
 
 # Prepare data dictionary for the template
 citekey = rfw.get_citation_key(item_data)
-#citekey = item_data.get('citekey', '')
 data = {
     'title': item_data.get('title', ''),
     'citekey': citekey,
@@ -158,10 +149,7 @@ data = {
     'attachments': attachments,
 }
 
-ic(citekey, data['bibliography'])
-
-
-# Jinja2 template
+# Jinja2 template for output literature note
 template_str = """{%- macro truncateTitle(title, n) -%}
   {%- set words = title.split(' ') -%}
   {%- set truncatedTitle = ' '.join(words[:n]) -%}
@@ -252,17 +240,10 @@ ___
 {% endif %}
 """
 
-
 # Render the template
 template = Template(template_str, trim_blocks=True, lstrip_blocks=True)
 output_text = template.render(**data)
 
-# Output result (e.g., print or save to file)
-#print(output)
-
 print(f'Writing to {output_file}')
-
 output_file.write_text(output_text, encoding='utf-8')
-
 print("Done.")
-
