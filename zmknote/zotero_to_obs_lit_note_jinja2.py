@@ -18,14 +18,12 @@ import re
 
 output_file = pl.Path(fr'C:\Users\scott\OneDrive\share\ref\obsidian\Obsidian Share Vault\Scratch Space\tmp_zotero_to_obs_lit_note_jinja2.md')
 
-# Corrected Jinja2 template
-template_str = """
-{%- macro truncateTitle(title, n) -%}
+# Jinja2 template
+template_str = """{%- macro truncateTitle(title, n) -%}
   {%- set words = title.split(' ') -%}
   {%- set truncatedTitle = ' '.join(words[:n]) -%}
   {{ truncatedTitle }}
 {%- endmacro %}
-
 {%- macro basename(filePath) -%}
   {%- set normalizedPath = filePath.replace("\\\\", "/") -%}
   {%- set fileParts = normalizedPath.split("/") -%}
@@ -33,50 +31,41 @@ template_str = """
   {{- endpath -}}
 {%- endmacro %}
 ---
-category: literaturenote
-
+category: 
+- literaturenote
 tags:
-
 read: false
 in-progress: false
 linked: false
-
 aliases:
 - "{{ title }}"
 - "{{ truncateTitle(title, 5) }}"
-
 citekey: {{ citekey }}
-
 ZoteroTags:
 {%- for tag in tags %}
 - {{ tag.tag | lower | replace(" ", "_") }}
 {%- endfor %}
-
 ZoteroCollections:
 {%- for collection in collections %}
 - {{ collection.name | lower | replace(" ", "_") }}
 {%- endfor %}
-
 created date: {{ exportDate.strftime("%Y-%m-%d") }}
 modified date:
+
 ---
 
 > [!info]- [**Zotero**]({{ desktopURI }}) {% if DOI %} | [**DOI**](https://doi.org/{{ DOI }}){% endif %}{% if url %} | [**URL**]({{ url }}){% endif %}{% for attachment in attachments if attachment.path.endswith(".pdf") %} | **[[{{ basename(attachment.path) }}|PDF]]**{% endfor %}{% for attachment in attachments if attachment.path.endswith(".html") %} | **[[{{ basename(attachment.path) }}|HTM]]**{% endfor %}{% for attachment in attachments if attachment.path.endswith(".docx") %} | **[[{{ basename(attachment.path) }}|DOC]]**{% endfor %}{% for attachment in attachments if attachment.path.endswith(".pptx") %} | **[[{{ basename(attachment.path) }}|PPT]]**{% endfor %}{% for attachment in attachments if attachment.path.endswith(".txt") %} | **[[{{ basename(attachment.path) }}|TXT]]**{% endfor %}
-
+>
 > {% if abstractNote %}
 > **Abstract**
 > {{ abstractNote.replace("\\n"," ") }}
 > {% endif %}
-
-{% for type, creators in creators|groupby("creatorType") %}
-  {% for creator in creators %}
-> **{% if loop.first %}{{ type.capitalize() }}{% endif %}**::
-    {% if creator.name %}
-      {{ creator.name }}
-    {% else %}
-      {{ creator.lastName }}, {{ creator.firstName }}
-    {% endif %}
-  {% endfor %}
+{{ "" }}
+{%- for type, creators in creators|groupby("creatorType") %}
+> **{{ type.capitalize() }}**::
+{%- for creator in creators %}
+    {%- if creator.name %} {{ creator.name }}{% else %} {{ creator.lastName }}, {{ creator.firstName }}{% endif %}{% if not loop.last %}, {% endif %}
+{%- endfor %}
 {% endfor %}
 
 > **Title**:: "{{ title }}"
@@ -96,16 +85,16 @@ modified date:
 > **ISBN**:: {{ ISBN }}
 > **ZoteroTags**:: {{ allTags }}
 > **Related**::{% for relation in relations if relation.citekey %} [[@{{ relation.citekey }}]]{% if not loop.last %}, {% endif %}{% endfor %}
->{% if bibliography %} {{ bibliography }}{% endif %}
-  
+> {% if bibliography %} {{ bibliography }}{% endif %}
+
 {% block persist_Obsidian_Notes %}
+
+%% begin Obsidian Notes %%
 ___
-
 ==Delete this and write here. Don't delete the `persist` directives above and below.==
-
 ___
 {% endblock persist_Obsidian_Notes %}
-
+%% end Obsidian Notes %%
 {% if notes|length > 0 %}
 > [!note]- Zotero Note ({{ notes|length }})
 >
@@ -161,8 +150,8 @@ zotero_data = {
     ]
 }
 
-# Render the template with the data
-template = Template(template_str)
+# note: trim options get rid of extra blanks that were screwing up frontmatter
+template = Template(template_str,  trim_blocks=True, lstrip_blocks=True)
 rendered_output = template.render(**zotero_data)
 
 #print(rendered_output)

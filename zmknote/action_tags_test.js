@@ -1,3 +1,6 @@
+// Makes an obsidian note by hand, given a selected zotero item
+// Similar to: https://www.reddit.com/r/ObsidianMD/comments/1f48x0g/obsidian_plugin_autocreating_notes_from_zotero/
+
 // Path to References directory in the shared Obsidian vault
 const fpath = String.raw`C:\Users\scott\OneDrive\share\ref\obsidian\Obsidian Share Vault\Scratch Space`
 
