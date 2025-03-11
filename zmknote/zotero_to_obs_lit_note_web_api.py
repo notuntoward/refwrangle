@@ -23,6 +23,9 @@ LIBRARY_TYPE = 'user'  # or 'group'
 API_KEY = rfw.zotero_api_key
 LOCAL = False
 
+# original:
+# > [!info]- [**Zotero**]({{ desktopURI }}) {% if DOI %} | [**DOI**](https://doi.org/{{ DOI }}){% endif %}{% if url %} | [**URL**]({{ url }}){% endif %}{% for attachment in attachments if attachment.path.endswith(".pdf") %} | **[[{{ basename(attachment.path) }}|PDF]]**{% endfor %}{% for attachment in attachments if attachment.path.endswith(".html") %} | **[[{{ basename(attachment.path) }}|HTM]]**{% endfor %}{% for attachment in attachments if attachment.path.endswith(".docx") %} | **[[{{ basename(attachment.path) }}|DOC]]**{% endfor %}{% for attachment in attachments if attachment.path.endswith(".pptx") %} | **[[{{ basename(attachment.path) }}|PPT]]**{% endfor %}{% for attachment in attachments if attachment.path.endswith(".txt") %} | **[[{{ basename(attachment.path) }}|TXT]]**{% endfor %}
+
 # Jinja2 template for output literature note
 template_str = """{%- macro truncateTitle(title, n) -%}
   {%- set words = title.split(' ') -%}
@@ -59,8 +62,8 @@ modified date:
 ---
 
 > [!info]- [**Zotero**]({{ desktopURI }}) {% if DOI %} | [**DOI**](https://doi.org/{{ DOI }}){% endif %}{% if url %} | [**URL**]({{ url }}){% endif %}{% for attachment in attachments if attachment.path.endswith(".pdf") %} | **[[{{ basename(attachment.path) }}|PDF]]**{% endfor %}{% for attachment in attachments if attachment.path.endswith(".html") %} | **[[{{ basename(attachment.path) }}|HTM]]**{% endfor %}{% for attachment in attachments if attachment.path.endswith(".docx") %} | **[[{{ basename(attachment.path) }}|DOC]]**{% endfor %}{% for attachment in attachments if attachment.path.endswith(".pptx") %} | **[[{{ basename(attachment.path) }}|PPT]]**{% endfor %}{% for attachment in attachments if attachment.path.endswith(".txt") %} | **[[{{ basename(attachment.path) }}|TXT]]**{% endfor %}
->
-> {% if abstractNote %}
+
+> {%- if abstractNote %}
 > **Abstract**
 > {{ abstractNote.replace("\\n"," ") }}
 > {% endif %}
@@ -107,7 +110,7 @@ ___
 >{{ note.note.replace("# ", "### ").replace("\\n", "\\n> ") }}
 >{{ note.tags | map(attribute='tag') | join(', ') }}
 >
-> 📝️ (modified: {{ note.dateModified.strftime("%Y-%m-%d") }}) [link](zotero://select/library/items/{{ note.key }}) - [web]({{ note.uri }})
+> (modified: {{ note.dateModified.strftime("%Y-%m-%d") }}) [link](zotero://select/library/items/{{ note.key }}) - [web]({{ note.uri }})
 >
 ---
 {% endfor %}
@@ -211,7 +214,7 @@ def create_literature_note(item_key: str, output_dir: pl.Path, item_data: dict, 
         'tags': item_data.get('tags', []),
         'collections': collections,
         'exportDate': datetime.now(),
-        'desktopURI': item_data.get('desktopURI'),
+        'desktopURI': f'zotero://select/library/items/{item_key}',
         'DOI': item_data.get('DOI', ''),
         'url': item_data.get('url', ''),
         'abstractNote': item_data.get('abstractNote', ''),
