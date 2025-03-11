@@ -13,19 +13,6 @@ refwrangle_dir = pl.Path('~/ref/refwrangle').expanduser()
 sys.path.append(str(refwrangle_dir))
 import refwrangle as rfw  # Import your custom refwrangle module
 
-output_dir = pl.Path(
-    r'C:\Users\scott\OneDrive\share\ref\obsidian\Obsidian Share Vault\Scratch Space'
-)
-
-# Replace these with your actual Zotero credentials and item key:
-LIBRARY_ID = rfw.zotero_library_id
-LIBRARY_TYPE = 'user'  # or 'group'
-API_KEY = rfw.zotero_api_key
-LOCAL = False
-
-# original:
-# > [!info]- [**Zotero**]({{ desktopURI }}) {% if DOI %} | [**DOI**](https://doi.org/{{ DOI }}){% endif %}{% if url %} | [**URL**]({{ url }}){% endif %}{% for attachment in attachments if attachment.path.endswith(".pdf") %} | **[[{{ basename(attachment.path) }}|PDF]]**{% endfor %}{% for attachment in attachments if attachment.path.endswith(".html") %} | **[[{{ basename(attachment.path) }}|HTM]]**{% endfor %}{% for attachment in attachments if attachment.path.endswith(".docx") %} | **[[{{ basename(attachment.path) }}|DOC]]**{% endfor %}{% for attachment in attachments if attachment.path.endswith(".pptx") %} | **[[{{ basename(attachment.path) }}|PPT]]**{% endfor %}{% for attachment in attachments if attachment.path.endswith(".txt") %} | **[[{{ basename(attachment.path) }}|TXT]]**{% endfor %}
-
 # Jinja2 template for output literature note
 template_str = """{%- macro truncateTitle(title, n) -%}
   {%- set words = title.split(' ') -%}
@@ -115,19 +102,8 @@ ___
 {% endif %}
 """
 
-
-# Initialize Zotero client
-try:
-    timer = rfw.Timer()
-    zot = zotero.Zotero(LIBRARY_ID, LIBRARY_TYPE, API_KEY, local=LOCAL)
-    print('zot init done:')
-    timer.mark()
-except Exception as e:
-    print(f"Error initializing Zotero: {e}")
-    raise
-
-
-def create_literature_note(item_key: str, output_dir: pl.Path, item_data: dict, collection_key_to_name: dict) -> None:
+def write_literature_note(item_key: str, output_file: pl.Path, item_data: dict, 
+                          collection_key_to_name: dict, zot: zotero.Zotero) -> None:
     """Creates an Obsidian literature note from a Zotero item."""
     # Fetch collections for this item
     try:
@@ -238,20 +214,22 @@ def create_literature_note(item_key: str, output_dir: pl.Path, item_data: dict, 
     template = Template(template_str, trim_blocks=True, lstrip_blocks=True)
     output_text = template.render(**data)
 
-    output_file = output_dir / f'{citekey}.md'
     print(f'Writing to {output_file}')
     output_file.write_text(output_text, encoding='utf-8')
-    print("Done.")
 
-
-if __name__ == '__main__':
-    # Example usage with a single item key
-    # item_keys = ['I4G6IXQS']
-    # Example usage with a list of item keys
-    item_keys = ['I4G6IXQS', 'SAUNMD5H']  # Example with two keys
+def write_literature_notes(item_keys: list[str], output_dir: pl.Path, local_api: bool = False) -> None:
+    """Writes literature notes for given Zotero item keys to the specified output directory."""
 
     if isinstance(item_keys, str):
         item_keys = [item_keys]
+
+    timer = rfw.Timer()
+    try:
+        zot = zotero.Zotero(rfw.zotero_library_id, rfw.zotero_library_type, 
+                            rfw.zotero_api_key, local=local_api)
+    except Exception as e:
+        print(f"Error initializing Zotero: {e}")
+        raise
 
     # Fetch collections
     try:
@@ -263,7 +241,7 @@ if __name__ == '__main__':
         print(f"Error fetching collections: {e}")
         raise
 
-    # Fetch items in batches of 50
+    # Fetch items in batches of 50 (API max limit)
     item_data = {}
     for i in range(0, len(item_keys), 50):
         batch_keys = item_keys[i : i + 50]
@@ -274,8 +252,20 @@ if __name__ == '__main__':
             print(f"Error fetching items: {e}")
             raise
 
-    timer = rfw.Timer()
     for item_key in item_keys:
-        create_literature_note(item_key, output_dir, item_data[item_key], collection_key_to_name)
-    print('lit note create done:')    
+        item_data_this = item_data[item_key]
+        output_file = output_dir / f'{rfw.get_citation_key(item_data_this)}.md'
+        
+        write_literature_note(item_key, output_file, item_data_this , collection_key_to_name, zot)
+    print("Done.")
     timer.mark()
+
+if __name__ == '__main__':
+    # Example usage with a single item key
+    # item_keys = ['I4G6IXQS']
+    # Example usage with a list of item keys
+    item_keys = ['I4G6IXQS', 'SAUNMD5H']  # Example with two keys
+    
+    output_dir = pl.Path(r'C:\Users\scott\OneDrive\share\ref\obsidian\Obsidian Share Vault\Scratch Space')
+
+    write_literature_notes(item_keys, output_dir)
