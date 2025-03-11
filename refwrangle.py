@@ -69,9 +69,9 @@ MIN_BYTES_FOR_HIGH_QUALITY_HTML2MD = 4000
 MIN_SCORE_TITLE_MATCH = 95 # max==100: stringent, limit false matches
 
 # My Zotero API credentials
-library_id = '60638'
-library_type = 'user'  # or 'group' if using a group library
-api_key = 'VFJnuXqeaJPcVjCQHQAELCuu'
+zotero_library_id = '60638'
+zotero_library_type = 'user'  # or 'group' if using a group library
+zotero_api_key = 'VFJnuXqeaJPcVjCQHQAELCuu'
 
 procDir = refwrangle_dir / 'dat' / 'proc'
 # html2pdf_cachedir = procDir / 'h2p_cache'
@@ -116,8 +116,8 @@ class ZoteroCache:
     HEADER_FORMAT = "I"  # Format for an unsigned integer (for the version number)
     HEADER_SIZE = struct.calcsize(HEADER_FORMAT)
 
-    def __init__(self, filename=zoterodb_cache_file, library_id=library_id,
-                 library_type=library_type, api_key=api_key):
+    def __init__(self, filename=zoterodb_cache_file, library_id=zotero_library_id,
+                 zotero_library_type=zotero_library_type, api_key=zotero_api_key):
         """
         Initialize the ZoteroCache with API credentials and cache filename.
         
@@ -127,7 +127,7 @@ class ZoteroCache:
         :param api_key: Zotero API key.
         """
         self.filename = filename
-        self.zot = zotero.Zotero(library_id, library_type, api_key)
+        self.zot = zotero.Zotero(library_id, zotero_library_type, zotero_api_key)
 
     def download_and_save_cache(self) -> Optional[List[Dict[str, Any]]]:
         """ Perform a full download of all items from Zotero and write them to the cache."""
@@ -191,7 +191,7 @@ def get_my_zotero_collections(top_collection_name: Optional[str] = None, zot: Op
      TODO: use zot.collections_sub() and zot.collections_top()"""
   
     if zot is None:
-        zot = zotero.Zotero(library_id, library_type, api_key)
+        zot = zotero.Zotero(zotero_library_id, zotero_library_type, zotero_api_key)
 
     if top_collection_name is None:
         return [c['data']['name'] for c in zot.collections()]
@@ -209,7 +209,7 @@ def plot_my_zotero_collections(top_collection_name: Optional[str] = None) -> Non
     """Hierarchically plots the collections in my zotero DB. 
      top_collection_name: plot only collections hierarchically below this collection. """
     
-    zot = zotero.Zotero(library_id, library_type, api_key)
+    zot = zotero.Zotero(zotero_library_id, zotero_library_type, zotero_api_key)
 
     all_collections = zot.all_collections()
 

@@ -166,7 +166,7 @@ if __name__ == "__main__":
     sys.path.append(str(refwrangle_dir))
     import refwrangle as rfw
 
-    zot_cache = ZoteroCache(rfw.library_id, library_type="user", api_key=rfw.api_key, cache_file="tmp_zotero_cache.json")
+    zot_cache = ZoteroCache(rfw.zotero_library_id, library_type="user", api_key=rfw.zotero_api_key, cache_file="tmp_zotero_cache.json")
         
     
     # Get all top-level items (leveraging caching)
