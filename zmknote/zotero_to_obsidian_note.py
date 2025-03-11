@@ -1,3 +1,9 @@
+"""Python functions for converting a zotero item's metadata into an obsidian note. Intended 
+to be called directly from zotero, instead of from Obsidian, as the Obsidian Zotero Integration 
+plugin requires.  Formattig is a similar to notes created by Zotero Integraion,
+in fact, the jinja2 template used here tries to match the output of my Zotero Integration
+nunjucks template (currently Obsidian/templates/literature note.md)."""
+
 from pyzotero import zotero
 from jinja2 import Template
 from datetime import datetime
@@ -257,6 +263,7 @@ def write_literature_notes(item_keys: list[str], output_dir: pl.Path, local_api:
         output_file = output_dir / f'{rfw.get_citation_key(item_data_this)}.md'
         
         write_literature_note(item_key, output_file, item_data_this , collection_key_to_name, zot)
+        
     print("Done.")
     timer.mark()
 
