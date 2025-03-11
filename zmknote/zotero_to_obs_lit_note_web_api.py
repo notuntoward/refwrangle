@@ -18,9 +18,10 @@ output_dir = pl.Path(
 )
 
 # Replace these with your actual Zotero credentials and item key:
-LIBRARY_ID = rfw.library_id
+LIBRARY_ID = rfw.zotero_library_id
 LIBRARY_TYPE = 'user'  # or 'group'
-API_KEY = rfw.api_key
+API_KEY = rfw.zotero_api_key
+LOCAL = False
 
 # Jinja2 template for output literature note
 template_str = """{%- macro truncateTitle(title, n) -%}
@@ -116,7 +117,10 @@ ___
 
 # Initialize Zotero client
 try:
-    zot = zotero.Zotero(LIBRARY_ID, LIBRARY_TYPE, API_KEY)
+    timer = rfw.Timer()
+    zot = zotero.Zotero(LIBRARY_ID, LIBRARY_TYPE, API_KEY, local=LOCAL)
+    print('zot init done:')
+    timer.mark()
 except Exception as e:
     print(f"Error initializing Zotero: {e}")
     raise
@@ -269,5 +273,8 @@ if __name__ == '__main__':
             print(f"Error fetching items: {e}")
             raise
 
+    timer = rfw.Timer()
     for item_key in item_keys:
         create_literature_note(item_key, output_dir, item_data[item_key], collection_key_to_name)
+    print('lit note create done:')    
+    timer.mark()

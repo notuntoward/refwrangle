@@ -8,6 +8,7 @@ import struct
 import subprocess
 import sys
 import requests
+import time
 import json
 import traceback
 import unicodedata
@@ -1636,3 +1637,23 @@ def unique_rows(df: pd.DataFrame, column_names: list = None) -> pd.DataFrame:
     df_unique.index = pd.RangeIndex(start=0, stop=len(df_unique), step=1)
     
     return df_unique
+
+class Timer:
+    """ A simple timer class to record elapsed time. """
+    def __init__(self) -> None:
+        """ Records the starting time upon object construction. """
+        self._start_time: float = time.perf_counter()  # Use perf_counter for higher accuracy
+
+    def mark(self, print_elapsed: bool = True) -> float:
+        """ Calculates and optionally prints the elapsed seconds since the timer was started.
+
+        Args:
+            print_elapsed (bool, optional): Whether to print the elapsed time. Defaults to True.
+
+        Returns:
+            float: The elapsed time in seconds.   """
+            
+        elapsed_time: float = time.perf_counter() - self._start_time
+        if print_elapsed:
+            print(f"Elapsed time: {elapsed_time:.4f} seconds")
+        return elapsed_time
