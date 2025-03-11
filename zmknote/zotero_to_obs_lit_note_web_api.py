@@ -61,7 +61,7 @@ created date: {{ exportDate.strftime("%Y-%m-%d") }}
 modified date:
 ---
 
-> [!info]- [**Zotero**]({{ desktopURI }}) {% if DOI %} | [**DOI**](https://doi.org/{{ DOI }}){% endif %}{% if url %} | [**URL**]({{ url }}){% endif %}{% for attachment in attachments if attachment.path.endswith(".pdf") %} | **[[{{ basename(attachment.path) }}|PDF]]**{% endfor %}{% for attachment in attachments if attachment.path.endswith(".html") %} | **[[{{ basename(attachment.path) }}|HTM]]**{% endfor %}{% for attachment in attachments if attachment.path.endswith(".docx") %} | **[[{{ basename(attachment.path) }}|DOC]]**{% endfor %}{% for attachment in attachments if attachment.path.endswith(".pptx") %} | **[[{{ basename(attachment.path) }}|PPT]]**{% endfor %}{% for attachment in attachments if attachment.path.endswith(".txt") %} | **[[{{ basename(attachment.path) }}|TXT]]**{% endfor %}
+> [!info]- &nbsp;[**Zotero**]({{ desktopURI }}) {% if DOI %} | [**DOI**](https://doi.org/{{ DOI }}){% endif %}{% if url %} | [**URL**]({{ url }}){% endif %}{% for attachment in attachments if attachment.path.endswith(".pdf") %} | **[[{{ basename(attachment.path) }}|PDF]]**{% endfor %}{% for attachment in attachments if attachment.path.endswith(".html") %} | **[[{{ basename(attachment.path) }}|HTM]]**{% endfor %}{% for attachment in attachments if attachment.path.endswith(".docx") %} | **[[{{ basename(attachment.path) }}|DOC]]**{% endfor %}{% for attachment in attachments if attachment.path.endswith(".pptx") %} | **[[{{ basename(attachment.path) }}|PPT]]**{% endfor %}{% for attachment in attachments if attachment.path.endswith(".txt") %} | **[[{{ basename(attachment.path) }}|TXT]]**{% endfor %}
 
 > {%- if abstractNote %}
 > **Abstract**
@@ -104,16 +104,14 @@ ___
 {% endblock persist_Obsidian_Notes %}
 %% end Obsidian Notes %%
 {% if notes|length > 0 %}
-> [!note]- Zotero Note ({{ notes|length }})
+> [!note]- &nbsp;Zotero Note ({{ notes|length }})
 >
-{%- for note in notes %}
->{{ note.note.replace("# ", "### ").replace("\\n", "\\n> ") }}
+{%- for note in notes -%}
+>{{ note.note.replace("# ", "### ").replace("\\n", "\\n> ")}}
 >{{ note.tags | map(attribute='tag') | join(', ') }}
->
-> (modified: {{ note.dateModified.strftime("%Y-%m-%d") }}) [link](zotero://select/library/items/{{ note.key }}) - [web]({{ note.uri }})
->
+> [link](zotero://select/library/items/{{ note.key }}): modified on {{ note.dateModified.strftime("%Y-%m-%d") }}
 ---
-{% endfor %}
+{%- endfor -%}
 {% endif %}
 """
 
