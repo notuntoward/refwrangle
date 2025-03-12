@@ -50,7 +50,7 @@ ZoteroCollections:
 {% for collection in collections %}
 - {{ collection.name | lower | replace(" ", "_") }}
 {% endfor %}
-created date: {{ exportDate.strftime("%Y-%m-%d") }}
+created date: {{ exportDate }}
 modified date:
 ---
 
@@ -69,7 +69,7 @@ modified date:
 {% endfor %}
 
 > **Title**:: "{{ title }}"
-> **Date**:: {{ date.strftime("%Y-%m-%d") }}
+> **Date**:: {{ date }}
 > **Citekey**:: {{ citekey }}
 > **ZoteroItemKey**:: {{ itemKey }}
 > **itemType**:: {{ itemType }}
@@ -193,13 +193,13 @@ def write_literature_note(item_key: str, output_file: pl.Path, item_data: dict,
         'citekey': citekey,
         'tags': item_data.get('tags', []),
         'collections': collections,
-        'exportDate': datetime.now(),
+        'exportDate': datetime.now().strftime("%m/%d/%Y %I:%M:%S %p"),
         'desktopURI': f'zotero://select/library/items/{item_key}',
         'DOI': item_data.get('DOI', ''),
         'url': item_data.get('url', ''),
         'abstractNote': item_data.get('abstractNote', ''),
         'creators': item_data.get('creators', []),
-        'date': parse_date(item_data.get('date')) if item_data.get('date') else datetime.now(),
+        'date': parse_date(item_data.get('date')) if item_data.get('date') else '',
         'itemKey': item_key,
         'itemType': item_data.get('itemType', ''),
         'publicationTitle': item_data.get('publicationTitle', ''),
@@ -216,6 +216,7 @@ def write_literature_note(item_key: str, output_file: pl.Path, item_data: dict,
         'attachments': attachments,
     }
 
+    ic(data['exportDate'])
     # Render the template
     template = Template(template_str, trim_blocks=True, lstrip_blocks=True)
     output_text = template.render(**data)
