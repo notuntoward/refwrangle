@@ -13,13 +13,14 @@ def webhook_listener():
     try:
         # Parse incoming JSON data
         data = request.get_json()
+        print(f'got data: {data}')
         
         if isinstance(data, list):
             processed_data = [dict(item) for item in data]  # Convert each top-level element into a dict
             
             # Log or process the data as needed
-            print("Received and parsed data")
-#            print("Received and processed data:", processed_data)
+#            print("Received and parsed data")
+            print("Received and processed data:", processed_data)
             
             for item in processed_data:
                 ic(item["citekey"])

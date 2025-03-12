@@ -4,15 +4,16 @@ plugin requires.  Formattig is a similar to notes created by Zotero Integraion,
 in fact, the jinja2 template used here tries to match the output of my Zotero Integration
 nunjucks template (currently Obsidian/templates/literature note.md)."""
 
-from pyzotero import zotero
-from jinja2 import Template
-from datetime import datetime
-from dateutil.parser import parse as parse_date
 import pathlib as pl
 import re
 import sys
-from markdownify import markdownify
+from datetime import datetime
+
+import dateutil.parser as dp
 from icecream import ic
+from jinja2 import Template
+from markdownify import markdownify
+from pyzotero import zotero
 
 # Define paths and credentials
 refwrangle_dir = pl.Path('~/ref/refwrangle').expanduser()
@@ -102,11 +103,20 @@ ___
 {%- for note in notes -%}
 >{{ note.note.replace("# ", "### ").replace("\\n", "\\n> ")}}
 >{{ note.tags | map(attribute='tag') | join(', ') }}
-> [link](zotero://select/library/items/{{ note.key }}): modified on {{ note.dateModified.strftime("%Y-%m-%d") }}
+> [link](zotero://select/library/items/{{ note.key }}): modified on {{ note.dateModified }}
 ---
 {%- endfor -%}
 {% endif %}
 """
+
+def parse_date(date_str: str, format_dts: str) -> str:
+    """Parses a date string and returns it in a standard format."""
+    try:
+        date = dp.parse(date_str)
+        return date.strftime(format_dts)
+    except Exception as e:
+        print(f"Error parsing date {date_str}: {e}")
+        return ''
 
 def write_literature_note(item_key: str, output_file: pl.Path, item_data: dict, 
                           collection_key_to_name: dict, zot: zotero.Zotero) -> None:
@@ -161,7 +171,8 @@ def write_literature_note(item_key: str, output_file: pl.Path, item_data: dict,
                 )  # Fix up lists
                 notes.append({
                     'note': markdown_note,
-                    'dateModified': parse_date(child['data'].get('dateModified')),
+                    # TODO: verify that this is really the date the note (not entry) was modified, or just get rid of it
+                    'dateModified': parse_date(child['data'].get('dateModified'), '%Y-%m-%d %H:%M:%S'),
                     'key': child['data'].get('key'),
                     'uri': child['data'].get('uri'),
                     'tags': child['data'].get('tags', []),
@@ -193,13 +204,13 @@ def write_literature_note(item_key: str, output_file: pl.Path, item_data: dict,
         'citekey': citekey,
         'tags': item_data.get('tags', []),
         'collections': collections,
-        'exportDate': datetime.now().strftime("%m/%d/%Y %I:%M:%S %p"),
+        'exportDate': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
         'desktopURI': f'zotero://select/library/items/{item_key}',
         'DOI': item_data.get('DOI', ''),
         'url': item_data.get('url', ''),
         'abstractNote': item_data.get('abstractNote', ''),
         'creators': item_data.get('creators', []),
-        'date': parse_date(item_data.get('date')) if item_data.get('date') else '',
+        'date': parse_date(item_data.get('date'), "%Y-%m-%d") if item_data.get('date') else '',
         'itemKey': item_key,
         'itemType': item_data.get('itemType', ''),
         'publicationTitle': item_data.get('publicationTitle', ''),
@@ -216,7 +227,7 @@ def write_literature_note(item_key: str, output_file: pl.Path, item_data: dict,
         'attachments': attachments,
     }
 
-    ic(data['exportDate'])
+    ic(data['exportDate'], type(data['exportDate']))
     # Render the template
     template = Template(template_str, trim_blocks=True, lstrip_blocks=True)
     output_text = template.render(**data)
@@ -272,7 +283,7 @@ if __name__ == '__main__':
     # Example usage with a single item key
     # item_keys = ['I4G6IXQS']
     # Example usage with a list of item keys
-    item_keys = ['I4G6IXQS', 'SAUNMD5H']  # Example with two keys
+    item_keys = ['I4G6IXQS', 'U7NTFFTP']  # Example with two keys
     
     output_dir = pl.Path(r'C:\Users\scott\OneDrive\share\ref\obsidian\Obsidian Share Vault\Scratch Space')
 
