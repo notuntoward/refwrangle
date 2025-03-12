@@ -152,67 +152,67 @@ async function getSelectedItemsData(items) {
 }
 
 function htmlToMarkdown(html) {
-    // Handle nested lists first
-    html = convertLists(html);
-  
-    // Handle blockquotes
-    html = html.replace(/<blockquote>([\s\S]*?)<\/blockquote>/g, (match, content) => {
-      const innerMarkdown = htmlToMarkdown(content.trim());
-      return innerMarkdown.split('\n').map(line => '> ' + line).join('\n');
+    // Convert blockquotes (fixed empty line issue)
+    html = html.replace(/<blockquote>([\s\S]*?)<\/blockquote>/g, (_, content) => {
+      const innerMd = htmlToMarkdown(content); // Process nested Markdown
+      const cleaned = innerMd
+        .split('\n')
+        .map(line => line.trim())
+        .filter(line => line) // Remove empty lines
+        .join('\n');
+      return '\n' + cleaned.split('\n').map(line => `> ${line}`).join('\n') + '\n\n';
     });
   
-    // Convert Zotero internal links
+    // Convert headings
+    html = html.replace(/<h1>(.*?)<\/h1>/g, '# $1\n\n')
+               .replace(/<h2>(.*?)<\/h2>/g, '## $1\n\n')
+               .replace(/<h3>(.*?)<\/h3>/g, '### $1\n\n')
+               .replace(/<h4>(.*?)<\/h4>/g, '#### $1\n\n')
+               .replace(/<h5>(.*?)<\/h5>/g, '##### $1\n\n')
+               .replace(/<h6>(.*?)<\/h6>/g, '###### $1\n\n');
+  
+    // Convert bold and italic text
+    html = html.replace(/<(b|strong)>(.*?)<\/\1>/g, '**$2**')
+               .replace(/<(i|em)>(.*?)<\/\1>/g, '*$2*');
+  
+    // Convert lists with improved hierarchy
+    html = html.replace(/<ul>([\s\S]*?)<\/ul>/g, (_, content) => {
+      return processList(content, false);
+    }).replace(/<ol>([\s\S]*?)<\/ol>/g, (_, content) => {
+      return processList(content, true);
+    });
+  
+    // Convert Zotero-specific links
     html = html.replace(/<a[^>]+href="zotero:\/\/select\/library\/items\/([^"]+)"[^>]*>(.*?)<\/a>/g,
-      (match, itemKey, originalLinkText) => {
-        const linkedItem = Zotero.Items.getByLibraryAndKey(Zotero.Libraries.userLibraryID, itemKey);
-        let citekey = originalLinkText;
-        if (linkedItem) {
-          const extraField = linkedItem.getField('extra') || '';
-          const citekeyMatch = extraField.match(/^Citation Key:\s*(.+)$/m);
-          if (citekeyMatch && citekeyMatch[1]) {
-            citekey = citekeyMatch[1];
-          }
-        }
+      (_, itemKey, text) => {
+        const item = Zotero.Items.getByLibraryAndKey(Zotero.Libraries.userLibraryID, itemKey);
+        const citekey = item?.getField('extra')?.match(/Citation Key:\s*(.+)/)?.[1] || text;
         return `[${citekey}](zotero://select/library/items/${itemKey})`;
-      }
-    );
-  
-    // Convert standard web links
-    html = html.replace(/<a[^>]+href="([^"]+)"[^>]*>(.*?)<\/a>/g, '[$2]($1)');
-  
-    return html
-      .replace(/<h1>(.*?)<\/h1>/g, '# $1\n\n')
-      .replace(/<h2>(.*?)<\/h2>/g, '## $1\n\n')
-      .replace(/<h3>(.*?)<\/h3>/g, '### $1\n\n')
-      .replace(/<h4>(.*?)<\/h4>/g, '#### $1\n\n')
-      .replace(/<h5>(.*?)<\/h5>/g, '##### $1\n\n')
-      .replace(/<h6>(.*?)<\/h6>/g, '###### $1\n\n')
-      .replace(/<(b|strong)>(.*?)<\/\1>/g, '**$2**')
-      .replace(/<(i|em)>(.*?)<\/\1>/g, '*$2*')
-      .replace(/<p>(.*?)<\/p>/g, '$1\n\n')
-      .replace(/<br\s*\/?>/gi, '\n')
-      .replace(/<span[^>]*?style="background-color:[^"]*"[^>]*>(.*?)<\/span>/gi, '==$1==')
-      .replace(/<\/?[^>]+(>|$)/g, '')
-      .replace(/\n{3,}/g, '\n\n')  // Replace multiple newlines with just two
-      .trim();
-  }
-  
-  function convertLists(html, indent = '') {
-    return html.replace(/<(ul|ol)>([\s\S]*?)<\/\1>/g, (match, listType, content) => {
-      const listItems = content.match(/<li>([\s\S]*?)<\/li>/g) || [];
-      return listItems.map((item, index) => {
-        const itemContent = item.replace(/<li>|<\/li>/g, '').trim();
-        if (!itemContent) return '';  // Skip empty list items
-        
-        const bullet = listType === 'ol' ? `${index + 1}.` : '-';
-        const processedItem = convertLists(itemContent, indent + '  ');
-        const lines = processedItem.split('\n').map((line, i) => 
-          i === 0 ? `${indent}${bullet} ${line}` : `${indent}  ${line}`
-        );
-        return lines.join('\n');
-      }).filter(Boolean).join('\n') + '\n';
     });
+  
+    // Convert standard links and highlights
+    html = html.replace(/<a\s+href="([^"]+)"[^>]*>(.*?)<\/a>/g, '[$2]($1)')
+               .replace(/<span[^>]*?style="background-color:[^"]*"[^>]*>(.*?)<\/span>/gi, '==$1==');
+  
+    // Handle paragraphs and line breaks
+    html = html.replace(/<p>(.*?)<\/p>/g, '$1\n\n')
+               .replace(/<br\s*\/?>/gi, '\n');
+  
+    // Clean remaining HTML
+    return html.replace(/<\/?[^>]+(>|$)/g, '').trim();
   }
   
-
+  function processList(content, isOrdered) {
+    let counter = 0;
+    return content
+      .split(/<li>/g)
+      .slice(1)
+      .map(item => {
+        const cleaned = htmlToMarkdown(item.replace(/<\/li>[\s\S]*/, '').trim());
+        return cleaned ? `${isOrdered ? `${++counter}.` : '-'} ${cleaned}` : '';
+      })
+      .filter(Boolean)
+      .join('\n') + '\n';
+  }
+  
 getSelectedItemsData(items);
