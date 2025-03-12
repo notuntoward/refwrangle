@@ -103,7 +103,6 @@ ___
 {%- for note in notes -%}
 >{{ note.replace("# ", "### ").replace("\\n", "\\n> ")}}
 >{{ note.tags | map(attribute='tag') | join(', ') }}
-> [link](zotero://select/library/items/{{ note.key }}): modified on {{ note.dateModified }}
 ---
 {%- endfor -%}
 {% endif %}

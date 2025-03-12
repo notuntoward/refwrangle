@@ -70,6 +70,7 @@ async function getSelectedItemsData(items) {
             let noteItem = Zotero.Items.get(noteID);
             if (noteItem) {
                 const htmlNote = noteItem.getNote();
+                // TODO: figure out why internal links to zotero notes don't work
                 const markdownNote = htmlToMarkdown(htmlNote);
                 notes.push(markdownNote);
             }
@@ -150,45 +151,54 @@ async function getSelectedItemsData(items) {
     }
 }
 
-// Function to convert HTML to Markdown
 function htmlToMarkdown(html) {
     // Handle blockquotes separately to preserve inner formatting
     html = html.replace(/<blockquote>([\s\S]*?)<\/blockquote>/g, (match, content) => {
-        // Convert inner content recursively to handle nested formatting
-        const innerMarkdown = htmlToMarkdown(content.trim());
-        // Add '> ' at the beginning of each line
-        return innerMarkdown.split('\n').map(line => '> ' + line).join('\n');
+      const innerMarkdown = htmlToMarkdown(content.trim());
+      return innerMarkdown.split('\n').map(line => '> ' + line).join('\n');
     });
-
+  
+    // Convert Zotero internal links correctly to Markdown with citekey
+    html = html.replace(/<a[^>]+href="zotero:\/\/select\/library\/items\/([^"]+)"[^>]*>(.*?)<\/a>/g,
+      (match, itemKey, originalLinkText) => {
+        const linkedItem = Zotero.Items.getByLibraryAndKey(Zotero.Libraries.userLibraryID, itemKey);
+        let citekey = originalLinkText; // Default to original link text
+        if (linkedItem) {
+          const extraField = linkedItem.getField('extra') || '';
+          const citekeyMatch = extraField.match(/^Citation Key:\s*(.+)$/m);
+          if (citekeyMatch && citekeyMatch[1]) {
+            citekey = citekeyMatch[1]; // Use the extracted citation key if available
+          }
+        }
+        return `[${citekey}](zotero://select/library/items/${itemKey})`;
+      }
+    );
+  
+    // Convert standard web links correctly without extra attributes
+    html = html.replace(/<a[^>]+href="([^"]+)"[^>]*>(.*?)<\/a>/g, '[$2]($1)');
+  
     return html
-        .replace(/<h1>(.*?)<\/h1>/g, '# $1')
-        .replace(/<h2>(.*?)<\/h2>/g, '## $1')
-        .replace(/<h3>(.*?)<\/h3>/g, '### $1')
-        .replace(/<h4>(.*?)<\/h4>/g, '#### $1')
-        .replace(/<h5>(.*?)<\/h5>/g, '##### $1')
-        .replace(/<h6>(.*?)<\/h6>/g, '###### $1')
-        
-         // Convert both <b> and <strong> for bold text
-         .replace(/<(b|strong)>(.*?)<\/\1>/g, '**$2**')
-         // Convert both <i> and <em> for italic text
-         .replace(/<(i|em)>(.*?)<\/\1>/g, '*$2*')
-         // Convert unordered list items
-         .replace(/<ul>/g, '')
-         .replace(/<\/ul>/g, '')
-         .replace(/<li>(.*?)<\/li>/g, '- $1')
-         // Convert paragraphs and line breaks
-         .replace(/<p>(.*?)<\/p>/g, '$1\n')
-         .replace(/<br\s*\/?>/g, '\n')
-         // Convert standard web links to Markdown format
-         .replace(/<a\s+href="(https?:\/\/.*?)">(.*?)<\/a>/g, '[$2]($1)')
-         // Convert Zotero item links to Markdown format
-         .replace(/<a\s+href="(zotero:\/\/select\/library\/items\/.*?)">(.*?)<\/a>/g, '[$2]($1)')
-         // Convert HTML highlighting (any background color) to Obsidian Markdown highlighting
-         .replace(/<span style="background-color:\s*[^;]+;">(.*?)<\/span>/g, '==$1==')
-         // Remove any remaining HTML tags
-         .replace(/<\/?[^>]+(>|$)/g, '')
-         .trim();
-}
+      .replace(/<h1>(.*?)<\/h1>/g, '# $1')
+      .replace(/<h2>(.*?)<\/h2>/g, '## $1')
+      .replace(/<h3>(.*?)<\/h3>/g, '### $1')
+      .replace(/<h4>(.*?)<\/h4>/g, '#### $1')
+      .replace(/<h5>(.*?)<\/h5>/g, '##### $1')
+      .replace(/<h6>(.*?)<\/h6>/g, '###### $1')
+      .replace(/<(b|strong)>(.*?)<\/\1>/g, '**$2**')
+      .replace(/<(i|em)>(.*?)<\/\1>/g, '*$2*')
+      .replace(/<ul>/g, '')
+      .replace(/<\/ul>/g, '')
+      .replace(/<li>(.*?)<\/li>/g, '- $1')
+      .replace(/<p>(.*?)<\/p>/g, '$1\n')
+      .replace(/<br\s*\/?>/gi, '\n')
+      // Convert highlights to Obsidian Markdown highlighting
+      .replace(/<span[^>]*?style="background-color:[^"]*"[^>]*>(.*?)<\/span>/gi, '==$1==')
+      // Remove any remaining HTML tags
+      .replace(/<\/?[^>]+(>|$)/g, '')
+      .trim();
+  }
+  
+  
 
 
 getSelectedItemsData(items);
