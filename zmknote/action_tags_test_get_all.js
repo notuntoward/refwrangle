@@ -152,53 +152,67 @@ async function getSelectedItemsData(items) {
 }
 
 function htmlToMarkdown(html) {
-    // Handle blockquotes separately to preserve inner formatting
+    // Handle nested lists first
+    html = convertLists(html);
+  
+    // Handle blockquotes
     html = html.replace(/<blockquote>([\s\S]*?)<\/blockquote>/g, (match, content) => {
       const innerMarkdown = htmlToMarkdown(content.trim());
       return innerMarkdown.split('\n').map(line => '> ' + line).join('\n');
     });
   
-    // Convert Zotero internal links correctly to Markdown with citekey
+    // Convert Zotero internal links
     html = html.replace(/<a[^>]+href="zotero:\/\/select\/library\/items\/([^"]+)"[^>]*>(.*?)<\/a>/g,
       (match, itemKey, originalLinkText) => {
         const linkedItem = Zotero.Items.getByLibraryAndKey(Zotero.Libraries.userLibraryID, itemKey);
-        let citekey = originalLinkText; // Default to original link text
+        let citekey = originalLinkText;
         if (linkedItem) {
           const extraField = linkedItem.getField('extra') || '';
           const citekeyMatch = extraField.match(/^Citation Key:\s*(.+)$/m);
           if (citekeyMatch && citekeyMatch[1]) {
-            citekey = citekeyMatch[1]; // Use the extracted citation key if available
+            citekey = citekeyMatch[1];
           }
         }
         return `[${citekey}](zotero://select/library/items/${itemKey})`;
       }
     );
   
-    // Convert standard web links correctly without extra attributes
+    // Convert standard web links
     html = html.replace(/<a[^>]+href="([^"]+)"[^>]*>(.*?)<\/a>/g, '[$2]($1)');
   
     return html
-      .replace(/<h1>(.*?)<\/h1>/g, '# $1')
-      .replace(/<h2>(.*?)<\/h2>/g, '## $1')
-      .replace(/<h3>(.*?)<\/h3>/g, '### $1')
-      .replace(/<h4>(.*?)<\/h4>/g, '#### $1')
-      .replace(/<h5>(.*?)<\/h5>/g, '##### $1')
-      .replace(/<h6>(.*?)<\/h6>/g, '###### $1')
+      .replace(/<h1>(.*?)<\/h1>/g, '# $1\n\n')
+      .replace(/<h2>(.*?)<\/h2>/g, '## $1\n\n')
+      .replace(/<h3>(.*?)<\/h3>/g, '### $1\n\n')
+      .replace(/<h4>(.*?)<\/h4>/g, '#### $1\n\n')
+      .replace(/<h5>(.*?)<\/h5>/g, '##### $1\n\n')
+      .replace(/<h6>(.*?)<\/h6>/g, '###### $1\n\n')
       .replace(/<(b|strong)>(.*?)<\/\1>/g, '**$2**')
       .replace(/<(i|em)>(.*?)<\/\1>/g, '*$2*')
-      .replace(/<ul>/g, '')
-      .replace(/<\/ul>/g, '')
-      .replace(/<li>(.*?)<\/li>/g, '- $1')
-      .replace(/<p>(.*?)<\/p>/g, '$1\n')
+      .replace(/<p>(.*?)<\/p>/g, '$1\n\n')
       .replace(/<br\s*\/?>/gi, '\n')
-      // Convert highlights to Obsidian Markdown highlighting
       .replace(/<span[^>]*?style="background-color:[^"]*"[^>]*>(.*?)<\/span>/gi, '==$1==')
-      // Remove any remaining HTML tags
       .replace(/<\/?[^>]+(>|$)/g, '')
+      .replace(/\n{3,}/g, '\n\n')  // Replace multiple newlines with just two
       .trim();
   }
   
+  function convertLists(html, indent = '') {
+    return html.replace(/<(ul|ol)>([\s\S]*?)<\/\1>/g, (match, listType, content) => {
+      const listItems = content.match(/<li>([\s\S]*?)<\/li>/g) || [];
+      return listItems.map((item, index) => {
+        const itemContent = item.replace(/<li>|<\/li>/g, '').trim();
+        if (!itemContent) return '';  // Skip empty list items
+        
+        const bullet = listType === 'ol' ? `${index + 1}.` : '-';
+        const processedItem = convertLists(itemContent, indent + '  ');
+        const lines = processedItem.split('\n').map((line, i) => 
+          i === 0 ? `${indent}${bullet} ${line}` : `${indent}  ${line}`
+        );
+        return lines.join('\n');
+      }).filter(Boolean).join('\n') + '\n';
+    });
+  }
   
-
 
 getSelectedItemsData(items);

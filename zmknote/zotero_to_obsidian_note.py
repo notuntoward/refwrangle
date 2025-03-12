@@ -43,13 +43,13 @@ aliases:
 - "{{ title }}"
 - "{{ truncateTitle(title, 5) }}"
 citekey: {{ citekey }}
-ZoteroTags:
+ZoteroTags: 
 {% for tag in tags %}
-- {{ tag.tag | lower | replace(" ", "_") }}
+- {{ tag | lower | replace(" ", "_") }}
 {% endfor %}
-ZoteroCollections:
+ZoteroCollections: 
 {% for collection in collections %}
-- {{ collection.name | lower | replace(" ", "_") }}
+- {{ collection | lower | replace(" ", "_") }}
 {% endfor %}
 created date: {{ exportDate }}
 modified date:
@@ -85,6 +85,7 @@ modified date:
 > **Pages**:: {{ pages }}
 > **ISBN**:: {{ ISBN }}
 > **ZoteroTags**:: {{ allTags }}
+> **ZoteroCollections**:: {{ collections }}
 > **Related**::{% for relation in relations if relation.citekey %} [[@{{ relation.citekey }}]]{% if not loop.last %}, {% endif %}{% endfor %}
 
 

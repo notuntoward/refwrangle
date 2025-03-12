@@ -19,13 +19,12 @@ def webhook_listener():
             processed_data = [dict(item) for item in data]  # Convert each top-level element into a dict
             
             # Log or process the data as needed
-#            print("Received and parsed data")
-            print("Received and processed data:", processed_data)
+            print("Received and parsed data")
+            # print("Received and processed data:", processed_data)
             
             for item in processed_data:
-                ic(item["citekey"])
                 output_file = output_dir / f'{item["citekey"]}.md'
-                
+                ic(item['citekey'])
                 try: 
                     with output_file.open('w', encoding='utf-8') as f:
                         template = Template(z2o.template_str, trim_blocks=True, lstrip_blocks=True)
@@ -37,7 +36,7 @@ def webhook_listener():
 
             return jsonify({"status": "success", "message": "Data received and processed"}), 200
         else:
-            return jsonify({"status": "error", "message": "Invalid data format"}), 400
+            return jsonify({"status": "error", "message": "Invalid data format.  Expected a list."}), 400
     
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500
