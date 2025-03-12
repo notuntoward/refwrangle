@@ -2,7 +2,7 @@ async function getSelectedItemsData(items) {
     // Ensure items are passed to the script
     if (!items || items.length === 0) {
         Zotero.debug("No items selected.");
-        return; // Silent failure, no popup
+        return; 
     }
 
     let results = [];
@@ -70,7 +70,7 @@ async function getSelectedItemsData(items) {
             let noteItem = Zotero.Items.get(noteID);
             if (noteItem) {
                 const htmlNote = noteItem.getNote();
-                const markdownNote = htmlToMarkdown(htmlNote); // Convert HTML to Markdown
+                const markdownNote = htmlToMarkdown(htmlNote);
                 notes.push(markdownNote);
             }
         }
@@ -119,6 +119,7 @@ async function getSelectedItemsData(items) {
 
     const jsonString = JSON.stringify(results, null, 2);
 
+    // For debugging, save to the specified Windows path
     try {
         const filePathString = "C:\\Users\\scott\\tmp\\zotero_item_dat.json";
         
@@ -135,6 +136,17 @@ async function getSelectedItemsData(items) {
         
     } catch (error) {
       Zotero.debug(error);
+    }
+
+    // webhook output
+    try {
+        await fetch("http://localhost:5050", { // Send JSON to webhook listener
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: jsonString
+        });
+    } catch (error) {
+        Zotero.debug(`Failed to send data to webhook listener on port 5050: ${error}`);
     }
 }
 
@@ -178,5 +190,5 @@ function htmlToMarkdown(html) {
          .trim();
 }
 
-// Execute the function using the `items` variable provided by Zotero Actions and Tags
+
 getSelectedItemsData(items);
