@@ -4,6 +4,7 @@ plugin requires.  Formattig is a similar to notes created by Zotero Integraion,
 in fact, the jinja2 template used here tries to match the output of my Zotero Integration
 nunjucks template (currently Obsidian/templates/literature note.md)."""
 
+import html
 import pathlib as pl
 import re
 import sys
@@ -14,6 +15,9 @@ from icecream import ic
 from jinja2 import Template
 from markdownify import markdownify
 from pyzotero import zotero
+from bs4 import BeautifulSoup
+import json
+from urllib.parse import unquote
 
 # Define paths and credentials
 refwrangle_dir = pl.Path('~/ref/refwrangle').expanduser()
@@ -108,7 +112,7 @@ ___
 {%- endfor -%}
 {% endif %}
 """
-
+# %%
 def parse_date(date_str: str, format_dts: str) -> str:
     """Parses a date string and returns it in a standard format."""
     try:
@@ -118,15 +122,329 @@ def parse_date(date_str: str, format_dts: str) -> str:
         print(f"Error parsing date {date_str}: {e}")
         return ''
 
+
+# raw perplexity, not the original that worked in the test file
+# def zotero_note_html_to_md(html_content: str):
+#     """Convert Zotero note HTML content to Obsidian-compatible markdown"""
+#     if not html_content:
+#         return ""
+        
+#     soup = BeautifulSoup(html_content, 'html.parser')
+    
+#     # Process citations with correct Zotero URI format
+#     for citation in soup.find_all('span', class_='citation'):
+#         citation_item = citation.find('span', class_='citation-item')
+#         if citation_item and citation.get('data-citation'):
+#             try:
+#                 citation_data = unquote(citation['data-citation'])
+#                 citation_json = json.loads(citation_data, strict=False)
+                
+#                 if citation_json.get('citationItems') and citation_json['citationItems'][0].get('uris'):
+#                     raw_uri = citation_json['citationItems'][0]['uris'][0]
+#                     item_id = raw_uri.split('/')[-1]
+#                     zotero_uri = f"zotero://select/library/items/{item_id}"
+#                     citation.replace_with(f"[{citation_item.text}]({zotero_uri})")
+#             except Exception as e:
+#                 print(f"Citation parsing error: {e}")
+#                 citation.replace_with(citation_item.text)
+    
+#     # Process formatting tags
+#     for tag in soup.find_all(['b', 'strong']):
+#         tag.replace_with(f"**{tag.get_text()}**")
+    
+#     for tag in soup.find_all(['i', 'em']):
+#         tag.replace_with(f"*{tag.get_text()}*")
+    
+#     for span in soup.find_all('span'):
+#         if span.get('style') and 'background-color' in span.get('style'):
+#             span.replace_with(f"=={span.get_text()}==")
+    
+#     # Build markdown document
+#     md_lines = []
+    
+#     # Get content area - body or whole document
+#     content_area = soup.body if soup.body else soup
+    
+#     # Process all headings throughout the document
+#     for heading in content_area.find_all(['h1', 'h2', 'h3', 'h4', 'h5', 'h6']):
+#         level = int(heading.name[1])
+#         md_lines.append(f"{'#' * level} {heading.get_text().strip()}")
+    
+#     # Process all paragraphs
+#     for para in content_area.find_all('p'):
+#         if para.get_text().strip():
+#             md_lines.append(para.get_text().strip())
+    
+#     # Process lists - only top-level ones to avoid duplication
+#     for list_elem in [lst for lst in content_area.find_all(['ul', 'ol']) 
+#                       if not lst.find_parent(['ul', 'ol'])]:
+#         list_lines = process_list(list_elem, is_root=True)
+#         md_lines.extend(list_lines)
+    
+#     # Process blockquotes
+#     for quote in content_area.find_all('blockquote'):
+#         quote_lines = quote.get_text().strip().split('\n')
+#         md_lines.append('\n'.join([f"> {line.strip()}" for line in quote_lines]))
+    
+#     # Fallback: If no structured content found, try divs
+#     if not md_lines:
+#         for div in content_area.find_all('div'):
+#             if div.get_text().strip():
+#                 md_lines.append(div.get_text().strip())
+    
+#     # Last resort: get all text if nothing else worked
+#     if not md_lines and content_area.get_text().strip():
+#         md_lines.append(content_area.get_text().strip())
+    
+#     # Join lines with proper spacing
+#     markdown = '\n\n'.join(md_lines)
+    
+#     return markdown.strip()
+
+# def process_list(list_element: BeautifulSoup, is_root: bool = False, prefix: str = '') -> list[str]:
+#     """Process a list element with proper indentation for nested lists"""
+#     lines = []
+    
+#     for li in list_element.find_all('li', recursive=False):
+#         # Get list item text (without nested lists)
+#         item_text = get_list_item_text(li)
+        
+#         # Format the list item with proper indentation
+#         lines.append(f"{prefix}- {item_text}")
+        
+#         # Process nested lists with tab indentation
+#         for nested_list in li.find_all(['ul', 'ol'], recursive=False):
+#             # Use a tab character for nested lists
+#             nested_prefix = '\t' if is_root else prefix + '\t'
+#             nested_lines = process_list(nested_list, is_root=False, prefix=nested_prefix)
+#             lines.extend(nested_lines)
+    
+#     return lines
+
+# def get_list_item_text(li_element: BeautifulSoup) -> str:
+#     """Extract text content from a list item, excluding nested lists"""
+#     # Check for paragraphs first
+#     paragraphs = li_element.find_all('p', recursive=False)
+#     if paragraphs:
+#         return paragraphs[0].get_text().strip()
+    
+#     # Otherwise collect direct text content
+#     content = []
+#     for child in li_element.children:
+#         if isinstance(child, str):
+#             if child.strip():
+#                 content.append(child.strip())
+#         elif hasattr(child, 'name') and child.name not in ['ul', 'ol']:
+#             text = child.get_text().strip()
+#             if text:
+#                 content.append(text)
+    
+#     return ' '.join(content).strip()
+    
+# def zotero_note_html_to_md(html_content: str):
+#     """Convert Zotero note HTML content to Obsidian-compatible markdown"""
+    
+#     soup = BeautifulSoup(html_content.splitlines(), 'html.parser')
+    
+#     # Process citations with correct Zotero URI format
+#     for citation in soup.find_all('span', class_='citation'):
+#         citation_item = citation.find('span', class_='citation-item')
+#         if citation_item and citation.get('data-citation'):
+#             try:
+#                 citation_data = unquote(citation['data-citation'])
+#                 citation_json = json.loads(citation_data, strict=False)
+                
+#                 if citation_json.get('citationItems') and citation_json['citationItems'][0].get('uris'):
+#                     raw_uri = citation_json['citationItems'][0]['uris'][0]
+#                     item_id = raw_uri.split('/')[-1]
+#                     zotero_uri = f"zotero://select/library/items/{item_id}"
+#                     citation.replace_with(f"[{citation_item.text}]({zotero_uri})")
+#             except Exception as e:
+#                 print(f"Citation parsing error: {e}")
+#                 citation.replace_with(citation_item.text)
+    
+#     # Process formatting tags
+#     for tag in soup.find_all(['b', 'strong']):
+#         tag.replace_with(f"**{tag.get_text()}**")
+    
+#     for tag in soup.find_all(['i', 'em']):
+#         tag.replace_with(f"*{tag.get_text()}*")
+    
+#     for span in soup.find_all('span'):
+#         if span.get('style') and 'background-color' in span.get('style'):
+#             span.replace_with(f"=={span.get_text()}==")
+    
+#     # Build markdown document
+#     md_lines = []
+    
+#     # Process each type of element in order of appearance
+#     for element in soup.body.children if soup.body else soup.children:
+#         ic(element.name)
+#         if element.name:
+#             if element.name.startswith('h'):
+#                 level = int(element.name[1])
+#                 md_lines.append(f"{'#' * level} {element.get_text().strip()}")
+#             elif element.name in ['ul', 'ol']:
+#                 list_lines = process_list(element, is_root=True)
+#                 md_lines.extend(list_lines)
+#             elif element.name == 'blockquote':
+#                 quote_lines = element.get_text().strip().split('\n')
+#                 md_lines.append('\n'.join([f"> {line.strip()}" for line in quote_lines]))
+#             elif element.name == 'p' and element.get_text().strip():
+#                 md_lines.append(element.get_text().strip())
+    
+#     ic(md_lines)
+#     # Join lines with proper spacing - using single newlines to match expected output
+#     markdown = '\n'.join(md_lines)
+    
+#     return markdown.strip()
+
+# def process_list(list_element: BeautifulSoup, is_root: bool = False, prefix: str = '') -> list[str]:
+#     """Process a list element with proper indentation for nested lists"""
+#     lines = []
+    
+#     for li in list_element.find_all('li', recursive=False):
+#         # Get list item text (without nested lists)
+#         item_text = get_list_item_text(li)
+        
+#         # Format the list item with proper indentation
+#         lines.append(f"{prefix}- {item_text}")
+        
+#         # Process nested lists with tab indentation
+#         for nested_list in li.find_all(['ul', 'ol'], recursive=False):
+#             # Use a tab character for nested lists
+#             nested_prefix = '\t' if is_root else prefix + '\t'
+#             nested_lines = process_list(nested_list, is_root=False, prefix=nested_prefix)
+#             lines.extend(nested_lines)
+    
+#     return lines
+
+# def get_list_item_text(li_element: BeautifulSoup) -> str:
+#     """Extract text content from a list item, excluding nested lists"""
+#     # Check for paragraphs first
+#     paragraphs = li_element.find_all('p', recursive=False)
+#     if paragraphs:
+#         return paragraphs[0].get_text().strip()
+    
+#     # Otherwise collect direct text content
+#     content = []
+#     for child in li_element.children:
+#         if isinstance(child, str):
+#             if child.strip():
+#                 content.append(child.strip())
+#         elif hasattr(child, 'name') and child.name not in ['ul', 'ol']:
+#             text = child.get_text().strip()
+#             if text:
+#                 content.append(text)
+    
+#     return ' '.join(content).strip()
+
+def zotero_note_html_to_md(html_content: str):
+    """Convert Zotero note HTML content to Obsidian-compatible markdown"""
+    soup = BeautifulSoup(html_content, 'html.parser')
+    
+    # Process citations with correct Zotero URI format
+    for citation in soup.find_all('span', class_='citation'):
+        citation_item = citation.find('span', class_='citation-item')
+        if citation_item and citation.get('data-citation'):
+            try:
+                citation_data = unquote(citation['data-citation'])
+                citation_json = json.loads(citation_data, strict=False)
+                
+                if citation_json.get('citationItems') and citation_json['citationItems'][0].get('uris'):
+                    raw_uri = citation_json['citationItems'][0]['uris'][0]
+                    item_id = raw_uri.split('/')[-1]
+                    zotero_uri = f"zotero://select/library/items/{item_id}"
+                    citation.replace_with(f"[{citation_item.text}]({zotero_uri})")
+            except Exception as e:
+                print(f"Citation parsing error: {e}")
+                citation.replace_with(citation_item.text)
+    
+    # Process formatting tags
+    for tag in soup.find_all(['b', 'strong']):
+        tag.replace_with(f"**{tag.get_text()}**")
+    
+    for tag in soup.find_all(['i', 'em']):
+        tag.replace_with(f"*{tag.get_text()}*")
+    
+    for span in soup.find_all('span'):
+        if span.get('style') and 'background-color' in span.get('style'):
+            span.replace_with(f"=={span.get_text()}==")
+    
+    # Build markdown document
+    md_lines = []
+    
+    # Process each type of element in order of appearance
+    for element in soup.body.children if soup.body else soup.children:
+        if element.name:
+            if element.name.startswith('h'):
+                level = int(element.name[1])
+                md_lines.append(f"{'#' * level} {element.get_text().strip()}")
+            elif element.name in ['ul', 'ol']:
+                list_lines = process_list(element, is_root=True)
+                md_lines.extend(list_lines)
+            elif element.name == 'blockquote':
+                quote_lines = element.get_text().strip().split('\n')
+                md_lines.append('\n'.join([f"> {line.strip()}" for line in quote_lines]))
+            elif element.name == 'p' and element.get_text().strip():
+                md_lines.append(element.get_text().strip())
+    
+    # Join lines with proper spacing - using single newlines to match expected output
+    markdown = '\n'.join(md_lines)
+    
+    return markdown.strip()
+
+def process_list(list_element: BeautifulSoup, is_root: bool = False, prefix: str = '') -> list[str]:
+    """Process a list element with proper indentation for nested lists"""
+    lines = []
+    
+    for li in list_element.find_all('li', recursive=False):
+        # Get list item text (without nested lists)
+        item_text = get_list_item_text(li)
+        
+        # Format the list item with proper indentation
+        lines.append(f"{prefix}- {item_text}")
+        
+        # Process nested lists with tab indentation
+        for nested_list in li.find_all(['ul', 'ol'], recursive=False):
+            # Use a tab character for nested lists
+            nested_prefix = '\t' if is_root else prefix + '\t'
+            nested_lines = process_list(nested_list, is_root=False, prefix=nested_prefix)
+            lines.extend(nested_lines)
+    
+    return lines
+
+def get_list_item_text(li_element: BeautifulSoup) -> str:
+    """Extract text content from a list item, excluding nested lists"""
+    # Check for paragraphs first
+    paragraphs = li_element.find_all('p', recursive=False)
+    if paragraphs:
+        return paragraphs[0].get_text().strip()
+    
+    # Otherwise collect direct text content
+    content = []
+    for child in li_element.children:
+        if isinstance(child, str):
+            if child.strip():
+                content.append(child.strip())
+        elif hasattr(child, 'name') and child.name not in ['ul', 'ol']:
+            text = child.get_text().strip()
+            if text:
+                content.append(text)
+    
+    return ' '.join(content).strip()
+
 def write_literature_note(item_key: str, output_file: pl.Path, item_data: dict, 
                           collection_key_to_name: dict, zot: zotero.Zotero) -> None:
     """Creates an Obsidian literature note from a Zotero item."""
     # Fetch collections for this item
     try:
-        collections = [
-            {'key': key, 'name': collection_key_to_name[key]}
-            for key in item_data['collections']
-        ]
+        collections = [collection_key_to_name[key] for key in item_data['collections']]
+        # TODO: someday, change the javascript and restore the below
+        # This was compatible w/ nunjucks, but a bother to do in javascript
+        # collections = [
+        #     {'key': key, 'name': collection_key_to_name[key]}
+        #     for key in item_data['collections']]
     except Exception as e:
         print(f"Error fetching collections: {e}")
         raise
@@ -159,24 +477,29 @@ def write_literature_note(item_key: str, output_file: pl.Path, item_data: dict,
             if child['data']['itemType'] == 'note':
                 # Convert HTML notes to Markdown
                 html_note = child['data'].get('note', '')
-                markdown_note = markdownify(html_note) if html_note else ''
+                ic(html_note)
+                pl.Path(r"C:\Users\scott\tmp\html_content.html").write_text(html_note)
+                markdown_note = zotero_note_html_to_md(html_note) if html_note else ''
+                ic(markdown_note)
+                notes.append(markdown_note)
 
-                # Custom formatting adjustments
-                markdown_note = re.sub(r'\*\*%', r'**', markdown_note)  # Fix bolded percentages
-                markdown_note = markdown_note.replace('+', '-')  # Escape '+' characters
+                # markdown_note = markdownify(html_note) if html_note else ''
+                # # Custom formatting adjustments
+                # markdown_note = re.sub(r'\*\*%', r'**', markdown_note)  # Fix bolded percentages
+                # markdown_note = markdown_note.replace('+', '-')  # Escape '+' characters
 
-                # Improved list formatting
-                markdown_note = re.sub(
-                    r'^\s*([+\-*])\s*(.*)$', r'\1 \2', markdown_note, flags=re.MULTILINE
-                )  # Fix up lists
-                notes.append({
-                    'note': markdown_note,
-                    # TODO: verify that this is really the date the note (not entry) was modified, or just get rid of it
-                    'dateModified': parse_date(child['data'].get('dateModified'), '%Y-%m-%d %H:%M:%S'),
-                    'key': child['data'].get('key'),
-                    'uri': child['data'].get('uri'),
-                    'tags': child['data'].get('tags', []),
-                })
+                # # Improved list formatting
+                # markdown_note = re.sub(
+                #     r'^\s*([+\-*])\s*(.*)$', r'\1 \2', markdown_note, flags=re.MULTILINE
+                # )  # Fix up lists
+                # notes.append({
+                #     'note': markdown_note,
+                #     # TODO: verify that this is really the date the note (not entry) was modified, or just get rid of it
+                #     'dateModified': parse_date(child['data'].get('dateModified'), '%Y-%m-%d %H:%M:%S'),
+                #     'key': child['data'].get('key'),
+                #     'uri': child['data'].get('uri'),
+                #     'tags': child['data'].get('tags', []),
+                # })
     except Exception as e:
         print(f"Could not fetch notes: {e}")
         raise
@@ -197,12 +520,17 @@ def write_literature_note(item_key: str, output_file: pl.Path, item_data: dict,
         print(f"Could not fetch attachments: {e}")
         raise
 
-    # Prepare data dictionary for the template
+    
+    # Make the data dict for the jinja2 template
+    all_tags = [tag['tag'] for tag in item_data.get('tags', [])]
     citekey = rfw.get_citation_key(item_data)
+
     data = {
         'title': item_data.get('title', ''),
         'citekey': citekey,
-        'tags': item_data.get('tags', []),
+        'tags': all_tags,
+        # TODO: below is compatible w/ nunjucks, but a bother to do in javascript.  Go back to it someday?
+        # 'tags': item_data.get('tags', []),
         'collections': collections,
         'exportDate': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
         'desktopURI': f'zotero://select/library/items/{item_key}',
@@ -220,14 +548,14 @@ def write_literature_note(item_key: str, output_file: pl.Path, item_data: dict,
         'place': item_data.get('place', ''),
         'pages': item_data.get('pages', ''),
         'ISBN': item_data.get('ISBN', ''),
-        'allTags': [tag['tag'] for tag in item_data.get('tags', [])],
+        'allTags': all_tags,
         'relations': related_items,
         'bibliography': rfw.get_bibliography_bbt_api(citekey),
         'notes': notes,
         'attachments': attachments,
     }
 
-    ic(data['exportDate'], type(data['exportDate']))
+    #ic(data)
     # Render the template
     template = Template(template_str, trim_blocks=True, lstrip_blocks=True)
     output_text = template.render(**data)
