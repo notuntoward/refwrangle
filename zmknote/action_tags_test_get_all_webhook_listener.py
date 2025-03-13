@@ -27,6 +27,8 @@ def webhook_listener():
                 notes_md = []
                 for note_html in item_json['notes']:
                     # remove mystery <div> @ top
+                    # debugging
+                    print(note_html.splitlines()[0]) # mystery div
                     note_html = "\n".join(note_html.splitlines()[1:])
                     notes_md.append(z2o.zotero_note_html_to_md(note_html))
 

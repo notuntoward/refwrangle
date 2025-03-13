@@ -1,8 +1,13 @@
 """Python functions for converting a zotero item's metadata into an obsidian note. Intended 
 to be called directly from zotero, instead of from Obsidian, as the Obsidian Zotero Integration 
-plugin requires.  Formattig is a similar to notes created by Zotero Integraion,
+plugin requires.  Formatting is a similar to notes created by Zotero Integraion,
 in fact, the jinja2 template used here tries to match the output of my Zotero Integration
-nunjucks template (currently Obsidian/templates/literature note.md)."""
+nunjucks template (currently Obsidian/templates/literature note.md).
+
+This code  populates a dict with data obtained from pyzotero but the functions here
+Can also use data from the Zotero actions and tags plugin, specifically the javascript
+I 'wrote' for it.  That scripts feeds a webhook listener, which strips off a mystery <div>
+prepended to zotero item notes export."""
 
 import html
 import pathlib as pl
@@ -122,9 +127,92 @@ def parse_date(date_str: str, format_dts: str) -> str:
         print(f"Error parsing date {date_str}: {e}")
         return ''
 
-def zotero_note_html_to_md(html_content: str):
-    """Convert Zotero note HTML content to Obsidian-compatible markdown"""
+# def zotero_note_html_to_md(html_content: str):
+#     """Convert Zotero note HTML content to Obsidian-compatible markdown"""
+#     soup = BeautifulSoup(html_content, 'html.parser')
+    
+#     # Process citations with correct Zotero URI format
+#     for citation in soup.find_all('span', class_='citation'):
+#         citation_item = citation.find('span', class_='citation-item')
+#         if citation_item and citation.get('data-citation'):
+#             try:
+#                 citation_data = unquote(citation['data-citation'])
+#                 citation_json = json.loads(citation_data, strict=False)
+                
+#                 if citation_json.get('citationItems') and citation_json['citationItems'][0].get('uris'):
+#                     raw_uri = citation_json['citationItems'][0]['uris'][0]
+#                     item_id = raw_uri.split('/')[-1]
+#                     zotero_uri = f"zotero://select/library/items/{item_id}"
+#                     citation.replace_with(f"[{citation_item.text}]({zotero_uri})")
+#             except Exception as e:
+#                 print(f"Citation parsing error: {e}")
+#                 citation.replace_with(citation_item.text)
+    
+#     # Process formatting tags
+#     for tag in soup.find_all(['b', 'strong']):
+#         tag.replace_with(f"**{tag.get_text()}**")
+    
+#     for tag in soup.find_all(['i', 'em']):
+#         tag.replace_with(f"*{tag.get_text()}*")
+    
+#     for span in soup.find_all('span'):
+#         if span.get('style') and 'background-color' in span.get('style'):
+#             span.replace_with(f"=={span.get_text()}==")
+    
+#     # Build markdown document
+#     md_lines = []
+    
+#     # Process each type of element in order of appearance
+#     for element in soup.body.children if soup.body else soup.children:
+#         if element.name:
+#             if element.name.startswith('h'):
+#                 level = int(element.name[1])
+#                 md_lines.append(f"{'#' * level} {element.get_text().strip()}")
+#             elif element.name in ['ul', 'ol']:
+#                 list_lines = process_list(element, is_root=True)
+#                 md_lines.extend(list_lines)
+#             elif element.name == 'blockquote':
+#                 quote_lines = element.get_text().strip().split('\n')
+#                 md_lines.append('\n'.join([f"> {line.strip()}" for line in quote_lines]))
+#             elif element.name == 'p' and element.get_text().strip():
+#                 md_lines.append(element.get_text().strip())
+    
+#     # Add proper spacing
+#     result_lines = [""]  # Start with a blank line at the top
+    
+#     # Helper function to check if a line is a paragraph (not a list item, header, or blockquote)
+#     def is_paragraph(line):
+#         return line.strip() and not line.strip().startswith(('- ', '#', '>'))
+    
+#     # Process each line
+#     for i, line in enumerate(md_lines):
+#         # Add the current line
+#         result_lines.append(line)
+        
+#         # If current line and next line are both paragraphs, add a blank line between them
+#         if i < len(md_lines) - 1 and is_paragraph(line) and is_paragraph(md_lines[i+1]):
+#             result_lines.append("")
+    
+#     # Join the result lines
+#     markdown = '\n'.join(result_lines)
+    
+#     return markdown
+
+def zotero_note_html_to_md(html_content: str, remove_first_div: bool = False):
+    """
+    Convert Zotero note HTML content to Obsidian-compatible markdown
+    
+    Args:
+        html_content: The HTML content to convert
+        remove_first_div: If True, removes the first div section if it exists
+    """
     soup = BeautifulSoup(html_content, 'html.parser')
+    
+    # Remove the first div if requested and if it exists
+    if remove_first_div:
+        first_div = soup.find('div')
+        if first_div:
+            first_div.extract()  # Removes the element from the tree
     
     # Process citations with correct Zotero URI format
     for citation in soup.find_all('span', class_='citation'):
@@ -277,28 +365,9 @@ def write_literature_note(item_key: str, output_file: pl.Path, item_data: dict,
                 # Convert HTML notes to Markdown
                 html_note = child['data'].get('note', '')
                 ic(html_note)
-                pl.Path(r"C:\Users\scott\tmp\html_content.html").write_text(html_note)
-                markdown_note = zotero_note_html_to_md(html_note) if html_note else ''
+                markdown_note = zotero_note_html_to_md(html_note, remove_first_div=True) if html_note else ''
                 ic(markdown_note)
                 notes.append(markdown_note)
-
-                # markdown_note = markdownify(html_note) if html_note else ''
-                # # Custom formatting adjustments
-                # markdown_note = re.sub(r'\*\*%', r'**', markdown_note)  # Fix bolded percentages
-                # markdown_note = markdown_note.replace('+', '-')  # Escape '+' characters
-
-                # # Improved list formatting
-                # markdown_note = re.sub(
-                #     r'^\s*([+\-*])\s*(.*)$', r'\1 \2', markdown_note, flags=re.MULTILINE
-                # )  # Fix up lists
-                # notes.append({
-                #     'note': markdown_note,
-                #     # TODO: verify that this is really the date the note (not entry) was modified, or just get rid of it
-                #     'dateModified': parse_date(child['data'].get('dateModified'), '%Y-%m-%d %H:%M:%S'),
-                #     'key': child['data'].get('key'),
-                #     'uri': child['data'].get('uri'),
-                #     'tags': child['data'].get('tags', []),
-                # })
     except Exception as e:
         print(f"Could not fetch notes: {e}")
         raise
@@ -415,3 +484,5 @@ if __name__ == '__main__':
     output_dir = pl.Path(r'C:\Users\scott\OneDrive\share\ref\obsidian\Obsidian Share Vault\Scratch Space')
 
     write_literature_notes(item_keys, output_dir)
+
+# %%
