@@ -199,6 +199,44 @@ def parse_date(date_str: str, format_dts: str) -> str:
 #     return markdown
 
 def zotero_note_html_to_md(html_content: str, remove_first_div: bool = False):
+    soup = BeautifulSoup(html_content, 'html.parser')
+    
+    # Process citations
+    for citation in soup.find_all('span', class_='citation'):
+        citation_item = citation.find('span', class_='citation-item')
+        if citation_item and citation.get('data-citation'):
+            try:
+                citation_data = unquote(citation['data-citation'])
+                citation_json = json.loads(citation_data, strict=False)
+                if citation_json.get('citationItems') and citation_json['citationItems'][0].get('uris'):
+                    raw_uri = citation_json['citationItems'][0]['uris'][0]
+                    item_id = raw_uri.split('/')[-1]
+                    zotero_uri = f"zotero://select/library/items/{item_id}"
+                    citation.replace_with(f"[{citation_item.text}]({zotero_uri})")
+            except Exception as e:
+                print(f"Citation parsing error: {e}")
+                citation.replace_with(citation_item.text)
+    
+    # Split the content into lines
+    lines = soup.get_text().strip().split('\n')
+    
+    # Process lines
+    md_lines = []
+    for line in lines:
+        line = line.strip()
+        if line:
+            if line.startswith('-'):
+                md_lines.append(line)  # Keep bullet points as is
+            else:
+                md_lines.append(line)
+    
+    # Join the lines with double newlines to create paragraphs
+    markdown = '\n\n'.join(md_lines)
+    
+    return markdown
+
+
+def zotero_note_html_to_md(html_content: str, remove_first_div: bool = False):
     """
     Convert Zotero note HTML content to Obsidian-compatible markdown
     
@@ -208,20 +246,26 @@ def zotero_note_html_to_md(html_content: str, remove_first_div: bool = False):
     """
     soup = BeautifulSoup(html_content, 'html.parser')
 
-    print("\nWHAT'S THERE BEFORE REMOVING FIRST DIV (OR NOT)\n")
-    for element in soup.body.children:
-        print(element)
     
     # Remove the first div if requested and if it exists
     if remove_first_div:
         first_div = soup.find('div')
         if first_div:
-            first_div.extract()  # Removes the element from the tree
+            print("\nWHAT WAS IN THE HTML\n")
+            print(html_content)
+
+            print("\nWHAT'S IN THE FIRST DIV (OR NOT)\n")
+            first_div = soup.find('div')
+            print(first_div.text)
             
-    print("\nWHAT'S LEFT AFTER REMOVING FIRST DIV (OR NOT)\n")
-    for element in soup.body.children:
-        print(element)
-    
+            first_div.extract()  # Removes the element from the tree
+
+            print("\nWHAT'S LEFT (OR NOT) AFTER EXTRACT\n")
+            print(soup)
+            print("\nEND of what's left after the extract (or not)\n")
+        else:
+            print("\nNO FIRST DIV\n")
+            
     # Process citations with correct Zotero URI format
     for citation in soup.find_all('span', class_='citation'):
         citation_item = citation.find('span', class_='citation-item')
@@ -372,8 +416,8 @@ def write_literature_note(item_key: str, output_file: pl.Path, item_data: dict,
             if child['data']['itemType'] == 'note':
                 # Convert HTML notes to Markdown
                 html_note = child['data'].get('note', '')
-                print(html_note)
-                markdown_note = zotero_note_html_to_md(html_note, remove_first_div=True) if html_note else ''
+                #print(html_note)
+                markdown_note = zotero_note_html_to_md(html_note, remove_first_div=False) if html_note else ''
                 ic(markdown_note)
                 notes.append(markdown_note)
     except Exception as e:
@@ -479,15 +523,15 @@ def write_literature_notes(item_keys: list[str], output_dir: pl.Path, local_api:
         output_file = output_dir / f'{rfw.get_citation_key(item_data_this)}.md'
         
         write_literature_note(item_key, output_file, item_data_this , collection_key_to_name, zot)
-        
     print("Done.")
     timer.mark()
 
 if __name__ == '__main__':
     # Example usage with a single item key
-    # item_keys = ['I4G6IXQS']
+    # item_keys = ['I4G6IXQS'] # <div> wraps whole note
+    item_keys = ['U7NTFFTP']  # Example with two keys
     # Example usage with a list of item keys
-    item_keys = ['I4G6IXQS', 'U7NTFFTP']  # Example with two keys
+    #item_keys = ['I4G6IXQS', 'U7NTFFTP']  # Example with two keys
     
     output_dir = pl.Path(r'C:\Users\scott\OneDrive\share\ref\obsidian\Obsidian Share Vault\Scratch Space')
 
