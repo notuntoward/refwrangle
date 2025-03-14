@@ -207,12 +207,20 @@ def zotero_note_html_to_md(html_content: str, remove_first_div: bool = False):
         remove_first_div: If True, removes the first div section if it exists
     """
     soup = BeautifulSoup(html_content, 'html.parser')
+
+    print("\nWHAT'S THERE BEFORE REMOVING FIRST DIV (OR NOT)\n")
+    for element in soup.body.children:
+        print(element)
     
     # Remove the first div if requested and if it exists
     if remove_first_div:
         first_div = soup.find('div')
         if first_div:
             first_div.extract()  # Removes the element from the tree
+            
+    print("\nWHAT'S LEFT AFTER REMOVING FIRST DIV (OR NOT)\n")
+    for element in soup.body.children:
+        print(element)
     
     # Process citations with correct Zotero URI format
     for citation in soup.find_all('span', class_='citation'):
@@ -364,7 +372,7 @@ def write_literature_note(item_key: str, output_file: pl.Path, item_data: dict,
             if child['data']['itemType'] == 'note':
                 # Convert HTML notes to Markdown
                 html_note = child['data'].get('note', '')
-                ic(html_note)
+                print(html_note)
                 markdown_note = zotero_note_html_to_md(html_note, remove_first_div=True) if html_note else ''
                 ic(markdown_note)
                 notes.append(markdown_note)

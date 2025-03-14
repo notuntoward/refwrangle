@@ -228,7 +228,8 @@ if use_json_input:
         item_jsons = [dict(item) for item in data]  # Convert each top-level element into a dict
         # assume it's a single zotero item, so only one json in the list
         TEST_HTML_JSON = item_jsons[0]['notes'][0]
-        TEST_HTML = "\n".join(TEST_HTML_JSON.splitlines()[1:]) # remove mystery <div> @ top
+        print("REMOVED DIV REMOVAL")
+        #TEST_HTML = "\n".join(TEST_HTML_JSON.splitlines()[1:]) # remove mystery <div> @ top
     else:
         raise ValueError('expected a list')
 
