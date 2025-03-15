@@ -1,6 +1,0 @@
-{
-  "dependencies": {
-    "chokidar": "^3.6.0",
-    "nunjucks": "^3.2.4"
-  }
-}
