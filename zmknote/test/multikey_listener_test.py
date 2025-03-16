@@ -1,6 +1,8 @@
 """A test of a flask webhook interface with zotero, with dialog buttons that popup if the file the 
 listener wants to generate already exists.  The only way to do this in a decent way in python was to
-popup the dialog in a browser, unfortunately.
+popup the dialog in a browser, unfortunately.  The exruciating details are here:
+
+https://www.perplexity.ai/search/the-javascript-below-is-intend-Tic7.jP4TQiZ6R9CAl9EBQ
 
 The companion javascript for this goes in zotero action and tags plugin. and is multikey_sender_test.js"""
 
