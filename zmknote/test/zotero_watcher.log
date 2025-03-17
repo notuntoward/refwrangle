@@ -1,0 +1,168 @@
+2025-03-16 23:17:12,800 - INFO - Starting Zotero Citation Key Watcher
+2025-03-16 23:17:12,801 - INFO - Storage directory path: C:\Users\scott\tmp\zotero_items
+2025-03-16 23:17:12,802 - INFO - Log file: C:\Users\scott\OneDrive\share\ref\refwrangle\zmknote\test\zotero_watcher.log
+2025-03-16 23:17:12,802 - INFO - Storage directory exists or was created successfully
+2025-03-16 23:17:12,812 - INFO - Starting server on port 5050
+2025-03-16 23:17:12,877 - INFO - [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on http://localhost:5050
+2025-03-16 23:17:12,878 - DEBUG - Importing BlpImagePlugin
+2025-03-16 23:17:12,879 - INFO - [33mPress CTRL+C to quit[0m
+2025-03-16 23:17:12,881 - DEBUG - Importing BmpImagePlugin
+2025-03-16 23:17:12,881 - DEBUG - Importing BufrStubImagePlugin
+2025-03-16 23:17:12,882 - DEBUG - Importing CurImagePlugin
+2025-03-16 23:17:12,883 - DEBUG - Importing DcxImagePlugin
+2025-03-16 23:17:12,887 - DEBUG - Importing DdsImagePlugin
+2025-03-16 23:17:12,891 - DEBUG - Importing EpsImagePlugin
+2025-03-16 23:17:12,893 - DEBUG - Importing FitsImagePlugin
+2025-03-16 23:17:12,895 - DEBUG - Importing FliImagePlugin
+2025-03-16 23:17:12,896 - DEBUG - Importing FpxImagePlugin
+2025-03-16 23:17:12,898 - DEBUG - Image: failed to import FpxImagePlugin: No module named 'olefile'
+2025-03-16 23:17:12,898 - DEBUG - Importing FtexImagePlugin
+2025-03-16 23:17:12,899 - DEBUG - Importing GbrImagePlugin
+2025-03-16 23:17:12,900 - DEBUG - Importing GifImagePlugin
+2025-03-16 23:17:12,900 - DEBUG - Importing GribStubImagePlugin
+2025-03-16 23:17:12,901 - DEBUG - Importing Hdf5StubImagePlugin
+2025-03-16 23:17:12,902 - DEBUG - Importing IcnsImagePlugin
+2025-03-16 23:17:12,906 - DEBUG - Importing IcoImagePlugin
+2025-03-16 23:17:12,908 - DEBUG - Importing ImImagePlugin
+2025-03-16 23:17:12,910 - DEBUG - Importing ImtImagePlugin
+2025-03-16 23:17:12,911 - DEBUG - Importing IptcImagePlugin
+2025-03-16 23:17:12,912 - DEBUG - Importing JpegImagePlugin
+2025-03-16 23:17:12,913 - DEBUG - Importing Jpeg2KImagePlugin
+2025-03-16 23:17:12,913 - DEBUG - Importing McIdasImagePlugin
+2025-03-16 23:17:12,914 - DEBUG - Importing MicImagePlugin
+2025-03-16 23:17:12,915 - DEBUG - Image: failed to import MicImagePlugin: No module named 'olefile'
+2025-03-16 23:17:12,915 - DEBUG - Importing MpegImagePlugin
+2025-03-16 23:17:12,917 - DEBUG - Importing MpoImagePlugin
+2025-03-16 23:17:12,922 - DEBUG - Importing MspImagePlugin
+2025-03-16 23:17:12,923 - DEBUG - Importing PalmImagePlugin
+2025-03-16 23:17:12,926 - DEBUG - Importing PcdImagePlugin
+2025-03-16 23:17:12,927 - DEBUG - Importing PcxImagePlugin
+2025-03-16 23:17:12,928 - DEBUG - Importing PdfImagePlugin
+2025-03-16 23:17:12,936 - DEBUG - Importing PixarImagePlugin
+2025-03-16 23:17:12,937 - DEBUG - Importing PngImagePlugin
+2025-03-16 23:17:12,938 - DEBUG - Importing PpmImagePlugin
+2025-03-16 23:17:12,938 - DEBUG - Importing PsdImagePlugin
+2025-03-16 23:17:12,939 - DEBUG - Importing QoiImagePlugin
+2025-03-16 23:17:12,941 - DEBUG - Importing SgiImagePlugin
+2025-03-16 23:17:12,942 - DEBUG - Importing SpiderImagePlugin
+2025-03-16 23:17:12,943 - DEBUG - Importing SunImagePlugin
+2025-03-16 23:17:12,944 - DEBUG - Importing TgaImagePlugin
+2025-03-16 23:17:12,945 - DEBUG - Importing TiffImagePlugin
+2025-03-16 23:17:12,945 - DEBUG - Importing WebPImagePlugin
+2025-03-16 23:17:13,054 - DEBUG - Importing WmfImagePlugin
+2025-03-16 23:17:13,056 - DEBUG - Importing XbmImagePlugin
+2025-03-16 23:17:13,058 - DEBUG - Importing XpmImagePlugin
+2025-03-16 23:17:13,060 - DEBUG - Importing XVThumbImagePlugin
+2025-03-16 23:19:40,906 - INFO - Starting Zotero Citation Key Watcher
+2025-03-16 23:19:40,909 - INFO - Storage directory path: C:\Users\scott\tmp\zotero_items
+2025-03-16 23:19:40,909 - INFO - Log file: C:\Users\scott\OneDrive\share\ref\refwrangle\zmknote\test\zotero_watcher.log
+2025-03-16 23:19:40,910 - INFO - Storage directory exists or was created successfully
+2025-03-16 23:19:40,914 - INFO - Starting server on port 5050
+2025-03-16 23:19:40,945 - INFO - [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on http://localhost:5050
+2025-03-16 23:19:40,946 - INFO - [33mPress CTRL+C to quit[0m
+2025-03-16 23:19:40,948 - DEBUG - Importing BlpImagePlugin
+2025-03-16 23:19:40,949 - DEBUG - Importing BmpImagePlugin
+2025-03-16 23:19:40,950 - DEBUG - Importing BufrStubImagePlugin
+2025-03-16 23:19:40,951 - DEBUG - Importing CurImagePlugin
+2025-03-16 23:19:40,952 - DEBUG - Importing DcxImagePlugin
+2025-03-16 23:19:40,953 - DEBUG - Importing DdsImagePlugin
+2025-03-16 23:19:40,957 - DEBUG - Importing EpsImagePlugin
+2025-03-16 23:19:40,959 - DEBUG - Importing FitsImagePlugin
+2025-03-16 23:19:40,960 - DEBUG - Importing FliImagePlugin
+2025-03-16 23:19:40,961 - DEBUG - Importing FpxImagePlugin
+2025-03-16 23:19:40,963 - DEBUG - Importing FtexImagePlugin
+2025-03-16 23:19:40,964 - DEBUG - Importing GbrImagePlugin
+2025-03-16 23:19:40,964 - DEBUG - Importing GifImagePlugin
+2025-03-16 23:19:40,965 - DEBUG - Importing GribStubImagePlugin
+2025-03-16 23:19:40,965 - DEBUG - Importing Hdf5StubImagePlugin
+2025-03-16 23:19:40,965 - DEBUG - Importing IcnsImagePlugin
+2025-03-16 23:19:40,968 - DEBUG - Importing IcoImagePlugin
+2025-03-16 23:19:40,969 - DEBUG - Importing ImImagePlugin
+2025-03-16 23:19:40,970 - DEBUG - Importing ImtImagePlugin
+2025-03-16 23:19:40,971 - DEBUG - Importing IptcImagePlugin
+2025-03-16 23:19:40,971 - DEBUG - Importing JpegImagePlugin
+2025-03-16 23:19:40,971 - DEBUG - Importing Jpeg2KImagePlugin
+2025-03-16 23:19:40,971 - DEBUG - Importing McIdasImagePlugin
+2025-03-16 23:19:40,972 - DEBUG - Importing MicImagePlugin
+2025-03-16 23:19:40,976 - DEBUG - Importing MpegImagePlugin
+2025-03-16 23:19:40,977 - DEBUG - Importing MpoImagePlugin
+2025-03-16 23:19:40,978 - DEBUG - Importing MspImagePlugin
+2025-03-16 23:19:40,979 - DEBUG - Importing PalmImagePlugin
+2025-03-16 23:19:40,979 - DEBUG - Importing PcdImagePlugin
+2025-03-16 23:19:40,980 - DEBUG - Importing PcxImagePlugin
+2025-03-16 23:19:40,981 - DEBUG - Importing PdfImagePlugin
+2025-03-16 23:19:40,988 - DEBUG - Importing PixarImagePlugin
+2025-03-16 23:19:40,989 - DEBUG - Importing PngImagePlugin
+2025-03-16 23:19:40,989 - DEBUG - Importing PpmImagePlugin
+2025-03-16 23:19:40,989 - DEBUG - Importing PsdImagePlugin
+2025-03-16 23:19:40,991 - DEBUG - Importing QoiImagePlugin
+2025-03-16 23:19:40,992 - DEBUG - Importing SgiImagePlugin
+2025-03-16 23:19:40,993 - DEBUG - Importing SpiderImagePlugin
+2025-03-16 23:19:40,993 - DEBUG - Importing SunImagePlugin
+2025-03-16 23:19:40,994 - DEBUG - Importing TgaImagePlugin
+2025-03-16 23:19:40,995 - DEBUG - Importing TiffImagePlugin
+2025-03-16 23:19:40,995 - DEBUG - Importing WebPImagePlugin
+2025-03-16 23:19:40,999 - DEBUG - Importing WmfImagePlugin
+2025-03-16 23:19:41,000 - DEBUG - Importing XbmImagePlugin
+2025-03-16 23:19:41,001 - DEBUG - Importing XpmImagePlugin
+2025-03-16 23:19:41,002 - DEBUG - Importing XVThumbImagePlugin
+2025-03-16 23:26:10,473 - INFO - Starting Zotero Citation Key Watcher
+2025-03-16 23:26:10,474 - INFO - Storage directory path: C:\Users\scott\tmp\zotero_items
+2025-03-16 23:26:10,475 - INFO - Log file: C:\Users\scott\OneDrive\share\ref\refwrangle\zmknote\test\zotero_watcher.log
+2025-03-16 23:26:10,476 - INFO - Storage directory exists or was created successfully
+2025-03-16 23:26:10,476 - INFO - Starting server on port 5050
+2025-03-16 23:26:10,500 - INFO - [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on http://localhost:5050
+2025-03-16 23:26:10,501 - INFO - [33mPress CTRL+C to quit[0m
+2025-03-16 23:28:01,060 - INFO - [fb9a68c2] Received webhook request
+2025-03-16 23:28:01,062 - INFO - [fb9a68c2] Processing 1 items
+2025-03-16 23:28:01,210 - INFO - [fb9a68c2] Creating storage directory: C:\Users\scott\tmp\zotero_items
+2025-03-16 23:28:01,312 - INFO - [fb9a68c2] Starting to process 1 Zotero items
+2025-03-16 23:28:01,313 - INFO - [fb9a68c2] Processing item 1/1: Zhang24focusGrpAgentLLM
+2025-03-16 23:28:01,314 - DEBUG - [fb9a68c2] Checking existence of: C:\Users\scott\tmp\zotero_items\Zhang24focusGrpAgentLLM.json
+2025-03-16 23:28:01,314 - DEBUG - [fb9a68c2] Attempting to create file exclusively: C:\Users\scott\tmp\zotero_items\Zhang24focusGrpAgentLLM.json
+2025-03-16 23:28:01,315 - INFO - [fb9a68c2] Successfully created new file: C:\Users\scott\tmp\zotero_items\Zhang24focusGrpAgentLLM.json
+2025-03-16 23:28:01,316 - INFO - [fb9a68c2] Processed item: Zhang24focusGrpAgentLLM (Zotero key: TKT66LKK)
+2025-03-16 23:28:01,316 - INFO - [fb9a68c2] Completed processing with 1 results
+2025-03-16 23:28:01,317 - INFO - 127.0.0.1 - - [16/Mar/2025 23:28:01] "POST /webhook HTTP/1.1" 200 -
+2025-03-16 23:28:31,125 - INFO - [cb64d955] Received webhook request
+2025-03-16 23:28:31,129 - INFO - [cb64d955] Processing 5 items
+2025-03-16 23:28:31,138 - INFO - [cb64d955] Starting to process 5 Zotero items
+2025-03-16 23:28:31,138 - INFO - [cb64d955] Processing item 1/5: Towler23rapidQualTextMLcovid
+2025-03-16 23:28:31,140 - DEBUG - [cb64d955] Checking existence of: C:\Users\scott\tmp\zotero_items\Towler23rapidQualTextMLcovid.json
+2025-03-16 23:28:31,140 - DEBUG - [cb64d955] Attempting to create file exclusively: C:\Users\scott\tmp\zotero_items\Towler23rapidQualTextMLcovid.json
+2025-03-16 23:28:31,141 - INFO - [cb64d955] Successfully created new file: C:\Users\scott\tmp\zotero_items\Towler23rapidQualTextMLcovid.json
+2025-03-16 23:28:31,141 - INFO - [cb64d955] Processed item: Towler23rapidQualTextMLcovid (Zotero key: GLYNYCJY)
+2025-03-16 23:28:31,142 - INFO - [cb64d955] Processing item 2/5: QualsAI24gocusGrpAI
+2025-03-16 23:28:31,144 - DEBUG - [cb64d955] Checking existence of: C:\Users\scott\tmp\zotero_items\QualsAI24gocusGrpAI.json
+2025-03-16 23:28:31,147 - DEBUG - [cb64d955] Attempting to create file exclusively: C:\Users\scott\tmp\zotero_items\QualsAI24gocusGrpAI.json
+2025-03-16 23:28:31,149 - INFO - [cb64d955] Successfully created new file: C:\Users\scott\tmp\zotero_items\QualsAI24gocusGrpAI.json
+2025-03-16 23:28:31,149 - INFO - [cb64d955] Processed item: QualsAI24gocusGrpAI (Zotero key: 7NY6LPUW)
+2025-03-16 23:28:31,150 - INFO - [cb64d955] Processing item 3/5: Zhang24focusGrpAgentLLM
+2025-03-16 23:28:31,151 - DEBUG - [cb64d955] Checking existence of: C:\Users\scott\tmp\zotero_items\Zhang24focusGrpAgentLLM.json
+2025-03-16 23:28:31,151 - DEBUG - [cb64d955] Attempting to create file exclusively: C:\Users\scott\tmp\zotero_items\Zhang24focusGrpAgentLLM.json
+2025-03-16 23:28:31,152 - INFO - [cb64d955] File already exists (caught exception): C:\Users\scott\tmp\zotero_items\Zhang24focusGrpAgentLLM.json
+2025-03-16 23:28:31,152 - INFO - [cb64d955] Showing overwrite popup for 'Zhang24focusGrpAgentLLM'
+2025-03-16 23:28:31,152 - INFO - [cb64d955] Opening dialog in browser: http://localhost:5050/dialog/dialog_64e5d3f7
+2025-03-16 23:28:31,844 - INFO - 127.0.0.1 - - [16/Mar/2025 23:28:31] "GET /dialog/dialog_64e5d3f7 HTTP/1.1" 200 -
+2025-03-16 23:28:32,151 - INFO - 127.0.0.1 - - [16/Mar/2025 23:28:32] "[33mGET /favicon.ico HTTP/1.1[0m" 404 -
+2025-03-16 23:28:35,729 - INFO - Dialog dialog_64e5d3f7 response: overwrite
+2025-03-16 23:28:35,731 - INFO - 127.0.0.1 - - [16/Mar/2025 23:28:35] "POST /dialog-response/dialog_64e5d3f7 HTTP/1.1" 200 -
+2025-03-16 23:28:35,731 - INFO - [cb64d955] User selected: overwrite for 'Zhang24focusGrpAgentLLM'
+2025-03-16 23:28:35,732 - DEBUG - [cb64d955] Overwriting file: C:\Users\scott\tmp\zotero_items\Zhang24focusGrpAgentLLM.json
+2025-03-16 23:28:35,734 - INFO - [cb64d955] Successfully overwrote file: C:\Users\scott\tmp\zotero_items\Zhang24focusGrpAgentLLM.json
+2025-03-16 23:28:35,735 - INFO - [cb64d955] Processed item: Zhang24focusGrpAgentLLM (Zotero key: TKT66LKK)
+2025-03-16 23:28:35,735 - INFO - [cb64d955] Processing item 4/5: Luntz94focusGrpAmerPolit
+2025-03-16 23:28:35,736 - DEBUG - [cb64d955] Checking existence of: C:\Users\scott\tmp\zotero_items\Luntz94focusGrpAmerPolit.json
+2025-03-16 23:28:35,736 - DEBUG - [cb64d955] Attempting to create file exclusively: C:\Users\scott\tmp\zotero_items\Luntz94focusGrpAmerPolit.json
+2025-03-16 23:28:35,738 - INFO - [cb64d955] Successfully created new file: C:\Users\scott\tmp\zotero_items\Luntz94focusGrpAmerPolit.json
+2025-03-16 23:28:35,743 - INFO - [cb64d955] Processed item: Luntz94focusGrpAmerPolit (Zotero key: E9X9EFNI)
+2025-03-16 23:28:35,744 - INFO - [cb64d955] Processing item 5/5: Carlo16focusGrpElectPred
+2025-03-16 23:28:35,746 - DEBUG - [cb64d955] Checking existence of: C:\Users\scott\tmp\zotero_items\Carlo16focusGrpElectPred.json
+2025-03-16 23:28:35,747 - DEBUG - [cb64d955] Attempting to create file exclusively: C:\Users\scott\tmp\zotero_items\Carlo16focusGrpElectPred.json
+2025-03-16 23:28:35,747 - INFO - [cb64d955] Successfully created new file: C:\Users\scott\tmp\zotero_items\Carlo16focusGrpElectPred.json
+2025-03-16 23:28:35,748 - INFO - [cb64d955] Processed item: Carlo16focusGrpElectPred (Zotero key: 5LHMVXWI)
+2025-03-16 23:28:35,748 - INFO - [cb64d955] Completed processing with 5 results
+2025-03-16 23:28:35,749 - INFO - 127.0.0.1 - - [16/Mar/2025 23:28:35] "POST /webhook HTTP/1.1" 200 -
