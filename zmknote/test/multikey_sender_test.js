@@ -1,8 +1,8 @@
-"""A test of a flask webhook interface with zotero, with dialog buttons that popup if the file the 
+/* A test of a flask webhook interface with zotero, with dialog buttons that popup if the file the 
 listener wants to generate already exists.  The only way to do this in a decent way in python was to
 popup the dialog in a browser, unfortunately.
 
-The companion python script for this is  multikey_listener_test.py"""
+The companion python script for this is  multikey_listener_test.py */
 
 // Configuration constant to match Python's LISTEN_PORT
 const SEND_PORT = 5050;
