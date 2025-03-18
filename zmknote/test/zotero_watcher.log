@@ -166,3 +166,103 @@
 2025-03-16 23:28:35,748 - INFO - [cb64d955] Processed item: Carlo16focusGrpElectPred (Zotero key: 5LHMVXWI)
 2025-03-16 23:28:35,748 - INFO - [cb64d955] Completed processing with 5 results
 2025-03-16 23:28:35,749 - INFO - 127.0.0.1 - - [16/Mar/2025 23:28:35] "POST /webhook HTTP/1.1" 200 -
+2025-03-17 15:43:16,502 - INFO - Starting Zotero Citation Key Watcher
+2025-03-17 15:43:16,504 - INFO - Storage directory path: C:\Users\scott\tmp\zotero_items
+2025-03-17 15:43:16,505 - INFO - Log file: C:\Users\scott\OneDrive\share\ref\refwrangle\zmknote\test\zotero_watcher.log
+2025-03-17 15:43:16,506 - INFO - Storage directory exists or was created successfully
+2025-03-17 15:43:16,508 - INFO - Starting server on port 5050
+2025-03-17 15:43:16,541 - INFO - [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on http://localhost:5050
+2025-03-17 15:43:16,541 - INFO - [33mPress CTRL+C to quit[0m
+2025-03-17 15:43:38,139 - INFO - 127.0.0.1 - - [17/Mar/2025 15:43:38] "[33mPOST / HTTP/1.1[0m" 404 -
+2025-03-17 15:43:53,276 - INFO - 127.0.0.1 - - [17/Mar/2025 15:43:53] "[33mPOST / HTTP/1.1[0m" 404 -
+2025-03-17 15:44:35,137 - INFO - Starting Zotero Citation Key Watcher
+2025-03-17 15:44:35,138 - INFO - Storage directory path: C:\Users\scott\tmp\zotero_items
+2025-03-17 15:44:35,139 - INFO - Log file: C:\Users\scott\OneDrive\share\ref\refwrangle\zmknote\test\zotero_watcher.log
+2025-03-17 15:44:35,140 - INFO - Storage directory exists or was created successfully
+2025-03-17 15:44:35,140 - INFO - Starting server on port 5050
+2025-03-17 15:44:35,166 - INFO - [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on http://localhost:5050
+2025-03-17 15:44:35,167 - INFO - [33mPress CTRL+C to quit[0m
+2025-03-17 15:45:00,571 - INFO - 127.0.0.1 - - [17/Mar/2025 15:45:00] "[33mPOST / HTTP/1.1[0m" 404 -
+2025-03-17 15:46:09,194 - INFO - 127.0.0.1 - - [17/Mar/2025 15:46:09] "[33mPOST / HTTP/1.1[0m" 404 -
+2025-03-17 16:46:46,274 - INFO - Starting Zotero Citation Key Watcher
+2025-03-17 16:46:46,276 - INFO - Storage directory path: C:\Users\scott\tmp\zotero_items
+2025-03-17 16:46:46,276 - INFO - Log file: C:\Users\scott\OneDrive\share\ref\refwrangle\zmknote\test\zotero_watcher.log
+2025-03-17 16:46:46,278 - INFO - Storage directory exists or was created successfully
+2025-03-17 16:46:46,279 - INFO - Starting server on port 5050
+2025-03-17 16:46:46,325 - INFO - [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on http://localhost:5050
+2025-03-17 16:46:46,326 - INFO - [33mPress CTRL+C to quit[0m
+2025-03-17 16:49:06,037 - INFO - Starting Zotero Citation Key Watcher
+2025-03-17 16:49:06,037 - INFO - Storage directory path: C:\Users\scott\tmp\zotero_items
+2025-03-17 16:49:06,038 - INFO - Log file: C:\Users\scott\OneDrive\share\ref\refwrangle\zmknote\test\zotero_watcher.log
+2025-03-17 16:49:06,041 - INFO - Storage directory exists or was created successfully
+2025-03-17 16:49:06,041 - INFO - Starting server on port 5050
+2025-03-17 16:49:06,072 - INFO - [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on http://localhost:5050
+2025-03-17 16:49:06,072 - INFO - [33mPress CTRL+C to quit[0m
+2025-03-17 16:49:28,041 - INFO - 127.0.0.1 - - [17/Mar/2025 16:49:28] "[33mPOST / HTTP/1.1[0m" 404 -
+2025-03-17 16:50:19,031 - INFO - Starting Zotero Citation Key Watcher
+2025-03-17 16:50:19,032 - INFO - Storage directory path: C:\Users\scott\tmp\zotero_items
+2025-03-17 16:50:19,033 - INFO - Log file: C:\Users\scott\OneDrive\share\ref\refwrangle\zmknote\test\zotero_watcher.log
+2025-03-17 16:50:19,035 - INFO - Storage directory exists or was created successfully
+2025-03-17 16:50:19,036 - INFO - Starting server on port 5050
+2025-03-17 16:50:19,069 - INFO - [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on http://localhost:5050
+2025-03-17 16:50:19,070 - INFO - [33mPress CTRL+C to quit[0m
+2025-03-17 16:50:30,369 - INFO - 127.0.0.1 - - [17/Mar/2025 16:50:30] "[33mPOST / HTTP/1.1[0m" 404 -
+2025-03-17 16:52:44,806 - INFO - Starting Zotero Citation Key Watcher
+2025-03-17 16:52:44,807 - INFO - Storage directory path: C:\Users\scott\tmp\zotero_items
+2025-03-17 16:52:44,808 - INFO - Log file: C:\Users\scott\OneDrive\share\ref\refwrangle\zmknote\test\zotero_watcher.log
+2025-03-17 16:52:44,810 - INFO - Storage directory exists or was created successfully
+2025-03-17 16:52:44,811 - INFO - Starting server on port 5050
+2025-03-17 16:52:44,839 - INFO - [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on http://localhost:5050
+2025-03-17 16:52:44,840 - INFO - [33mPress CTRL+C to quit[0m
+2025-03-17 16:52:52,773 - INFO - 127.0.0.1 - - [17/Mar/2025 16:52:52] "[33mPOST / HTTP/1.1[0m" 404 -
+2025-03-17 16:55:19,669 - INFO - Starting Zotero Citation Key Watcher
+2025-03-17 16:55:19,671 - INFO - Storage directory path: C:\Users\scott\tmp\zotero_items
+2025-03-17 16:55:19,673 - INFO - Log file: C:\Users\scott\OneDrive\share\ref\refwrangle\zmknote\test\zotero_watcher.log
+2025-03-17 16:55:19,674 - INFO - Storage directory exists or was created successfully
+2025-03-17 16:55:19,674 - INFO - Starting server on port 5050
+2025-03-17 16:55:19,700 - INFO - [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on http://localhost:5050
+2025-03-17 16:55:19,700 - INFO - [33mPress CTRL+C to quit[0m
+2025-03-17 16:55:28,472 - INFO - 127.0.0.1 - - [17/Mar/2025 16:55:28] "[33mPOST / HTTP/1.1[0m" 404 -
+2025-03-17 16:55:55,088 - INFO - [8a55a509] Received webhook request
+2025-03-17 16:55:55,090 - INFO - [8a55a509] Processing 1 items
+2025-03-17 16:55:55,219 - INFO - [8a55a509] Starting to process 1 Zotero items
+2025-03-17 16:55:55,220 - INFO - [8a55a509] Processing item 1/1: Zakaria25demWorkClassStopTrying
+2025-03-17 16:55:55,220 - DEBUG - [8a55a509] Checking existence of: C:\Users\scott\tmp\zotero_items\Zakaria25demWorkClassStopTrying.json
+2025-03-17 16:55:55,221 - DEBUG - [8a55a509] Attempting to create file exclusively: C:\Users\scott\tmp\zotero_items\Zakaria25demWorkClassStopTrying.json
+2025-03-17 16:55:55,221 - INFO - [8a55a509] Successfully created new file: C:\Users\scott\tmp\zotero_items\Zakaria25demWorkClassStopTrying.json
+2025-03-17 16:55:55,222 - INFO - [8a55a509] Processed item: Zakaria25demWorkClassStopTrying (Zotero key: UYKJCK8B)
+2025-03-17 16:55:55,222 - INFO - [8a55a509] Completed processing with 1 results
+2025-03-17 16:55:55,223 - INFO - 127.0.0.1 - - [17/Mar/2025 16:55:55] "POST /webhook HTTP/1.1" 200 -
+2025-03-17 16:56:20,977 - INFO - [23e3a454] Received webhook request
+2025-03-17 16:56:20,978 - INFO - [23e3a454] Processing 1 items
+2025-03-17 16:56:20,980 - INFO - [23e3a454] Starting to process 1 Zotero items
+2025-03-17 16:56:20,980 - INFO - [23e3a454] Processing item 1/1: Zakaria25demWorkClassStopTrying
+2025-03-17 16:56:20,981 - DEBUG - [23e3a454] Checking existence of: C:\Users\scott\tmp\zotero_items\Zakaria25demWorkClassStopTrying.json
+2025-03-17 16:56:20,981 - DEBUG - [23e3a454] Attempting to create file exclusively: C:\Users\scott\tmp\zotero_items\Zakaria25demWorkClassStopTrying.json
+2025-03-17 16:56:20,981 - INFO - [23e3a454] File already exists (caught exception): C:\Users\scott\tmp\zotero_items\Zakaria25demWorkClassStopTrying.json
+2025-03-17 16:56:20,981 - INFO - [23e3a454] Showing overwrite popup for 'Zakaria25demWorkClassStopTrying'
+2025-03-17 16:56:20,982 - INFO - [23e3a454] Opening dialog in browser: http://localhost:5050/dialog/dialog_891a593f
+2025-03-17 16:56:21,752 - INFO - 127.0.0.1 - - [17/Mar/2025 16:56:21] "GET /dialog/dialog_891a593f HTTP/1.1" 200 -
+2025-03-17 16:56:23,841 - INFO - Dialog dialog_891a593f response: cancel
+2025-03-17 16:56:23,842 - INFO - 127.0.0.1 - - [17/Mar/2025 16:56:23] "POST /dialog-response/dialog_891a593f HTTP/1.1" 200 -
+2025-03-17 16:56:23,842 - INFO - [23e3a454] User selected: cancel for 'Zakaria25demWorkClassStopTrying'
+2025-03-17 16:56:23,842 - INFO - [23e3a454] Skipping file: C:\Users\scott\tmp\zotero_items\Zakaria25demWorkClassStopTrying.json
+2025-03-17 16:56:23,843 - INFO - [23e3a454] Completed processing with 0 results
+2025-03-17 16:56:23,843 - INFO - 127.0.0.1 - - [17/Mar/2025 16:56:23] "POST /webhook HTTP/1.1" 200 -
+2025-03-17 17:04:11,341 - INFO - [421170b3] Received webhook request
+2025-03-17 17:04:11,342 - INFO - [421170b3] Processing 1 items
+2025-03-17 17:04:11,351 - INFO - [421170b3] Starting to process 1 Zotero items
+2025-03-17 17:04:11,352 - INFO - [421170b3] Processing item 1/1: Wright18defenseProgressiveStack
+2025-03-17 17:04:11,352 - DEBUG - [421170b3] Checking existence of: C:\Users\scott\tmp\zotero_items\Wright18defenseProgressiveStack.json
+2025-03-17 17:04:11,352 - DEBUG - [421170b3] Attempting to create file exclusively: C:\Users\scott\tmp\zotero_items\Wright18defenseProgressiveStack.json
+2025-03-17 17:04:11,353 - INFO - [421170b3] Successfully created new file: C:\Users\scott\tmp\zotero_items\Wright18defenseProgressiveStack.json
+2025-03-17 17:04:11,353 - INFO - [421170b3] Processed item: Wright18defenseProgressiveStack (Zotero key: IXEPQ26D)
+2025-03-17 17:04:11,354 - INFO - [421170b3] Completed processing with 1 results
+2025-03-17 17:04:11,354 - INFO - 127.0.0.1 - - [17/Mar/2025 17:04:11] "POST /webhook HTTP/1.1" 200 -

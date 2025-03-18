@@ -2,7 +2,7 @@
 listener wants to generate already exists.  The only way to do this in a decent way in python was to
 popup the dialog in a browser, unfortunately.
 
-This companion javascript for(goes in zotero action and tags plugin) is multikey_listener_test.python"""
+The companion python script for this is  multikey_listener_test.py"""
 
 // Configuration constant to match Python's LISTEN_PORT
 const SEND_PORT = 5050;
