@@ -348,3 +348,31 @@
 2025-03-17 23:31:47,991 - INFO - [590b6298] Processed item: SabinsCivilEngineering20SynRMNewGiant (Zotero key: YN38ADCK)
 2025-03-17 23:31:47,992 - INFO - [590b6298] Completed processing with 4 results
 2025-03-17 23:31:47,992 - INFO - 127.0.0.1 - - [17/Mar/2025 23:31:47] "POST /webhook HTTP/1.1" 200 -
+2025-03-18 14:09:07,623 - INFO - Starting Zotero Lit Note Watcher
+2025-03-18 14:09:07,625 - INFO - Storage directory path: C:\Users\scott\tmp\zotero_items
+2025-03-18 14:09:07,626 - INFO - Log file: C:\Users\scott\OneDrive\share\ref\refwrangle\zmknote\test\zotero_watcher.log
+2025-03-18 14:09:07,631 - INFO - Storage directory exists or was created successfully
+2025-03-18 14:09:07,636 - INFO - Starting server on port 5050
+2025-03-18 14:09:07,691 - INFO - [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on http://localhost:5050
+2025-03-18 14:09:07,691 - INFO - [33mPress CTRL+C to quit[0m
+2025-03-18 14:09:37,267 - INFO - [828d5d08] Received webhook request
+2025-03-18 14:09:37,276 - INFO - [828d5d08] Processing 1 items
+2025-03-18 14:09:37,486 - INFO - [828d5d08] Starting to process 1 Zotero items
+2025-03-18 14:09:37,487 - INFO - [828d5d08] Processing item 1/1: Hamilton19introQualMethods
+2025-03-18 14:09:37,543 - DEBUG - [828d5d08] Checking existence of: C:\Users\scott\tmp\zotero_items\Hamilton19introQualMethods.md
+2025-03-18 14:09:37,544 - DEBUG - [828d5d08] Attempting to create file exclusively: C:\Users\scott\tmp\zotero_items\Hamilton19introQualMethods.md
+2025-03-18 14:09:37,546 - INFO - [828d5d08] Successfully created new file: C:\Users\scott\tmp\zotero_items\Hamilton19introQualMethods.md
+2025-03-18 14:09:37,546 - INFO - [828d5d08] Processed item: Hamilton19introQualMethods (Zotero key: 8C9WADAY)
+2025-03-18 14:09:37,547 - INFO - [828d5d08] Completed processing with 1 results
+2025-03-18 14:09:37,548 - INFO - 127.0.0.1 - - [18/Mar/2025 14:09:37] "POST /webhook HTTP/1.1" 200 -
+2025-03-18 14:12:14,256 - INFO - [b9c191e5] Received webhook request
+2025-03-18 14:12:14,257 - INFO - [b9c191e5] Processing 1 items
+2025-03-18 14:12:14,266 - INFO - [b9c191e5] Starting to process 1 Zotero items
+2025-03-18 14:12:14,267 - INFO - [b9c191e5] Processing item 1/1: Luntz94focusGrpAmerPolit
+2025-03-18 14:12:14,304 - DEBUG - [b9c191e5] Checking existence of: C:\Users\scott\tmp\zotero_items\Luntz94focusGrpAmerPolit.md
+2025-03-18 14:12:14,305 - DEBUG - [b9c191e5] Attempting to create file exclusively: C:\Users\scott\tmp\zotero_items\Luntz94focusGrpAmerPolit.md
+2025-03-18 14:12:14,307 - INFO - [b9c191e5] Successfully created new file: C:\Users\scott\tmp\zotero_items\Luntz94focusGrpAmerPolit.md
+2025-03-18 14:12:14,307 - INFO - [b9c191e5] Processed item: Luntz94focusGrpAmerPolit (Zotero key: E9X9EFNI)
+2025-03-18 14:12:14,308 - INFO - [b9c191e5] Completed processing with 1 results
+2025-03-18 14:12:14,309 - INFO - 127.0.0.1 - - [18/Mar/2025 14:12:14] "POST /webhook HTTP/1.1" 200 -

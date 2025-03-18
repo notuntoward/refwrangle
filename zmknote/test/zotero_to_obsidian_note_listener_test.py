@@ -33,7 +33,8 @@ from jinja2 import Template
 STORAGE_DIR = Path("~/tmp/zotero_items").expanduser()
 LISTEN_PORT = 5050
 
-# Jinja2 template for output literature note
+# Jinja2 template for output obsidian literature note.  
+# DON'T TOUCH ANY SPACES
 template_str = """{%- macro truncateTitle(title, n) -%}
   {%- set words = title.split(' ') -%}
   {%- set truncatedTitle = ' '.join(words[:n]) -%}
@@ -122,32 +123,24 @@ ___
 {% endif %}
 """
 
-def zotero_note_html_to_md(complex_html: str) -> str:
+def zotero_note_html_to_md(zotero_note_html: str) -> str:
     """Convert from html into Obsidian markdown one note of the 
-    'notes' key in a Zotero item JSON export.
-    
-    Args:
-        complex_html (str): The complex HTML string
+    'notes' key in a Zotero item JSON export."""
         
-    Returns:
-        str: Obsidian Markdown"""
-        
-    # Parse the HTML
-    soup = bs4.BeautifulSoup(complex_html, 'html.parser')
+    soup = bs4.BeautifulSoup(zotero_note_html, 'html.parser')
     
-    # Initialize markdown output
-    markdown_blocks = []
+    markdown_blocks = [] # obsidian note markdown
     
-    # Find main content container
+    # copy the zotero note string inside the s/b only <div>, but checks body just in case
     main_div = soup.find('div')
     if not main_div:
         main_div = soup.body if soup.body else soup
     
-    # Process text content at the div level
+    # if no html structure, just get the pure text (won't have children)
     if main_div.string and main_div.string.strip():
         markdown_blocks.append(main_div.string.strip())
     
-    # Process block-level elements
+    # get structured blocks (won't do anything if main_div.string contained anything
     for child in main_div.children:
         if isinstance(child, str) and child.strip():
             markdown_blocks.append(child.strip())
@@ -162,27 +155,27 @@ def zotero_note_html_to_md(complex_html: str) -> str:
                 markdown_blocks.append(block_md)
         elif child.name in ['h1', 'h2', 'h3', 'h4', 'h5', 'h6']:
             level = int(child.name[1])
-            header_text = process_inline_formatting(child)
+            header_text = convert_inline_formatting(child)
             markdown_blocks.append(f"{'#' * level} {header_text}")
         elif child.name == 'p':
-            p_text = process_inline_formatting(child)
+            p_text = convert_inline_formatting(child)
             if p_text.strip():
                 markdown_blocks.append(p_text.strip())
         elif child.name == 'ul':
             list_items = []
             for li in child.find_all('li', recursive=False):
-                li_text = process_inline_formatting(li)
+                li_text = convert_inline_formatting(li)
                 if li_text.strip():
                     list_items.append(f"- {li_text.strip()}")
             if list_items:
                 markdown_blocks.append("\n".join(list_items))
         elif child.name == 'small':
-            small_text = process_inline_formatting(child)
+            small_text = convert_inline_formatting(child)
             if small_text.strip():
                 markdown_blocks.append(small_text.strip())
     
-    # Build final markdown with proper spacing
-    markdown = ""
+    # Space the html block contents so that they look similar in obsidian markdown
+    output_markdown = ""
     prev_is_list_item = False
     prev_is_blockquote = False
     
@@ -191,29 +184,29 @@ def zotero_note_html_to_md(complex_html: str) -> str:
         is_blockquote = block.startswith("> ")
         
         # Determine if we need a blank line
-        if markdown:  # Not the first block
+        if output_markdown:  # Not the first block
             if is_list_item and prev_is_list_item:
                 # No blank line between list items
-                markdown += "\n" + block
+                output_markdown += "\n" + block
             elif is_blockquote and prev_is_blockquote:
                 # No blank line between blockquote blocks (already handled within process_blockquote)
-                markdown += "\n" + block
+                output_markdown += "\n" + block
             else:
                 # Add blank line between different block types
-                markdown += "\n\n" + block
+                output_markdown += "\n\n" + block
         else:
             # First block
-            markdown += block
+            output_markdown += block
         
         prev_is_list_item = is_list_item
         prev_is_blockquote = is_blockquote
     
-    return markdown + "\n" # separate from next note, if any
+    return output_markdown + "\n" # separate from next note, if any
 
 def process_blockquote(blockquote: bs4.element.Tag) -> str:
     """Process a blockquote element into markdown format with proper paragraph spacing."""
     # Initialize result list
-    result = []
+    markdown_chunks = []
     
     # Process each paragraph or element within the blockquote
     for element in blockquote.children:
@@ -222,52 +215,50 @@ def process_blockquote(blockquote: bs4.element.Tag) -> str:
                 # Add non-empty text nodes as lines
                 for line in element.strip().split('\n'):
                     if line.strip():
-                        result.append(f"> {line.strip()}")
+                        markdown_chunks.append(f"> {line.strip()}")
         elif element.name == 'p':
             # Process each paragraph
-            p_text = process_inline_formatting(element)
+            p_text = convert_inline_formatting(element)
             if p_text.strip():
                 # Split paragraph text into lines if it contains newlines
                 for line in p_text.strip().split('\n'):
                     if line.strip():
-                        result.append(f"> {line.strip()}")
+                        markdown_chunks.append(f"> {line.strip()}")
                 
                 # Add empty blockquote line after paragraph
-                result.append(">")
+                markdown_chunks.append(">")
         else:
             # Process other elements (headings, lists, etc.) in the blockquote
-            formatted_text = process_inline_formatting(element)
+            formatted_text = convert_inline_formatting(element)
             if formatted_text.strip():
                 # Split into lines
                 for line in formatted_text.strip().split('\n'):
                     if line.strip():
-                        result.append(f"> {line.strip()}")
+                        markdown_chunks.append(f"> {line.strip()}")
                 
                 # Add empty blockquote line
-                result.append(">")
+                markdown_chunks.append(">")
     
     # Remove trailing empty blockquote if present
-    if result and result[-1] == ">":
-        result.pop()
+    if markdown_chunks and markdown_chunks[-1] == ">":
+        markdown_chunks.pop()
     
-    return "\n".join(result)
+    return "\n".join(markdown_chunks)
 
-def process_inline_formatting(element: Union[str, bs4.element.Tag]) -> str:
-    """
-    Process inline HTML formatting to markdown.
-    Handles citations, links, bold, italic, and highlights.
-    """
+def convert_inline_formatting(element: Union[str, bs4.element.Tag]) -> str:
+    """ Convert inline HTML formatting to markdown.
+    Handles citations, links, bold, italic, and highlights."""
+    
     if isinstance(element, str):
-        return element
+        return element # you're already done
     
-    result = ""
-    
-    # Process each child node
+    # Convert each child to markdown
+    output_markdown = ""
     for child in element.contents:
         if isinstance(child, str):
-            result += child
+            output_markdown += child
         elif child.name == 'span':
-            # Citation handling
+            # Internal link to a zotero item: make it work from inside of obsidian w/ a URI substitute
             if 'citation' in child.get('class', []):
                 citation_item = child.find(class_='citation-item')
                 if citation_item:
@@ -281,60 +272,60 @@ def process_inline_formatting(element: Union[str, bs4.element.Tag]) -> str:
                             if 'citationItems' in citation_json and citation_json['citationItems']:
                                 uri = citation_json['citationItems'][0]['uris'][0]
                                 zotero_id = uri.split('/')[-1]
-                                result += f"([{citation_text}](zotero://select/library/items/{zotero_id}))"
+                                output_markdown += f"([{citation_text}](zotero://select/library/items/{zotero_id}))"
                                 continue
                         except:
                             pass
                 
                 # Fallback for citation
-                result += f"({child.get_text(strip=True)})"
+                output_markdown += f"({child.get_text(strip=True)})"
                 
-            # Highlight handling
+            # Highlights
             elif child.get('style') and ('background-color' in child.get('style') or 'highlight' in child.get('style')):
-                highlighted_text = process_inline_formatting(child)
-                result += f"=={highlighted_text}=="
+                highlighted_text = convert_inline_formatting(child)
+                output_markdown += f"=={highlighted_text}=="
                 
             # Bold/Italic handling via style
             elif child.get('style'):
                 style = child.get('style')
-                text = process_inline_formatting(child)
+                text = convert_inline_formatting(child)
                 
                 is_bold = 'bold' in style or 'font-weight' in style
                 is_italic = 'italic' in style or 'font-style' in style
                 
                 if is_bold and is_italic:
-                    result += f"***{text}***"
+                    output_markdown += f"***{text}***"
                 elif is_bold:
-                    result += f"**{text}**"
+                    output_markdown += f"**{text}**"
                 elif is_italic:
-                    result += f"*{text}*"
+                    output_markdown += f"*{text}*"
                 else:
-                    result += text
+                    output_markdown += text
             else:
                 # Regular span
-                result += process_inline_formatting(child)
+                output_markdown += convert_inline_formatting(child)
                 
-        # Bold elements
+        # Bold
         elif child.name in ['strong', 'b']:
-            text = process_inline_formatting(child)
-            result += f"**{text}**"
+            text = convert_inline_formatting(child)
+            output_markdown += f"**{text}**"
             
-        # Italic elements
+        # Italic
         elif child.name in ['em', 'i']:
-            text = process_inline_formatting(child)
-            result += f"*{text}*"
+            text = convert_inline_formatting(child)
+            output_markdown += f"*{text}*"
             
-        # Links
+        # Web Links
         elif child.name == 'a':
-            text = process_inline_formatting(child)
+            text = convert_inline_formatting(child)
             href = child.get('href', '')
-            result += f"[{text}]({href})"
+            output_markdown += f"[{text}]({href})"
             
         # Other elements
         else:
-            result += process_inline_formatting(child)
+            output_markdown += convert_inline_formatting(child)
     
-    return result
+    return output_markdown
 
 # %%
 
