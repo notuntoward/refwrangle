@@ -130,6 +130,7 @@ try {
             }
         }
 
+        const itemData = item.toJSON();
         itemDataArray.push({
             title: itemData.title || '',
             citekey: citekey,
@@ -163,7 +164,7 @@ try {
         // Send data to webhook (once!)
         sendToWebhook(itemDataArray, Zotero.ZoteroWebhookLock.requestId);
     } else {
-        Zotero.alert(null, "Error", "No valid items with citation keys found.");
+        Zotero.alert(null, "Error", "No valid items with citkeys found.");
         Zotero.ZoteroWebhookLock.inProgress = false;
     }
 } catch (e) {
