@@ -44,7 +44,7 @@ def parse_date(date_str: str, format_dts: str) -> str:
         return ''
 
 
-def write_literature_note(item_key: str, output_file: pl.Path, item_data: dict, 
+def write_literature_note(itemkey: str, output_file: pl.Path, item_data: dict, 
                           collection_key_to_name: dict, zot: zotero.Zotero) -> None:
     """Creates an Obsidian literature note from a Zotero item."""
     # Fetch collections for this item
@@ -68,21 +68,21 @@ def write_literature_note(item_key: str, output_file: pl.Path, item_data: dict,
         related_keys = [related_keys]
 
     for uri in related_keys:
-        related_item_key = uri.split('/')[-1]
+        related_itemkey = uri.split('/')[-1]
         try:
-            related_item = zot.item(related_item_key)
+            related_item = zot.item(related_itemkey)
             related_items.append({
                 'citekey': related_item['data'].get('citekey', ''),
-                'key': related_item_key,
+                'key': related_itemkey,
                 'title': related_item['data'].get('title', ''),
             })
         except Exception as e:
-            print(f"Could not fetch related item {related_item_key}: {e}")
+            print(f"Could not fetch related item {related_itemkey}: {e}")
 
     # Fetch notes attached to this item by getting the item's children and filtering for notes
     notes = []
     try:
-        children = zot.children(item_key)
+        children = zot.children(itemkey)
         for child in children:
             if child['data']['itemType'] == 'note':
                 # Convert HTML notes to Markdown
@@ -100,7 +100,7 @@ def write_literature_note(item_key: str, output_file: pl.Path, item_data: dict,
     # Fetch attachments for this item
     attachments = []
     try:
-        children = zot.children(item_key)
+        children = zot.children(itemkey)
         for child in children:
             if child['data']['itemType'] == 'attachment':
                 # Get the path of the attachment
@@ -126,13 +126,13 @@ def write_literature_note(item_key: str, output_file: pl.Path, item_data: dict,
         # 'tags': item_data.get('tags', []),
         'collections': collections,
         'exportDate': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
-        'desktopURI': f'zotero://select/library/items/{item_key}',
+        'desktopURI': f'zotero://select/library/items/{itemkey}',
         'DOI': item_data.get('DOI', ''),
         'url': item_data.get('url', ''),
         'abstractNote': item_data.get('abstractNote', ''),
         'creators': item_data.get('creators', []),
         'date': parse_date(item_data.get('date'), "%Y-%m-%d") if item_data.get('date') else '',
-        'itemKey': item_key,
+        'itemkey': itemkey,
         'itemType': item_data.get('itemType', ''),
         'publicationTitle': item_data.get('publicationTitle', ''),
         'volume': item_data.get('volume', ''),
@@ -156,11 +156,11 @@ def write_literature_note(item_key: str, output_file: pl.Path, item_data: dict,
     print(f'Writing to {output_file}')
     output_file.write_text(output_text, encoding='utf-8')
 
-def write_literature_notes(item_keys: list[str], output_dir: pl.Path, local_api: bool = False) -> None:
+def write_literature_notes(itemkeys: list[str], output_dir: pl.Path, local_api: bool = False) -> None:
     """Writes literature notes for given Zotero item keys to the specified output directory."""
 
-    if isinstance(item_keys, str):
-        item_keys = [item_keys]
+    if isinstance(itemkeys, str):
+        itemkeys = [itemkeys]
 
     timer = rfw.Timer()
     try:
@@ -182,8 +182,8 @@ def write_literature_notes(item_keys: list[str], output_dir: pl.Path, local_api:
 
     # Fetch items in batches of 50 (API max limit)
     item_data = {}
-    for i in range(0, len(item_keys), 50):
-        batch_keys = item_keys[i : i + 50]
+    for i in range(0, len(itemkeys), 50):
+        batch_keys = itemkeys[i : i + 50]
         try:
             items = zot.get_subset(batch_keys)
             item_data.update({item['data']['key']: item['data'] for item in items})
@@ -191,24 +191,24 @@ def write_literature_notes(item_keys: list[str], output_dir: pl.Path, local_api:
             print(f"Error fetching items: {e}")
             raise
 
-    for item_key in item_keys:
-        item_data_this = item_data[item_key]
+    for itemkey in itemkeys:
+        item_data_this = item_data[itemkey]
         output_file = output_dir / f'{rfw.get_citation_key(item_data_this)}.md'
         
-        write_literature_note(item_key, output_file, item_data_this , collection_key_to_name, zot)
+        write_literature_note(itemkey, output_file, item_data_this , collection_key_to_name, zot)
     print("Done.")
     timer.mark()
 
 if __name__ == '__main__':
     # Example usage with a single item key
-    # item_keys = ['I4G6IXQS'] # <div> wraps whole note
-    #item_keys = ['U7NTFFTP']  # Example with two keys
-    item_keys = ['YK4TVDBM'] # test all on this
+    # itemkeys = ['I4G6IXQS'] # <div> wraps whole note
+    #itemkeys = ['U7NTFFTP']  # Example with two keys
+    itemkeys = ['YK4TVDBM'] # test all on this
     # Example usage with a list of item keys
-    #item_keys = ['I4G6IXQS', 'U7NTFFTP']  # Example with two keys
+    #itemkeys = ['I4G6IXQS', 'U7NTFFTP']  # Example with two keys
     
     output_dir = pl.Path(r'C:\Users\scott\OneDrive\share\ref\obsidian\Obsidian Share Vault\Scratch Space')
 
-    write_literature_notes(item_keys, output_dir)
+    write_literature_notes(itemkeys, output_dir)
 
 # %%

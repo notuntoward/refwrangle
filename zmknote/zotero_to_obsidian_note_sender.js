@@ -10,7 +10,7 @@ async function getSelectedItemsData(items) {
     for (let item of items) {
         if (!item.isRegularItem()) continue;
 
-        const itemKey = item.key;
+        const itemkey = item.key;
         const itemData = item.toJSON();
 
         // Extract citation key from "extra" field
@@ -99,13 +99,13 @@ async function getSelectedItemsData(items) {
             tags: tags,
             collections: collectionNames,
             exportDate: new Date().toLocaleString(),
-            desktopURI: `zotero://select/library/items/${itemKey}`,
+            desktopURI: `zotero://select/library/items/${itemkey}`,
             DOI: itemData.DOI || '',
             url: itemData.url || '',
             abstractNote: itemData.abstractNote || '',
             creators: itemData.creators || [],
             date: itemData.date || new Date().toISOString(),
-            itemKey: itemKey,
+            itemkey: itemkey,
             itemType: itemData.itemType || '',
             publicationTitle: itemData.publicationTitle || '',
             volume: itemData.volume || '',
@@ -186,10 +186,10 @@ function htmlToMarkdown(html) {
   
     // Convert Zotero-specific links
     html = html.replace(/<a[^>]+href="zotero:\/\/select\/library\/items\/([^"]+)"[^>]*>(.*?)<\/a>/g,
-      (_, itemKey, text) => {
-        const item = Zotero.Items.getByLibraryAndKey(Zotero.Libraries.userLibraryID, itemKey);
+      (_, itemkey, text) => {
+        const item = Zotero.Items.getByLibraryAndKey(Zotero.Libraries.userLibraryID, itemkey);
         const citekey = item?.getField('extra')?.match(/Citation Key:\s*(.+)/)?.[1] || text;
-        return `[${citekey}](zotero://select/library/items/${itemKey})`;
+        return `[${citekey}](zotero://select/library/items/${itemkey})`;
     });
   
     // Convert standard links and highlights

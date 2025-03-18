@@ -67,7 +67,7 @@ modified date:
 > **Title**:: "{{ title }}"
 > **Date**:: {{ date }}
 > **Citekey**:: {{ citekey }}
-> **ZoteroItemKey**:: {{ itemKey }}
+> **ZoteroItemKey**:: {{ itemkey }}
 > **itemType**:: {{ itemType }}
 > **DOI**:: {{ DOI }}
 > **URL**:: {{ url }}
@@ -104,7 +104,8 @@ ___
 {% endif %}
 """
 
-def zotero_note_html_to_md(complex_html: str) -> str:
+def zotero_note_html
+_to_md(complex_html: str) -> str:
     """Convert from html into Obsidian markdown one note of the 
     'notes' key in a Zotero item JSON export.
     

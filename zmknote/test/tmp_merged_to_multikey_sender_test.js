@@ -54,13 +54,13 @@ try {
     let itemDataArray = [];
     for (let selectedItem of selectedItems) {
         let extraField = selectedItem.getField('extra');
-        let citekeyMatch = extraField.match(/Citation Key:\s*(.+)/);
-        if (!citekeyMatch) {
+        let citationKeyMatch = extraField.match(/Citation Key:\s*(.+)/);
+        if (!citationKeyMatch) {
             Zotero.debug("Citation key not found for one of the selected items.");
             continue;
         }
     
-        let citekey = citekeyMatch[1];
+        let citekey = citationKeyMatch[1];
         let itemkey = selectedItem.key;
     
         // Add item data to array

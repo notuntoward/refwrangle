@@ -230,7 +230,6 @@ def show_web_dialog(title, message, options, request_id):
         del dialog_events[dialog_id]
     
     return result
-
 def show_overwrite_popup(citekey, is_last_item, total_items, request_id):
     """Display a popup asking whether to overwrite the file"""
     logger.info(f"[{request_id}] Showing overwrite popup for '{citekey}'")
@@ -441,7 +440,7 @@ def status():
 
 if __name__ == '__main__':
     log_file = Path("zotero_watcher.log")
-    logger.info(f"Starting Zotero Key Watcher")
+    logger.info(f"Starting Zotero Lit Note Watcher")
     logger.info(f"Storage directory path: {STORAGE_DIR}")
     logger.info(f"Log file: {log_file.resolve()}")
     

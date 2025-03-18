@@ -15,45 +15,45 @@ function getPDFFile(item) {
     return null;
 }
 
-function createNoteMarkdown(dir, citationKey, title) {
-    const noteFile = Zotero.File.pathToFile(dir.path + "\\" + citationKey + ".md");
+function createNoteMarkdown(dir, citekey, title) {
+    const noteFile = Zotero.File.pathToFile(dir.path + "\\" + citekey + ".md");
     if (noteFile.exists()) {
         return false;
     }
     noteFile.create(Components.interfaces.nsIFile.NORMAL_FILE_TYPE, 0o664);
-    Zotero.File.putContents(noteFile, "[[" + citationKey + ".pdf]] \n# " + title + "\n\n");
+    Zotero.File.putContents(noteFile, "[[" + citekey + ".pdf]] \n# " + title + "\n\n");
     return true;
 }
 
-// function createNotePDF(dir, pdf, citationKey) {
+// function createNotePDF(dir, pdf, citekey) {
 //     if (pdf == null) {
 //         return false;
 //     }
-//     pdf.copyTo(dir, citationKey + ".pdf");
+//     pdf.copyTo(dir, citekey + ".pdf");
 //     return true;
 // }
 
 function createNote(item) {
     const title = item.getField("title");
-    const citationKey = item.getField("citationKey");
+    const citekey = item.getField("citekey");
     const pdf = getPDFFile(item);
-    //const dir = Zotero.File.pathToFile(fpath + "\\" + citationKey);
+    //const dir = Zotero.File.pathToFile(fpath + "\\" + citekey);
     // if (!dir.exists()) {
     //     dir.create(Components.interfaces.nsIFile.DIRECTORY_TYPE, 0o755);
     // }
-    const createMd = createNoteMarkdown(fpath, citationKey, title);
-    // const createPdf = createNotePDF(dir, pdf, citationKey);
+    const createMd = createNoteMarkdown(fpath, citekey, title);
+    // const createPdf = createNotePDF(dir, pdf, citekey);
     // if (createPdf) {
     //     if (createMd) {
-    //         return "Note " + citationKey + " created successfully";
+    //         return "Note " + citekey + " created successfully";
     //     } else {
-    //         return "Adding PDF to note " + citationKey;
+    //         return "Adding PDF to note " + citekey;
     //     }
     // } else {
     //     if (createMd) {
-    //         return "Note " + citationKey + " created without PDF";
+    //         return "Note " + citekey + " created without PDF";
     //     } else {
-    //         return "Note " + citationKey + " already existing";
+    //         return "Note " + citekey + " already existing";
     //     }
     // }
 }

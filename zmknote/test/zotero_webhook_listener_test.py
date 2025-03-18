@@ -9,11 +9,11 @@ app = Flask(__name__)
 @app.route('/webhook', methods=['POST'])
 def webhook():
     data = request.json
-    citation_key = data.get('citekey')
-    zotero_item_key = data.get('zotero_key')
+    citekey = data.get('citekey')
+    itemkey = data.get('zotero_key')
 
-    print(f"Received Citation Key: {citation_key}")
-    print(f"Received Zotero Item Key: {zotero_item_key}")
+    print(f"Received Citation Key: {citekey}")
+    print(f"Received Zotero Item Key: {itemkey}")
 
     # Add your logic here...
 
