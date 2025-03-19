@@ -34,7 +34,7 @@ STORAGE_DIR = Path("~/tmp/zotero_items").expanduser()
 LISTEN_PORT = 5050
 
 # Jinja2 template for output obsidian literature note.  
-# DON'T TOUCH ANY SPACES
+# DON'T TOUCH ANY SPACES WITHIN 
 template_str = """{%- macro truncateTitle(title, n) -%}
   {%- set words = title.split(' ') -%}
   {%- set truncatedTitle = ' '.join(words[:n]) -%}
@@ -126,28 +126,26 @@ ___
 def zotero_note_html_to_md(zotero_note_html: str) -> str:
     """Convert from html into Obsidian markdown one note of the 
     'notes' key in a Zotero item JSON export."""
-        
+    
+    # copy the zotero note contents with the <div> or <body>
     soup = bs4.BeautifulSoup(zotero_note_html, 'html.parser')
-    
-    markdown_blocks = [] # obsidian note markdown
-    
-    # copy the zotero note string inside the s/b only <div>, but checks body just in case
     main_div = soup.find('div')
     if not main_div:
         main_div = soup.body if soup.body else soup
     
-    # if no html structure, just get the pure text (won't have children)
+    # if no html structure captured, just get the pure text (won't have children)
+    markdown_blocks = [] # obsidian note markdown
     if main_div.string and main_div.string.strip():
         markdown_blocks.append(main_div.string.strip())
     
-    # get structured blocks (won't do anything if main_div.string contained anything
+    # Get structured blocks (if no html children structure, then this doesn't do anything)
     for child in main_div.children:
         if isinstance(child, str) and child.strip():
             markdown_blocks.append(child.strip())
-            continue
+            continue # next childe
             
         if not hasattr(child, 'name'):
-            continue
+            continue # skips blank space, I think
             
         if child.name == 'blockquote':
             block_md = process_blockquote(child)
@@ -329,7 +327,8 @@ def convert_inline_formatting(element: Union[str, bs4.element.Tag]) -> str:
 
 # %%
 
-# Configure logging
+# Set up functions webhook receiver overwrite/skip/skip all popup dialogs
+
 logging.basicConfig(
     level=logging.DEBUG,
     format='%(asctime)s - %(levelname)s - %(message)s',
@@ -340,21 +339,10 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# For icecream debugging if available
-try:
-    from icecream import ic
-except ImportError:
-    def ic(*args, **kwargs):
-        pass
-
-# Create Flask app
-app = Flask(__name__)
-
-# Create lock for synchronization
-dir_lock = threading.Lock()
+dir_lock = threading.Lock() # lock needed for reliable existence detect
 
 # Dictionary to store overwrite/skip/skipall dialog results
-dialog_results = {}
+dialog_answers = {}
 dialog_events = {}
 
 # HTML template for the dialog
@@ -441,11 +429,9 @@ DIALOG_TEMPLATE = """
 </html>
 """
 
-def ensure_storage_dir(request_id):
-    """
-    Ensure the storage directory exists with proper synchronization.
-    Returns True if successful, False otherwise.
-    """
+def ensure_storage_dir(request_id: str) -> bool:
+    """Ensure the storage directory exists with proper synchronization.
+    Returns True if successful, False otherwise."""
     with dir_lock:
         if not STORAGE_DIR.exists():
             logger.info(f"[{request_id}] Creating storage directory: {STORAGE_DIR}")
@@ -464,8 +450,10 @@ def ensure_storage_dir(request_id):
             
         return True
 
+app = Flask(__name__)
+
 @app.route('/dialog/<dialog_id>')
-def show_dialog(dialog_id):
+def show_dialog(dialog_id: str) -> tuple:
     """Show a dialog in the browser"""
     if dialog_id not in dialog_events:
         return "Dialog not found", 404
@@ -480,7 +468,7 @@ def show_dialog(dialog_id):
     )
 
 @app.route('/dialog-response/<dialog_id>', methods=['POST'])
-def dialog_response(dialog_id):
+def dialog_response(dialog_id: str) -> tuple:
     """Handle dialog response"""
     if dialog_id not in dialog_events:
         return "Dialog not found", 404
@@ -489,7 +477,7 @@ def dialog_response(dialog_id):
     logger.info(f"Dialog {dialog_id} response: {action}")
     
     # Store the result
-    dialog_results[dialog_id] = action
+    dialog_answers[dialog_id] = action
     
     # Signal the event to notify the waiting thread
     dialog_events[dialog_id]['event'].set()
@@ -497,7 +485,7 @@ def dialog_response(dialog_id):
     # Return success - the browser window should be closed by JavaScript
     return "OK"
 
-def show_web_dialog(title, message, options, request_id):
+def show_web_dialog(title: str, message: str, options: str, request_id: str) -> str:
     """Show a dialog in the browser and wait for response"""
     dialog_id = f"dialog_{uuid.uuid4().hex[:8]}"
     
@@ -528,16 +516,17 @@ def show_web_dialog(title, message, options, request_id):
         return "cancel"  # Default to cancel on timeout
     
     # Get the result
-    result = dialog_results.get(dialog_id, "cancel")
+    answer = dialog_answers.get(dialog_id, "cancel")
     
     # Clean up
-    if dialog_id in dialog_results:
-        del dialog_results[dialog_id]
+    if dialog_id in dialog_answers:
+        del dialog_answers[dialog_id]
     if dialog_id in dialog_events:
         del dialog_events[dialog_id]
     
-    return result
-def show_overwrite_popup(citekey, is_last_item, total_items, request_id):
+    return answer
+
+def show_overwrite_popup(citekey: str, is_last_item: bool, total_items: int, request_id: str) -> str:
     """Display a popup asking whether to overwrite the file"""
     logger.info(f"[{request_id}] Showing overwrite popup for '{citekey}'")
     
@@ -556,7 +545,7 @@ def show_overwrite_popup(citekey, is_last_item, total_items, request_id):
     return result
 
 @app.route('/webhook', methods=['POST'])
-def webhook():
+def webhook() -> tuple:
     """
     Endpoint that receives webhook data from Zotero Tags and Actions plugin.
     Expects a JSON array of objects with zotero item information, including itemkey and citekey.
@@ -578,7 +567,6 @@ def webhook():
             return jsonify({"status": "error", "message": "Expected JSON array"}), 400
         
         logger.info(f"[{request_id}] Processing {len(webhook_item_list)} items")
-        ic(webhook_item_list)  # Debug the data
         
         # Ensure storage directory exists before processing
         if not ensure_storage_dir(request_id):
@@ -589,7 +577,7 @@ def webhook():
             }), 500
         
         # Process the received items
-        results = process_items(webhook_item_list, request_id)
+        results =  write_obsidian_md_note(webhook_item_list, request_id)
         
         logger.info(f"[{request_id}] Completed processing with {len(results)} results")
         return jsonify({
@@ -603,19 +591,12 @@ def webhook():
         logger.exception(f"[{request_id}] Error processing webhook data: {str(e)}")
         return jsonify({"status": "error", "message": str(e), "request_id": request_id}), 500
 
-def process_items(items, request_id):
-    """
-    Process Zotero items received from the webhook using EAFP approach.
+def  write_obsidian_md_note(items: list, request_id: str) -> list:
+    """ Write an Obsidian note from the items data, avoiding overwrite unless user accepts it,
+    and returning status of items written."""
     
-    Args:
-        items (list): List of dictionaries with itemkey and citekey
-        request_id (str): Unique ID for this request
-        
-    Returns:
-        list: Results of processing each item
-    """
     cancel_all = False
-    results = []
+    obs_note_write_record = []
     
     logger.info(f"[{request_id}] Starting to process {len(items)} Zotero items")
     total_items = len(items)
@@ -630,17 +611,16 @@ def process_items(items, request_id):
             logger.info(f"[{request_id}] Skipping remaining items due to 'cancel all' selection")
             break
             
-        # Extract keys from the item
+        # Minimal item contents
         itemkey = item.get('itemkey')
         citekey = item.get('citekey')
-        
         if not itemkey or not citekey:
             logger.warning(f"[{request_id}] Missing required keys in item: {item}")
             continue
         
         logger.info(f"[{request_id}] Processing item {index+1}/{total_items}: {citekey}")
         
-        # make obsidian lit note markdown
+        # Make obsidian lit note markdown
 
         # zotero item note(s) to obsidian markdown
         notes_md = []
@@ -648,19 +628,17 @@ def process_items(items, request_id):
             md_note = zotero_note_html_to_md(note_html)
             notes_md.append(md_note)
         item['notes'] = notes_md
-
+ 
+        # convert item data to markdown
         template = Template(template_str, trim_blocks=True, lstrip_blocks=True)
         obs_note_markdown = template.render(**item)
         
         # Write obsidian lit note without overwiting existing note unless user confirms
-        
         filename = f"{citekey}.md"
         filepath = STORAGE_DIR / filename
         is_last_item = (index == total_items - 1)
-        
-        logger.debug(f"[{request_id}] Checking existence of: {filepath.resolve()}")
 
-        def create_result_entry(itemkey: str, citekey: str, filepath: Path) -> dict:
+        def assemble_write_result(itemkey: str, citekey: str, filepath: Path) -> dict:
             """Create a result entry dictionary with timestamp."""
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
             return {
@@ -669,7 +647,8 @@ def process_items(items, request_id):
                 "timestamp": timestamp,
                 "filepath": str(filepath)
             }
-        
+
+        logger.debug(f"[{request_id}] Checking existence of: {filepath.resolve()}")
         try:
             # EAFP atomic file create approach:  Try to open the file in 'x' mode which fails if file exists
             logger.debug(f"[{request_id}] Attempting to create file exclusively: {filepath}")
@@ -678,7 +657,7 @@ def process_items(items, request_id):
                 f.write(obs_note_markdown)
                 logger.info(f"[{request_id}] Successfully created new file: {filepath}")
                 
-                results.append(create_result_entry(itemkey, citekey, filepath))
+                obs_note_write_record.append(assemble_write_result(itemkey, citekey, filepath))
                 
                 logger.info(f"[{request_id}] Processed item: {citekey} (Zotero key: {itemkey})")
             
@@ -704,7 +683,7 @@ def process_items(items, request_id):
 
                 logger.info(f"[{request_id}] Successfully overwrote file: {filepath}")
                 
-                results.append(create_result_entry(itemkey, citekey, filepath))
+                obs_note_write_record.append(assemble_write_result(itemkey, citekey, filepath))
                 
                 logger.info(f"[{request_id}] Processed item: {citekey} (Zotero key: {itemkey})")
             except Exception as e:
@@ -716,11 +695,11 @@ def process_items(items, request_id):
             logger.error(f"[{request_id}] Error writing file: {e}", exc_info=True)
             continue
     
-    return results
+    return obs_note_write_record
 
 @app.route('/status', methods=['GET'])
 def status():
-    """Simple endpoint to verify the server is running"""
+    """Simple endpoint to verify to sender that receiver is running"""
     # First ensure storage directory exists
     if not STORAGE_DIR.exists():
         return jsonify({
@@ -748,7 +727,7 @@ def status():
 
 if __name__ == '__main__':
     log_file = Path("zotero_watcher.log")
-    logger.info(f"Starting Zotero Lit Note Watcher")
+    logger.info(f"Starting Zotero Lit Note Receiver")
     logger.info(f"Storage directory path: {STORAGE_DIR}")
     logger.info(f"Log file: {log_file.resolve()}")
     

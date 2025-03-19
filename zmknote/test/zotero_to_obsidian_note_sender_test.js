@@ -1,10 +1,9 @@
-/* A test of a flask webhook interface with zotero, with dialog buttons that popup if the file the 
-listener wants to generate already exists.  The only way to do this in a decent way in python was to
-popup the dialog in a browser, unfortunately.
+/* This is the zotero side of a webhook interface between zotero items and a python webhook message receiver, 
+which writes one or more obsidian literature notes. The job here is to get and send the necessary item data.
 
-The companion python script for this is  multikey_listener_test.py*/
+The companion python script for this one is zotero_to_obsidian_note_receiver_test.py */
 
-// Configuration constant to match Python's LISTEN_PORT
+// The webhook sending port, match the Python side's LISTEN_PORT
 const SEND_PORT = 5050;
 
 // Global request tracking
@@ -30,7 +29,7 @@ if (now - Zotero.ZoteroWebhookLock.lastRequestTime < 1000) {
     return;
 }
 
-// Set processing lock
+// Set processing lock, again to avoid duplicates, which were a stubborn problem.
 Zotero.ZoteroWebhookLock.inProgress = true;
 Zotero.ZoteroWebhookLock.lastRequestTime = now;
 Zotero.ZoteroWebhookLock.requestId = Math.random().toString(36).substring(2, 10);
@@ -50,7 +49,8 @@ try {
         return;
     }
     
-    // Process all selected items
+    // Put item data into a JSON message strucure
+
     let itemDataArray = [];
     for (let item of selectedItems) {
         let itemkey = item.key; // zotero item key
@@ -92,7 +92,7 @@ try {
             }
         }
 
-        // Zotero Tags: for now, will later be kept separate from Obsidian tags
+        // item tags: for now.  Obsidian will store separately from its own tags.
         const tags = item.getTags().map(tag => tag.tag);
 
         // Collections (names)
@@ -105,7 +105,7 @@ try {
             }
         }
 
-        // Notes (convert HTML to Markdown)
+        // item notes (they're in html)
         const noteIDs = item.getNotes();
         let notes = [];
         for (let noteID of noteIDs) {
@@ -116,7 +116,7 @@ try {
             }
         }
 
-        // Attachments
+        // item attachments
         const attachmentIDs = item.getAttachments();
         let attachments = [];
         for (let attachmentID of attachmentIDs) {
@@ -130,6 +130,7 @@ try {
             }
         }
 
+        // load this item's payload structure
         const itemData = item.toJSON();
         itemDataArray.push({
             title: itemData.title || '',
