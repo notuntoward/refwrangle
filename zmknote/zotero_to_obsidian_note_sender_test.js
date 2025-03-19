@@ -1,5 +1,4 @@
-/* This is the zotero side of a webhook interface between zotero items and a python webhook message receiver, 
-which writes one or more obsidian literature notes. The job here is to get and send the necessary item data.
+/* This is the zotero side of a webhook interface between zotero items and a python webhook message receiver, which writes one or more obsidian literature notes. The job here is to get and send the necessary item data.
 
 The companion python script for this one is zotero_to_obsidian_note_receiver_test.py */
 
