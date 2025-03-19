@@ -1,36 +1,8 @@
-2025-03-18 22:11:36,770 - INFO - Starting Zotero Lit Note Receiver
-2025-03-18 22:11:36,778 - INFO - Storage directory path: C:\Users\scott\tmp\zotero_items
-2025-03-18 22:11:36,786 - INFO - Log file: C:\Users\scott\OneDrive\share\ref\refwrangle\zmknote\zotero_watcher.log
-2025-03-18 22:11:36,789 - INFO - Storage directory exists or was created successfully
-2025-03-18 22:11:36,791 - INFO - Starting server on port 5050
-2025-03-18 22:11:36,820 - INFO - [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+2025-03-19 16:49:39,349 - INFO - Starting Zotero Item Receiver
+2025-03-19 16:49:39,350 - INFO - Storage directory path: C:\Users\scott\OneDrive\share\ref\obsidian\Obsidian Share Vault\lit\lit_notes
+2025-03-19 16:49:39,351 - INFO - Log file: C:\Users\scott\OneDrive\share\ref\refwrangle\zmknote\zotero_item_receiver.log
+2025-03-19 16:49:39,351 - INFO - Storage directory exists or was created successfully
+2025-03-19 16:49:39,355 - INFO - Starting server on port 5050
+2025-03-19 16:49:39,378 - INFO - [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
  * Running on http://localhost:5050
-2025-03-18 22:11:36,835 - INFO - [33mPress CTRL+C to quit[0m
-2025-03-18 22:11:47,840 - INFO - [08a501e8] Received webhook request
-2025-03-18 22:11:47,841 - INFO - [08a501e8] Processing 1 items
-2025-03-18 22:11:47,841 - INFO - [08a501e8] Starting to process 1 Zotero items
-2025-03-18 22:11:47,841 - INFO - [08a501e8] Processing item 1/1: Mullenax23focusGrpOnline
-2025-03-18 22:11:47,878 - DEBUG - [08a501e8] Checking existence of: C:\Users\scott\tmp\zotero_items\Mullenax23focusGrpOnline.md
-2025-03-18 22:11:47,879 - DEBUG - [08a501e8] Attempting to create file exclusively: C:\Users\scott\tmp\zotero_items\Mullenax23focusGrpOnline.md
-2025-03-18 22:11:47,879 - INFO - [08a501e8] Successfully created new file: C:\Users\scott\tmp\zotero_items\Mullenax23focusGrpOnline.md
-2025-03-18 22:11:47,879 - INFO - [08a501e8] Processed item: Mullenax23focusGrpOnline (Zotero key: 8EXLTXID)
-2025-03-18 22:11:47,880 - INFO - [08a501e8] Completed processing with 1 results
-2025-03-18 22:11:47,880 - INFO - 127.0.0.1 - - [18/Mar/2025 22:11:47] "POST /webhook HTTP/1.1" 200 -
-2025-03-18 22:23:20,790 - INFO - Starting Zotero Lit Note Receiver
-2025-03-18 22:23:20,790 - INFO - Storage directory path: C:\Users\scott\OneDrive\share\ref\obsidian\Obsidian Share Vault\lit\lit_notes
-2025-03-18 22:23:20,792 - INFO - Log file: C:\Users\scott\OneDrive\share\ref\refwrangle\zmknote\zotero_watcher.log
-2025-03-18 22:23:20,793 - INFO - Storage directory exists or was created successfully
-2025-03-18 22:23:20,793 - INFO - Starting server on port 5050
-2025-03-18 22:23:20,819 - INFO - [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
- * Running on http://localhost:5050
-2025-03-18 22:23:20,820 - INFO - [33mPress CTRL+C to quit[0m
-2025-03-18 22:23:37,764 - INFO - [35446dfb] Received webhook request
-2025-03-18 22:23:37,765 - INFO - [35446dfb] Processing 1 items
-2025-03-18 22:23:37,766 - INFO - [35446dfb] Starting to process 1 Zotero items
-2025-03-18 22:23:37,766 - INFO - [35446dfb] Processing item 1/1: Coursera24SQLVsNoSQLdiffExplain
-2025-03-18 22:23:37,810 - DEBUG - [35446dfb] Checking existence of: C:\Users\scott\OneDrive\share\ref\obsidian\Obsidian Share Vault\lit\lit_notes\Coursera24SQLVsNoSQLdiffExplain.md
-2025-03-18 22:23:37,810 - DEBUG - [35446dfb] Attempting to create file exclusively: C:\Users\scott\OneDrive\share\ref\obsidian\Obsidian Share Vault\lit\lit_notes\Coursera24SQLVsNoSQLdiffExplain.md
-2025-03-18 22:23:37,811 - INFO - [35446dfb] Successfully created new file: C:\Users\scott\OneDrive\share\ref\obsidian\Obsidian Share Vault\lit\lit_notes\Coursera24SQLVsNoSQLdiffExplain.md
-2025-03-18 22:23:37,811 - INFO - [35446dfb] Processed item: Coursera24SQLVsNoSQLdiffExplain (Zotero key: WIKX6T39)
-2025-03-18 22:23:37,812 - INFO - [35446dfb] Completed processing with 1 results
-2025-03-18 22:23:37,822 - INFO - 127.0.0.1 - - [18/Mar/2025 22:23:37] "POST /webhook HTTP/1.1" 200 -
+2025-03-19 16:49:39,395 - INFO - [33mPress CTRL+C to quit[0m
