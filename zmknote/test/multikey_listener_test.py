@@ -23,7 +23,7 @@ logging.basicConfig(
     level=logging.DEBUG,
     format='%(asctime)s - %(levelname)s - %(message)s',
     handlers=[
-        logging.FileHandler("zotero_watcher.log"),
+        logging.FileHandler("multikey_listener.log"),
         logging.StreamHandler()
     ]
 )
@@ -440,7 +440,7 @@ def status():
     })
 
 if __name__ == '__main__':
-    log_file = Path("zotero_watcher.log")
+    log_file = Path("multikey_listener.log")
     logger.info(f"Starting Zotero Citation Key Watcher")
     logger.info(f"Storage directory path: {STORAGE_DIR}")
     logger.info(f"Log file: {log_file.resolve()}")
