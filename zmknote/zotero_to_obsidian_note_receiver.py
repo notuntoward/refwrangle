@@ -5,34 +5,27 @@ https://www.perplexity.ai/search/the-javascript-below-is-intend-Tic7.jP4TQiZ6R9C
 
 The companion javascript for this, zotero_to_obsidian_note_sender.js, goes into the zotero action and tags plugin."""
 
-from flask import Flask, request, jsonify, render_template_string, redirect, Response
+from flask import Flask, request, jsonify, render_template_string, Response
 import logging
 import json
 from datetime import datetime
 import time
 import threading
 from pathlib import Path
-import sys
-import os
 import uuid
 import webbrowser
-
-import json
-import pathlib as pl
-import urllib
-from encodings import utf_8
-from typing import Union, TextIO
+from typing import Union
 
 import bs4
-from flask import Flask, jsonify, request
-from icecream import ic
 from jinja2 import Template
 import open_obsidian_note_by_uri as onu
 
 # Create storage directory path
 VAULT_PATH = Path(r"C:\Users\scott\OneDrive\share\ref\obsidian\Obsidian Share Vault").expanduser()
-NOTE_PATH = VAULT_PATH / 'lit/lit_notes'
+NOTE_VAULT_PATH = 'lit/lit_notes'
+NOTE_OS_PATH = VAULT_PATH / NOTE_VAULT_PATH
 LISTEN_PORT = 5050
+RECEIVER_LOG_FILE = "zotero_item_receiver.log"
 
 # Jinja2 template for output obsidian literature note.  
 # DON'T TOUCH ANY SPACES WITHIN 
@@ -334,7 +327,7 @@ logging.basicConfig(
     level=logging.DEBUG,
     format='%(asctime)s - %(levelname)s - %(message)s',
     handlers=[
-        logging.FileHandler("zotero_watcher.log"),
+        logging.FileHandler(RECEIVER_LOG_FILE),
         logging.StreamHandler()
     ]
 )
@@ -434,10 +427,10 @@ def ensure_storage_dir(request_id: str) -> bool:
     """Ensure the storage directory exists with proper synchronization.
     Returns True if successful, False otherwise."""
     with dir_lock:
-        if not NOTE_PATH.exists():
-            logger.info(f"[{request_id}] Creating storage directory: {NOTE_PATH}")
+        if not NOTE_OS_PATH.exists():
+            logger.info(f"[{request_id}] Creating storage directory: {NOTE_OS_PATH}")
             try:
-                NOTE_PATH.mkdir(parents=True, exist_ok=True)
+                NOTE_OS_PATH.mkdir(parents=True, exist_ok=True)
                 # Small delay to ensure directory is fully created and visible to all threads
                 time.sleep(0.1)
             except Exception as e:
@@ -445,8 +438,8 @@ def ensure_storage_dir(request_id: str) -> bool:
                 return False
         
         # Double-check directory exists
-        if not NOTE_PATH.exists():
-            logger.error(f"[{request_id}] Directory does not exist after creation attempt: {NOTE_PATH}")
+        if not NOTE_OS_PATH.exists():
+            logger.error(f"[{request_id}] Directory does not exist after creation attempt: {NOTE_OS_PATH}")
             return False
             
         return True
@@ -580,7 +573,7 @@ def webhook() -> Response:
         # Process the received items
         results =  write_obsidian_md_note(webhook_item_list, request_id)
         
-        logger.info(f"[{request_id}] Completed processing with {len(results)} results")
+        logger.info(f"[{request_id}] Ended webhook message processing with {len(results)} items added or changed")
         
         return jsonify({
             "status": "success", 
@@ -628,57 +621,58 @@ def  write_obsidian_md_note(items: list, request_id: str) -> list:
         template = Template(template_str, trim_blocks=True, lstrip_blocks=True)
         obs_note_markdown = template.render(**item)
         
-        # Write obsidian lit note without overwiting existing note unless user confirms
-        filename = f"{citekey}.md"
-        filepath = NOTE_PATH / filename
-        is_last_item = (index == total_items - 1)
-            
-        def write_note(filepath: Path, obs_note_markdown: str, overwrite: bool) -> None:
+        def write_note(notepath_vault: Path, obs_note_markdown: str, overwrite: bool) -> str:
             """Write an obsidian note and open it in a new Obsidian tab.  If overwrite=False,
             then a write Exception will mean that the file already exists."""
             
+            filepath_os = VAULT_PATH / notepath_vault
             try:
                 if overwrite:
-                    with open(filepath, 'w', encoding='utf-8') as f:
+                    with open(filepath_os, 'w', encoding='utf-8') as f:
                         f.write(obs_note_markdown)
-                        logger.info(f"[{request_id}] Successfully overwrote file: {filepath}")
+                        logger.info(f"[{request_id}] Successfully overwrote file: {filepath_os}")
                 else:
                     # EAFP atomic file create approach:  Try to open the file in 'x' mode which fails if file exists
-                    with open(filepath, 'x', encoding='utf-8') as f:
+                    with open(filepath_os, 'x', encoding='utf-8') as f:
                         f.write(obs_note_markdown)
-                        logger.info(f"[{request_id}] Successfully created file: {filepath}")                    
-            except Exception as e:
-                raise Exception(e)
-
-            logger.debug(f"[{request_id}] Checking existence of: {filepath.resolve()}")
+                        logger.info(f"[{request_id}] Successfully created file: {filepath_os}")                    
+            except FileExistsError:
+                return 'exists'
+                
+            logger.debug(f"[{request_id}] Checking existence of: {filepath_os.resolve()}")
             
             obs_note_write_record.append(dict(itemkey=itemkey, citekey=citekey,
                               timestamp=datetime.now().strftime("%Y%m%d_%H%M%S"),
-                              filepath=str(filepath)))
+                              filepath=str(filepath_os)))
 
             keys_str = f'{citekey=}, {itemkey=}'
             try:
-                status = onu.open_obsidian_note(filepath, VAULT_PATH)
+                status = onu.open_obsidian_note(notepath_vault, VAULT_PATH)
                 
                 message_tail = f'({keys_str}): {status=})'
-                if not (status['note_found'] and status['vault_found'] and status["uri_used"] is not ""):
+                if not (status['note_found'] and status['vault_found'] and status["uri_used"] != ""):
                     logger.info(f"[{request_id}] Couldn't open note in Obsidian due to path or URI problem {message_tail}")
                 elif status['new_tab_requested'] and status['new_tab_possible'] is not True:
                     logger.info(f"[{request_id}] Couldn't open note in NEW Obsidian tab due to Obsidian config problem {message_tail}")
 
             except Exception as e:
-                logger.info(f"[{request_id}] Problem opening Obsidian note written for item: {keys_str})")
+                logger.info(f"[{request_id}] Problem opening Obsidian note written for item {keys_str}: ", e)
             
             logger.info(f"[{request_id}] Completed item: {keys_str}")
+            
+            return 'done'
 
-        try:
-            write_note(filepath, obs_note_markdown, overwrite=False)
-        except FileExistsError:
-            logger.info(f"[{request_id}] File already exists: {filepath}")
+        # Write obsidian lit note without overwiting existing note, unless user confirms
+        note_basename = f"{citekey}.md"
+        note_path_in_vault = f'{NOTE_VAULT_PATH}/{note_basename}'
+        is_last_item = (index == total_items - 1)
 
+        if (write_resp := write_note(note_path_in_vault, obs_note_markdown, overwrite=False)) == 'exists':
+            logger.info(f"[{request_id}] File already exists: {note_path_in_vault}")
+        
             answer = ask_overwrite_popup(citekey, is_last_item, total_items, request_id)
             if answer == "cancel":
-                logger.info(f"[{request_id}] Skipping file: {filepath}")
+                logger.info(f"[{request_id}] Skipping file: {note_path_in_vault}")
                 continue
             elif answer == "cancel_all":
                 logger.info(f"[{request_id}] Cancelling all remaining operations")
@@ -686,15 +680,11 @@ def  write_obsidian_md_note(items: list, request_id: str) -> list:
                 continue
             
             # Do overwrite, as requested
-            try:
-                write_note(filepath, obs_note_markdown, overwrite=True)
-            except Exception as e:
-                logger.error(f"[{request_id}] Error overwriting file: {e}", exc_info=True)
+            if write_note(note_path_in_vault, obs_note_markdown, overwrite=True) != 'done':
+                logger.error(f"[{request_id}] Error overwriting file", exc_info=True)
                 continue
-                
-        except Exception as e:
-            # Other errors during file writing
-            logger.error(f"[{request_id}] Error writing file: {e}", exc_info=True)
+        elif write_resp != 'done':
+            logger.error(f"[{request_id}] Error writing file: {write_resp=}", exc_info=True)
             continue
     
     return obs_note_write_record
@@ -703,39 +693,39 @@ def  write_obsidian_md_note(items: list, request_id: str) -> list:
 def status():
     """Simple endpoint to verify to sender that receiver is running"""
     # First ensure storage directory exists
-    if not NOTE_PATH.exists():
+    if not NOTE_OS_PATH.exists():
         return jsonify({
             "status": "running",
             "time": datetime.now().isoformat(),
-            "storage_dir": str(NOTE_PATH),
+            "storage_dir": str(NOTE_OS_PATH),
             "storage_exists": False,
             "files_in_dir": []
         })
     
     # Get files if directory exists
     try:
-        files_list = [f.name for f in NOTE_PATH.iterdir() if f.is_file()]
+        files_list = [f.name for f in NOTE_OS_PATH.iterdir() if f.is_file()]
     except Exception as e:
         files_list = [f"Error listing files: {str(e)}"]
         
     return jsonify({
         "status": "running",
         "time": datetime.now().isoformat(),
-        "storage_dir": str(NOTE_PATH),
+        "storage_dir": str(NOTE_OS_PATH),
         "storage_exists": True,
         "files_in_dir": files_list,
         "active_dialogs": list(dialog_events.keys())
     })
 
 if __name__ == '__main__':
-    log_file = Path("zotero_item_receiver.log")
+    log_file = Path(RECEIVER_LOG_FILE)
     logger.info(f"Starting Zotero Item Receiver")
-    logger.info(f"Storage directory path: {NOTE_PATH}")
+    logger.info(f"Storage directory path: {NOTE_OS_PATH}")
     logger.info(f"Log file: {log_file.resolve()}")
     
     # Create storage directory at startup
     try:
-        NOTE_PATH.mkdir(parents=True, exist_ok=True)
+        NOTE_OS_PATH.mkdir(parents=True, exist_ok=True)
         logger.info(f"Storage directory exists or was created successfully")
     except Exception as e:
         logger.warning(f"Note: Could not create storage directory at startup: {e}")

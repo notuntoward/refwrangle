@@ -1,0 +1,221 @@
+2025-03-19 17:23:23,103 - INFO - Starting Zotero Item Receiver
+2025-03-19 17:23:23,105 - INFO - Storage directory path: C:\Users\scott\OneDrive\share\ref\obsidian\Obsidian Share Vault\lit\lit_notes
+2025-03-19 17:23:23,106 - INFO - Log file: C:\Users\scott\OneDrive\share\ref\refwrangle\zmknote\zotero_item_receiver.log
+2025-03-19 17:23:23,106 - INFO - Storage directory exists or was created successfully
+2025-03-19 17:23:23,107 - INFO - Starting server on port 5050
+2025-03-19 17:23:23,158 - INFO - [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on http://localhost:5050
+2025-03-19 17:23:23,159 - INFO - [33mPress CTRL+C to quit[0m
+2025-03-19 17:23:41,930 - INFO - [cae4f90e] Received webhook request
+2025-03-19 17:23:41,930 - INFO - [cae4f90e] Processing 1 items
+2025-03-19 17:23:41,931 - INFO - [cae4f90e] Working on item 1/1: Frankfurt86onBullshitEssy
+2025-03-19 17:23:41,975 - INFO - [cae4f90e] File already exists: C:\Users\scott\OneDrive\share\ref\obsidian\Obsidian Share Vault\lit\lit_notes\Frankfurt86onBullshitEssy.md
+2025-03-19 17:23:41,975 - INFO - [cae4f90e] Showing overwrite popup for 'Frankfurt86onBullshitEssy'
+2025-03-19 17:23:41,975 - INFO - [cae4f90e] Opening dialog in browser: http://localhost:5050/dialog/dialog_86771082
+2025-03-19 17:23:42,750 - INFO - 127.0.0.1 - - [19/Mar/2025 17:23:42] "GET /dialog/dialog_86771082 HTTP/1.1" 200 -
+2025-03-19 17:23:57,983 - INFO - Dialog dialog_86771082 response: cancel
+2025-03-19 17:23:57,984 - INFO - 127.0.0.1 - - [19/Mar/2025 17:23:57] "POST /dialog-response/dialog_86771082 HTTP/1.1" 200 -
+2025-03-19 17:23:57,984 - INFO - [cae4f90e] User selected: cancel for 'Frankfurt86onBullshitEssy'
+2025-03-19 17:23:57,985 - INFO - [cae4f90e] Skipping file: C:\Users\scott\OneDrive\share\ref\obsidian\Obsidian Share Vault\lit\lit_notes\Frankfurt86onBullshitEssy.md
+2025-03-19 17:23:57,985 - INFO - [cae4f90e] Ended webhook message processing with 0 items added or changed
+2025-03-19 17:23:57,985 - INFO - 127.0.0.1 - - [19/Mar/2025 17:23:57] "POST /webhook HTTP/1.1" 200 -
+2025-03-19 17:24:47,681 - INFO - [50131673] Received webhook request
+2025-03-19 17:24:47,681 - INFO - [50131673] Processing 1 items
+2025-03-19 17:24:47,682 - INFO - [50131673] Working on item 1/1: Frankfurt86onBullshitEssy
+2025-03-19 17:24:47,713 - INFO - [50131673] File already exists: C:\Users\scott\OneDrive\share\ref\obsidian\Obsidian Share Vault\lit\lit_notes\Frankfurt86onBullshitEssy.md
+2025-03-19 17:24:47,713 - INFO - [50131673] Showing overwrite popup for 'Frankfurt86onBullshitEssy'
+2025-03-19 17:24:47,713 - INFO - [50131673] Opening dialog in browser: http://localhost:5050/dialog/dialog_a0c38a62
+2025-03-19 17:24:48,216 - INFO - 127.0.0.1 - - [19/Mar/2025 17:24:48] "GET /dialog/dialog_a0c38a62 HTTP/1.1" 200 -
+2025-03-19 17:24:53,355 - INFO - Dialog dialog_a0c38a62 response: overwrite
+2025-03-19 17:24:53,356 - INFO - 127.0.0.1 - - [19/Mar/2025 17:24:53] "POST /dialog-response/dialog_a0c38a62 HTTP/1.1" 200 -
+2025-03-19 17:24:53,356 - INFO - [50131673] User selected: overwrite for 'Frankfurt86onBullshitEssy'
+2025-03-19 17:24:53,373 - INFO - [50131673] Successfully overwrote file: C:\Users\scott\OneDrive\share\ref\obsidian\Obsidian Share Vault\lit\lit_notes\Frankfurt86onBullshitEssy.md
+2025-03-19 17:24:53,377 - DEBUG - [50131673] Checking existence of: C:\Users\scott\OneDrive\share\ref\obsidian\Obsidian Share Vault\lit\lit_notes\Frankfurt86onBullshitEssy.md
+2025-03-19 17:24:53,381 - INFO - [50131673] Problem opening Obsidian note written for item: citekey='Frankfurt86onBullshitEssy', itemkey='RGBEXMWN')
+2025-03-19 17:24:53,382 - INFO - [50131673] Completed item: citekey='Frankfurt86onBullshitEssy', itemkey='RGBEXMWN'
+2025-03-19 17:24:53,382 - INFO - [50131673] Ended webhook message processing with 1 items added or changed
+2025-03-19 17:24:53,383 - INFO - 127.0.0.1 - - [19/Mar/2025 17:24:53] "POST /webhook HTTP/1.1" 200 -
+2025-03-19 17:25:29,903 - INFO - [a975d4cd] Received webhook request
+2025-03-19 17:25:29,903 - INFO - [a975d4cd] Processing 1 items
+2025-03-19 17:25:29,903 - INFO - [a975d4cd] Working on item 1/1: Frankfurt86onBullshitEssy
+2025-03-19 17:25:29,935 - INFO - [a975d4cd] File already exists: C:\Users\scott\OneDrive\share\ref\obsidian\Obsidian Share Vault\lit\lit_notes\Frankfurt86onBullshitEssy.md
+2025-03-19 17:25:29,936 - INFO - [a975d4cd] Showing overwrite popup for 'Frankfurt86onBullshitEssy'
+2025-03-19 17:25:29,936 - INFO - [a975d4cd] Opening dialog in browser: http://localhost:5050/dialog/dialog_4e9e667c
+2025-03-19 17:25:30,396 - INFO - 127.0.0.1 - - [19/Mar/2025 17:25:30] "GET /dialog/dialog_4e9e667c HTTP/1.1" 200 -
+2025-03-19 17:25:34,355 - INFO - Dialog dialog_4e9e667c response: overwrite
+2025-03-19 17:25:34,360 - INFO - 127.0.0.1 - - [19/Mar/2025 17:25:34] "POST /dialog-response/dialog_4e9e667c HTTP/1.1" 200 -
+2025-03-19 17:25:34,360 - INFO - [a975d4cd] User selected: overwrite for 'Frankfurt86onBullshitEssy'
+2025-03-19 17:25:34,362 - INFO - [a975d4cd] Successfully overwrote file: C:\Users\scott\OneDrive\share\ref\obsidian\Obsidian Share Vault\lit\lit_notes\Frankfurt86onBullshitEssy.md
+2025-03-19 17:25:34,363 - DEBUG - [a975d4cd] Checking existence of: C:\Users\scott\OneDrive\share\ref\obsidian\Obsidian Share Vault\lit\lit_notes\Frankfurt86onBullshitEssy.md
+2025-03-19 17:25:34,365 - INFO - [a975d4cd] Problem opening Obsidian note written for item: citekey='Frankfurt86onBullshitEssy', itemkey='RGBEXMWN')
+2025-03-19 17:25:34,365 - INFO - [a975d4cd] Completed item: citekey='Frankfurt86onBullshitEssy', itemkey='RGBEXMWN'
+2025-03-19 17:25:34,366 - INFO - [a975d4cd] Ended webhook message processing with 1 items added or changed
+2025-03-19 17:25:34,366 - INFO - 127.0.0.1 - - [19/Mar/2025 17:25:34] "POST /webhook HTTP/1.1" 200 -
+2025-03-19 17:26:12,383 - INFO - [3f26170d] Received webhook request
+2025-03-19 17:26:12,386 - INFO - [3f26170d] Processing 1 items
+2025-03-19 17:26:12,386 - INFO - [3f26170d] Working on item 1/1: Frankfurt86onBullshitEssy
+2025-03-19 17:26:12,415 - INFO - [3f26170d] File already exists: C:\Users\scott\OneDrive\share\ref\obsidian\Obsidian Share Vault\lit\lit_notes\Frankfurt86onBullshitEssy.md
+2025-03-19 17:26:12,415 - INFO - [3f26170d] Showing overwrite popup for 'Frankfurt86onBullshitEssy'
+2025-03-19 17:26:12,416 - INFO - [3f26170d] Opening dialog in browser: http://localhost:5050/dialog/dialog_10dd4f44
+2025-03-19 17:26:12,881 - INFO - 127.0.0.1 - - [19/Mar/2025 17:26:12] "GET /dialog/dialog_10dd4f44 HTTP/1.1" 200 -
+2025-03-19 17:26:20,640 - INFO - Dialog dialog_10dd4f44 response: overwrite
+2025-03-19 17:26:20,640 - INFO - 127.0.0.1 - - [19/Mar/2025 17:26:20] "POST /dialog-response/dialog_10dd4f44 HTTP/1.1" 200 -
+2025-03-19 17:26:20,641 - INFO - [3f26170d] User selected: overwrite for 'Frankfurt86onBullshitEssy'
+2025-03-19 17:26:20,642 - INFO - [3f26170d] Successfully overwrote file: C:\Users\scott\OneDrive\share\ref\obsidian\Obsidian Share Vault\lit\lit_notes\Frankfurt86onBullshitEssy.md
+2025-03-19 17:26:20,646 - DEBUG - [3f26170d] Checking existence of: C:\Users\scott\OneDrive\share\ref\obsidian\Obsidian Share Vault\lit\lit_notes\Frankfurt86onBullshitEssy.md
+2025-03-19 17:26:20,649 - INFO - [3f26170d] Problem opening Obsidian note written for item: citekey='Frankfurt86onBullshitEssy', itemkey='RGBEXMWN')
+2025-03-19 17:26:20,649 - INFO - [3f26170d] Completed item: citekey='Frankfurt86onBullshitEssy', itemkey='RGBEXMWN'
+2025-03-19 17:26:20,649 - INFO - [3f26170d] Ended webhook message processing with 1 items added or changed
+2025-03-19 17:26:20,657 - INFO - 127.0.0.1 - - [19/Mar/2025 17:26:20] "POST /webhook HTTP/1.1" 200 -
+2025-03-19 17:28:00,436 - INFO - Starting Zotero Item Receiver
+2025-03-19 17:28:00,437 - INFO - Storage directory path: C:\Users\scott\OneDrive\share\ref\obsidian\Obsidian Share Vault\lit\lit_notes
+2025-03-19 17:28:00,437 - INFO - Log file: C:\Users\scott\OneDrive\share\ref\refwrangle\zmknote\zotero_item_receiver.log
+2025-03-19 17:28:00,439 - INFO - Storage directory exists or was created successfully
+2025-03-19 17:28:00,440 - INFO - Starting server on port 5050
+2025-03-19 17:28:00,477 - INFO - [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on http://localhost:5050
+2025-03-19 17:28:00,477 - INFO - [33mPress CTRL+C to quit[0m
+2025-03-19 17:28:11,283 - INFO - [caf158e3] Received webhook request
+2025-03-19 17:28:11,284 - INFO - [caf158e3] Processing 1 items
+2025-03-19 17:28:11,285 - INFO - [caf158e3] Working on item 1/1: Frankfurt86onBullshitEssy
+2025-03-19 17:28:11,325 - INFO - [caf158e3] File already exists: C:\Users\scott\OneDrive\share\ref\obsidian\Obsidian Share Vault\lit\lit_notes\Frankfurt86onBullshitEssy.md
+2025-03-19 17:28:11,327 - INFO - [caf158e3] Showing overwrite popup for 'Frankfurt86onBullshitEssy'
+2025-03-19 17:28:11,327 - INFO - [caf158e3] Opening dialog in browser: http://localhost:5050/dialog/dialog_0b394c67
+2025-03-19 17:28:11,884 - INFO - 127.0.0.1 - - [19/Mar/2025 17:28:11] "GET /dialog/dialog_0b394c67 HTTP/1.1" 200 -
+2025-03-19 17:28:19,801 - INFO - Dialog dialog_0b394c67 response: overwrite
+2025-03-19 17:28:19,802 - INFO - 127.0.0.1 - - [19/Mar/2025 17:28:19] "POST /dialog-response/dialog_0b394c67 HTTP/1.1" 200 -
+2025-03-19 17:28:19,802 - INFO - [caf158e3] User selected: overwrite for 'Frankfurt86onBullshitEssy'
+2025-03-19 17:28:19,804 - INFO - [caf158e3] Successfully overwrote file: C:\Users\scott\OneDrive\share\ref\obsidian\Obsidian Share Vault\lit\lit_notes\Frankfurt86onBullshitEssy.md
+2025-03-19 17:28:19,805 - DEBUG - [caf158e3] Checking existence of: C:\Users\scott\OneDrive\share\ref\obsidian\Obsidian Share Vault\lit\lit_notes\Frankfurt86onBullshitEssy.md
+2025-03-19 17:28:19,808 - INFO - [caf158e3] Problem opening Obsidian note written for item: citekey='Frankfurt86onBullshitEssy', itemkey='RGBEXMWN' (e)
+2025-03-19 17:28:19,809 - INFO - [caf158e3] Completed item: citekey='Frankfurt86onBullshitEssy', itemkey='RGBEXMWN'
+2025-03-19 17:28:19,810 - INFO - [caf158e3] Ended webhook message processing with 1 items added or changed
+2025-03-19 17:28:19,811 - INFO - 127.0.0.1 - - [19/Mar/2025 17:28:19] "POST /webhook HTTP/1.1" 200 -
+2025-03-19 17:29:13,195 - INFO - Starting Zotero Item Receiver
+2025-03-19 17:29:13,196 - INFO - Storage directory path: C:\Users\scott\OneDrive\share\ref\obsidian\Obsidian Share Vault\lit\lit_notes
+2025-03-19 17:29:13,197 - INFO - Log file: C:\Users\scott\OneDrive\share\ref\refwrangle\zmknote\zotero_item_receiver.log
+2025-03-19 17:29:13,200 - INFO - Storage directory exists or was created successfully
+2025-03-19 17:29:13,200 - INFO - Starting server on port 5050
+2025-03-19 17:29:13,220 - INFO - [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on http://localhost:5050
+2025-03-19 17:29:13,221 - INFO - [33mPress CTRL+C to quit[0m
+2025-03-19 17:29:52,491 - INFO - [222a51bc] Received webhook request
+2025-03-19 17:29:52,492 - INFO - [222a51bc] Processing 1 items
+2025-03-19 17:29:52,492 - INFO - [222a51bc] Working on item 1/1: Frankfurt86onBullshitEssy
+2025-03-19 17:29:52,527 - INFO - [222a51bc] File already exists: C:\Users\scott\OneDrive\share\ref\obsidian\Obsidian Share Vault\lit\lit_notes\Frankfurt86onBullshitEssy.md
+2025-03-19 17:29:52,527 - INFO - [222a51bc] Showing overwrite popup for 'Frankfurt86onBullshitEssy'
+2025-03-19 17:29:52,527 - INFO - [222a51bc] Opening dialog in browser: http://localhost:5050/dialog/dialog_c28f1e47
+2025-03-19 17:29:53,059 - INFO - 127.0.0.1 - - [19/Mar/2025 17:29:53] "GET /dialog/dialog_c28f1e47 HTTP/1.1" 200 -
+2025-03-19 17:30:01,528 - INFO - Dialog dialog_c28f1e47 response: overwrite
+2025-03-19 17:30:01,529 - INFO - 127.0.0.1 - - [19/Mar/2025 17:30:01] "POST /dialog-response/dialog_c28f1e47 HTTP/1.1" 200 -
+2025-03-19 17:30:01,529 - INFO - [222a51bc] User selected: overwrite for 'Frankfurt86onBullshitEssy'
+2025-03-19 17:30:01,531 - INFO - [222a51bc] Successfully overwrote file: C:\Users\scott\OneDrive\share\ref\obsidian\Obsidian Share Vault\lit\lit_notes\Frankfurt86onBullshitEssy.md
+2025-03-19 17:30:01,532 - DEBUG - [222a51bc] Checking existence of: C:\Users\scott\OneDrive\share\ref\obsidian\Obsidian Share Vault\lit\lit_notes\Frankfurt86onBullshitEssy.md
+2025-03-19 17:30:01,595 - INFO - [222a51bc] Completed item: citekey='Frankfurt86onBullshitEssy', itemkey='RGBEXMWN'
+2025-03-19 17:30:01,595 - INFO - [222a51bc] Ended webhook message processing with 1 items added or changed
+2025-03-19 17:30:01,596 - INFO - 127.0.0.1 - - [19/Mar/2025 17:30:01] "POST /webhook HTTP/1.1" 200 -
+2025-03-19 17:36:31,451 - INFO - Starting Zotero Item Receiver
+2025-03-19 17:36:31,452 - INFO - Storage directory path: C:\Users\scott\OneDrive\share\ref\obsidian\Obsidian Share Vault\lit\lit_notes
+2025-03-19 17:36:31,453 - INFO - Log file: C:\Users\scott\OneDrive\share\ref\refwrangle\zmknote\zotero_item_receiver.log
+2025-03-19 17:36:31,454 - INFO - Storage directory exists or was created successfully
+2025-03-19 17:36:31,454 - INFO - Starting server on port 5050
+2025-03-19 17:36:31,479 - INFO - [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on http://localhost:5050
+2025-03-19 17:36:31,479 - INFO - [33mPress CTRL+C to quit[0m
+2025-03-19 17:36:39,590 - INFO - [5b5561bd] Received webhook request
+2025-03-19 17:36:39,590 - INFO - [5b5561bd] Processing 1 items
+2025-03-19 17:36:39,590 - INFO - [5b5561bd] Working on item 1/1: Frankfurt86onBullshitEssy
+2025-03-19 17:36:39,635 - INFO - [5b5561bd] File already exists: C:\Users\scott\OneDrive\share\ref\obsidian\Obsidian Share Vault\lit\lit_notes\Frankfurt86onBullshitEssy.md
+2025-03-19 17:36:39,638 - INFO - [5b5561bd] Showing overwrite popup for 'Frankfurt86onBullshitEssy'
+2025-03-19 17:36:39,639 - INFO - [5b5561bd] Opening dialog in browser: http://localhost:5050/dialog/dialog_f14d56de
+2025-03-19 17:36:40,197 - INFO - 127.0.0.1 - - [19/Mar/2025 17:36:40] "GET /dialog/dialog_f14d56de HTTP/1.1" 200 -
+2025-03-19 17:36:45,126 - INFO - Dialog dialog_f14d56de response: overwrite
+2025-03-19 17:36:45,127 - INFO - 127.0.0.1 - - [19/Mar/2025 17:36:45] "POST /dialog-response/dialog_f14d56de HTTP/1.1" 200 -
+2025-03-19 17:36:45,127 - INFO - [5b5561bd] User selected: overwrite for 'Frankfurt86onBullshitEssy'
+2025-03-19 17:36:45,128 - INFO - [5b5561bd] Successfully overwrote file: C:\Users\scott\OneDrive\share\ref\obsidian\Obsidian Share Vault\lit\lit_notes\Frankfurt86onBullshitEssy.md
+2025-03-19 17:36:45,131 - DEBUG - [5b5561bd] Checking existence of: C:\Users\scott\OneDrive\share\ref\obsidian\Obsidian Share Vault\lit\lit_notes\Frankfurt86onBullshitEssy.md
+2025-03-19 17:36:45,154 - INFO - [5b5561bd] Completed item: citekey='Frankfurt86onBullshitEssy', itemkey='RGBEXMWN'
+2025-03-19 17:36:45,154 - INFO - [5b5561bd] Ended webhook message processing with 1 items added or changed
+2025-03-19 17:36:45,155 - INFO - 127.0.0.1 - - [19/Mar/2025 17:36:45] "POST /webhook HTTP/1.1" 200 -
+2025-03-19 17:51:40,739 - INFO - Starting Zotero Item Receiver
+2025-03-19 17:51:40,748 - INFO - Storage directory path: C:\Users\scott\OneDrive\share\ref\obsidian\Obsidian Share Vault\lit\lit_notes
+2025-03-19 17:51:40,749 - INFO - Log file: C:\Users\scott\OneDrive\share\ref\refwrangle\zmknote\zotero_item_receiver.log
+2025-03-19 17:51:40,750 - INFO - Storage directory exists or was created successfully
+2025-03-19 17:51:40,750 - INFO - Starting server on port 5050
+2025-03-19 17:51:40,773 - INFO - [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on http://localhost:5050
+2025-03-19 17:51:40,774 - INFO - [33mPress CTRL+C to quit[0m
+2025-03-19 17:51:51,428 - INFO - [63f26e2d] Received webhook request
+2025-03-19 17:51:51,429 - INFO - [63f26e2d] Processing 1 items
+2025-03-19 17:51:51,429 - INFO - [63f26e2d] Working on item 1/1: Frankfurt86onBullshitEssy
+2025-03-19 17:51:51,453 - INFO - [63f26e2d] File already exists: C:\Users\scott\OneDrive\share\ref\obsidian\Obsidian Share Vault\lit\lit_notes\Frankfurt86onBullshitEssy.md
+2025-03-19 17:51:51,454 - INFO - [63f26e2d] Showing overwrite popup for 'Frankfurt86onBullshitEssy'
+2025-03-19 17:51:51,454 - INFO - [63f26e2d] Opening dialog in browser: http://localhost:5050/dialog/dialog_2cbfc4a1
+2025-03-19 17:51:52,001 - INFO - 127.0.0.1 - - [19/Mar/2025 17:51:52] "GET /dialog/dialog_2cbfc4a1 HTTP/1.1" 200 -
+2025-03-19 17:51:55,660 - INFO - Dialog dialog_2cbfc4a1 response: overwrite
+2025-03-19 17:51:55,661 - INFO - 127.0.0.1 - - [19/Mar/2025 17:51:55] "POST /dialog-response/dialog_2cbfc4a1 HTTP/1.1" 200 -
+2025-03-19 17:51:55,662 - INFO - [63f26e2d] User selected: overwrite for 'Frankfurt86onBullshitEssy'
+2025-03-19 17:51:55,663 - INFO - [63f26e2d] Successfully overwrote file: C:\Users\scott\OneDrive\share\ref\obsidian\Obsidian Share Vault\lit\lit_notes\Frankfurt86onBullshitEssy.md
+2025-03-19 17:51:55,664 - DEBUG - [63f26e2d] Checking existence of: C:\Users\scott\OneDrive\share\ref\obsidian\Obsidian Share Vault\lit\lit_notes\Frankfurt86onBullshitEssy.md
+2025-03-19 17:51:55,692 - INFO - [63f26e2d] Completed item: citekey='Frankfurt86onBullshitEssy', itemkey='RGBEXMWN'
+2025-03-19 17:51:55,692 - INFO - [63f26e2d] Ended webhook message processing with 1 items added or changed
+2025-03-19 17:51:55,693 - INFO - 127.0.0.1 - - [19/Mar/2025 17:51:55] "POST /webhook HTTP/1.1" 200 -
+2025-03-19 17:53:08,270 - INFO - Starting Zotero Item Receiver
+2025-03-19 17:53:08,270 - INFO - Storage directory path: C:\Users\scott\OneDrive\share\ref\obsidian\Obsidian Share Vault\lit\lit_notes
+2025-03-19 17:53:08,271 - INFO - Log file: C:\Users\scott\OneDrive\share\ref\refwrangle\zmknote\zotero_item_receiver.log
+2025-03-19 17:53:08,271 - INFO - Storage directory exists or was created successfully
+2025-03-19 17:53:08,272 - INFO - Starting server on port 5050
+2025-03-19 17:53:08,303 - INFO - [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on http://localhost:5050
+2025-03-19 17:53:08,304 - INFO - [33mPress CTRL+C to quit[0m
+2025-03-19 17:53:17,511 - INFO - [96373f9e] Received webhook request
+2025-03-19 17:53:17,512 - INFO - [96373f9e] Processing 1 items
+2025-03-19 17:53:17,513 - INFO - [96373f9e] Working on item 1/1: Frankfurt86onBullshitEssy
+2025-03-19 17:53:17,556 - INFO - [96373f9e] File already exists: C:\Users\scott\OneDrive\share\ref\obsidian\Obsidian Share Vault\lit\lit_notes\Frankfurt86onBullshitEssy.md
+2025-03-19 17:53:17,556 - INFO - [96373f9e] Showing overwrite popup for 'Frankfurt86onBullshitEssy'
+2025-03-19 17:53:17,556 - INFO - [96373f9e] Opening dialog in browser: http://localhost:5050/dialog/dialog_9984016a
+2025-03-19 17:53:18,191 - INFO - 127.0.0.1 - - [19/Mar/2025 17:53:18] "GET /dialog/dialog_9984016a HTTP/1.1" 200 -
+2025-03-19 17:53:28,773 - INFO - Dialog dialog_9984016a response: overwrite
+2025-03-19 17:53:28,774 - INFO - 127.0.0.1 - - [19/Mar/2025 17:53:28] "POST /dialog-response/dialog_9984016a HTTP/1.1" 200 -
+2025-03-19 17:53:28,774 - INFO - [96373f9e] User selected: overwrite for 'Frankfurt86onBullshitEssy'
+2025-03-19 17:53:28,775 - INFO - [96373f9e] Successfully overwrote file: C:\Users\scott\OneDrive\share\ref\obsidian\Obsidian Share Vault\lit\lit_notes\Frankfurt86onBullshitEssy.md
+2025-03-19 17:53:28,780 - DEBUG - [96373f9e] Checking existence of: C:\Users\scott\OneDrive\share\ref\obsidian\Obsidian Share Vault\lit\lit_notes\Frankfurt86onBullshitEssy.md
+2025-03-19 17:53:28,840 - INFO - [96373f9e] Completed item: citekey='Frankfurt86onBullshitEssy', itemkey='RGBEXMWN'
+2025-03-19 17:53:28,841 - INFO - [96373f9e] Ended webhook message processing with 1 items added or changed
+2025-03-19 17:53:28,841 - INFO - 127.0.0.1 - - [19/Mar/2025 17:53:28] "POST /webhook HTTP/1.1" 200 -
+2025-03-19 18:18:36,803 - INFO - Starting Zotero Item Receiver
+2025-03-19 18:18:36,804 - INFO - Storage directory path: C:\Users\scott\OneDrive\share\ref\obsidian\Obsidian Share Vault\lit\lit_notes
+2025-03-19 18:18:36,805 - INFO - Log file: C:\Users\scott\OneDrive\share\ref\refwrangle\zmknote\zotero_item_receiver.log
+2025-03-19 18:18:36,807 - INFO - Storage directory exists or was created successfully
+2025-03-19 18:18:36,807 - INFO - Starting server on port 5050
+2025-03-19 18:18:36,831 - INFO - [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on http://localhost:5050
+2025-03-19 18:18:36,832 - INFO - [33mPress CTRL+C to quit[0m
+2025-03-19 18:19:09,215 - INFO - [da528346] Received webhook request
+2025-03-19 18:19:09,216 - INFO - [da528346] Processing 1 items
+2025-03-19 18:19:09,217 - INFO - [da528346] Working on item 1/1: Frankfurt86onBullshitEssy
+2025-03-19 18:19:09,255 - INFO - [da528346] File already exists: lit/lit_notes/Frankfurt86onBullshitEssy.md
+2025-03-19 18:19:09,255 - INFO - [da528346] Showing overwrite popup for 'Frankfurt86onBullshitEssy'
+2025-03-19 18:19:09,255 - INFO - [da528346] Opening dialog in browser: http://localhost:5050/dialog/dialog_16fb7d24
+2025-03-19 18:19:09,801 - INFO - 127.0.0.1 - - [19/Mar/2025 18:19:09] "GET /dialog/dialog_16fb7d24 HTTP/1.1" 200 -
+2025-03-19 18:19:13,751 - INFO - Dialog dialog_16fb7d24 response: overwrite
+2025-03-19 18:19:13,752 - INFO - 127.0.0.1 - - [19/Mar/2025 18:19:13] "POST /dialog-response/dialog_16fb7d24 HTTP/1.1" 200 -
+2025-03-19 18:19:13,752 - INFO - [da528346] User selected: overwrite for 'Frankfurt86onBullshitEssy'
+2025-03-19 18:19:13,754 - INFO - [da528346] Successfully overwrote file: C:\Users\scott\OneDrive\share\ref\obsidian\Obsidian Share Vault\lit\lit_notes\Frankfurt86onBullshitEssy.md
+2025-03-19 18:19:13,757 - DEBUG - [da528346] Checking existence of: C:\Users\scott\OneDrive\share\ref\obsidian\Obsidian Share Vault\lit\lit_notes\Frankfurt86onBullshitEssy.md
+2025-03-19 18:19:13,944 - INFO - [da528346] Completed item: citekey='Frankfurt86onBullshitEssy', itemkey='RGBEXMWN'
+2025-03-19 18:19:13,944 - INFO - [da528346] Ended webhook message processing with 1 items added or changed
+2025-03-19 18:19:13,945 - INFO - 127.0.0.1 - - [19/Mar/2025 18:19:13] "POST /webhook HTTP/1.1" 200 -
+2025-03-19 18:51:06,151 - INFO - [99eb7890] Received webhook request
+2025-03-19 18:51:06,153 - INFO - [99eb7890] Processing 1 items
+2025-03-19 18:51:06,153 - INFO - [99eb7890] Working on item 1/1: Frankfurt86onBullshitEssay
+2025-03-19 18:51:06,188 - INFO - [99eb7890] File already exists: lit/lit_notes/Frankfurt86onBullshitEssay.md
+2025-03-19 18:51:06,188 - INFO - [99eb7890] Showing overwrite popup for 'Frankfurt86onBullshitEssay'
+2025-03-19 18:51:06,188 - INFO - [99eb7890] Opening dialog in browser: http://localhost:5050/dialog/dialog_d0cb9276
+2025-03-19 18:51:06,735 - INFO - 127.0.0.1 - - [19/Mar/2025 18:51:06] "GET /dialog/dialog_d0cb9276 HTTP/1.1" 200 -
+2025-03-19 18:51:09,695 - INFO - Dialog dialog_d0cb9276 response: cancel
+2025-03-19 18:51:09,696 - INFO - 127.0.0.1 - - [19/Mar/2025 18:51:09] "POST /dialog-response/dialog_d0cb9276 HTTP/1.1" 200 -
+2025-03-19 18:51:09,696 - INFO - [99eb7890] User selected: cancel for 'Frankfurt86onBullshitEssay'
+2025-03-19 18:51:09,697 - INFO - [99eb7890] Skipping file: lit/lit_notes/Frankfurt86onBullshitEssay.md
+2025-03-19 18:51:09,698 - INFO - [99eb7890] Ended webhook message processing with 0 items added or changed
+2025-03-19 18:51:09,698 - INFO - 127.0.0.1 - - [19/Mar/2025 18:51:09] "POST /webhook HTTP/1.1" 200 -

@@ -6,3 +6,24 @@
 2025-03-19 16:49:39,378 - INFO - [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
  * Running on http://localhost:5050
 2025-03-19 16:49:39,395 - INFO - [33mPress CTRL+C to quit[0m
+2025-03-19 16:53:14,787 - INFO - [8f7a03fa] Received webhook request
+2025-03-19 16:53:14,789 - INFO - [8f7a03fa] Processing 1 items
+2025-03-19 16:53:14,789 - INFO - [8f7a03fa] Working on item 1/1: Frankfurt86onBullshitEssy
+2025-03-19 16:53:14,829 - ERROR - [8f7a03fa] Error writing file: [Errno 17] File exists: 'C:\\Users\\scott\\OneDrive\\share\\ref\\obsidian\\Obsidian Share Vault\\lit\\lit_notes\\Frankfurt86onBullshitEssy.md'
+Traceback (most recent call last):
+  File "C:\Users\scott\OneDrive\share\ref\refwrangle\zmknote\zotero_to_obsidian_note_receiver.py", line 647, in write_note
+    with open(filepath, 'x', encoding='utf-8') as f:
+         ~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+FileExistsError: [Errno 17] File exists: 'C:\\Users\\scott\\OneDrive\\share\\ref\\obsidian\\Obsidian Share Vault\\lit\\lit_notes\\Frankfurt86onBullshitEssy.md'
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "C:\Users\scott\OneDrive\share\ref\refwrangle\zmknote\zotero_to_obsidian_note_receiver.py", line 675, in write_obsidian_md_note
+    write_note(filepath, obs_note_markdown, overwrite=False)
+    ~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\scott\OneDrive\share\ref\refwrangle\zmknote\zotero_to_obsidian_note_receiver.py", line 651, in write_note
+    raise Exception(e)
+Exception: [Errno 17] File exists: 'C:\\Users\\scott\\OneDrive\\share\\ref\\obsidian\\Obsidian Share Vault\\lit\\lit_notes\\Frankfurt86onBullshitEssy.md'
+2025-03-19 16:53:14,833 - INFO - [8f7a03fa] Completed processing with 0 results
+2025-03-19 16:53:14,835 - INFO - 127.0.0.1 - - [19/Mar/2025 16:53:14] "POST /webhook HTTP/1.1" 200 -

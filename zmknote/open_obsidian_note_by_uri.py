@@ -90,11 +90,10 @@ def open_obsidian_note(note_path: str, vault_path: Path | str | None = None, new
         status["method_used"] = "none"
         return status
     
-    file_path = note_path.replace('/', os.sep)
-    if not file_path.endswith('.md'):
-        file_path += '.md'
-    note_file_path = vault_path / file_path
-    status["note_found"] = note_file_path.exists()
+    print(f'{note_path=}')
+    if not note_path.endswith('.md'):
+        note_path += '.md'
+    status["note_found"] = (vault_path / note_path).exists()
     
     is_installed, is_enabled = check_advanced_uri_plugin(vault_path)
     status["advanced_uri_plugin_installed"] = is_installed
