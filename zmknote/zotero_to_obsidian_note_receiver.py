@@ -15,6 +15,7 @@ from pathlib import Path
 import uuid
 import webbrowser
 from typing import Union
+from waitress import serve
 
 import bs4
 from jinja2 import Template
@@ -25,6 +26,8 @@ VAULT_PATH = Path(r"C:\Users\scott\OneDrive\share\ref\obsidian\Obsidian Share Va
 NOTE_VAULT_PATH = 'lit/lit_notes'
 NOTE_OS_PATH = VAULT_PATH / NOTE_VAULT_PATH
 LISTEN_PORT = 5050
+# the installer script should use the same file
+# TODO: make a central file for this? or is that more complexity for little gain?
 RECEIVER_LOG_FILE = "zotero_item_receiver.log"
 
 # Jinja2 template for output obsidian literature note.  
@@ -732,4 +735,9 @@ if __name__ == '__main__':
     
     # Start Flask server
     logger.info(f"Starting server on port {LISTEN_PORT}")
-    app.run(host='localhost', port=LISTEN_PORT, debug=False, threaded=True)
+
+    # waitress is "production ready"
+    serve(app, host='0.0.0.0', port=LISTEN_PORT)
+    # fits OS service env better, but it isn't better
+    #app.run(host='0.0.0.0', port=LISTEN_PORT, debug=False, threaded=True)
+    # app.run(host='localhost', port=LISTEN_PORT, debug=False, threaded=True)
