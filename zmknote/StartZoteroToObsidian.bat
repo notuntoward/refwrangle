@@ -3,6 +3,7 @@
 :: Handiest if you create a shortcut to this, and put it on your desktop
 
 :: TODO? Turn this into an executable so can paste to taskbar?
+:: TODO? Kick this, or just the .exe from inside my Zotero javascript.  It seems possible.
 
 @echo off
 cd /d C:\Users\scott\OneDrive\share\ref\refwrangle\zmknote\dist
