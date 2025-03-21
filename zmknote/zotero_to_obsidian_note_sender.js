@@ -6,6 +6,12 @@ The companion python script for this one is zotero_to_obsidian_note_receiver_tes
 // The webhook sending port, match the Python side's LISTEN_PORT
 const SEND_PORT = 5050;
 
+// how long the webhook interface will wait before a zotero popup error
+const RECEIVER_TIMEOUT_SECONDS = 10 // 10 second timeout for python receiver
+
+// the name of the script receifing the webhook message, and writing the lit note
+const RECEIVER_PROGRAM_NAME = "'zotero_to_obsidian_note_receiver'"
+
 // Global request tracking
 if (typeof Zotero.ZoteroWebhookLock === 'undefined') {
     Zotero.ZoteroWebhookLock = {
@@ -173,13 +179,21 @@ try {
     Zotero.ZoteroWebhookLock.inProgress = false;
 }
 
-// Function to send data to webhook using fetch()
 function sendToWebhook(itemDataArray, requestId) {
-    // Use the SEND_PORT constant instead of hardcoding the port number
     const webhookUrl = `http://localhost:${SEND_PORT}/webhook`;
-    
     Zotero.debug(`Sending webhook request ${requestId} with ${itemDataArray.length} items`);
 
+    let timeoutId = null;
+    let requestCompleted = false;
+    
+    timeoutId = setTimeout(function() {
+        if (!requestCompleted) {
+            Zotero.debug(`Webhook request timed out after ${RECEIVER_TIMEOUT_SECONDS} seconds`);
+            Zotero.alert(null, "Webhook Warning", `The receiving serv did not respond within ${RECEIVER_TIMEOUT_SECONDS} seconds (timeout). Is ${RECEIVER_PROGRAM_NAME} running?`);
+            Zotero.ZoteroWebhookLock.inProgress = false;
+        }
+    }, RECEIVER_TIMEOUT_SECONDS * 1000);
+    
     fetch(webhookUrl, {
         method: "POST",
         headers: {
@@ -189,17 +203,21 @@ function sendToWebhook(itemDataArray, requestId) {
         body: JSON.stringify(itemDataArray)
     })
     .then(response => {
+        requestCompleted = true;
+        clearTimeout(timeoutId);
         if (response.ok) {
             Zotero.debug(`Webhook response: ${response.statusText}`);
         } else {
             Zotero.debug(`Webhook error status: ${response.status}`);
+            Zotero.alert(null, "Webhook Warning", `The webhook receiver responded with an error. Is ${RECEIVER_PROGRAM_NAME} running? : ${response.status} ${response.statusText}`);
         }
-        // Release lock after request completes
         Zotero.ZoteroWebhookLock.inProgress = false;
     })
     .catch(error => {
+        requestCompleted = true;
+        clearTimeout(timeoutId);
         Zotero.debug(`Webhook error: ${error.message}`);
-        // Release lock if request fails
+        Zotero.alert(null, "Webhook Warning", `The receiving server did not respond. Is ${RECEIVER_PROGRAM_NAME} running? : ${error.message}`);
         Zotero.ZoteroWebhookLock.inProgress = false;
     });
 }
