@@ -143,9 +143,10 @@ def open_obsidian_note(note_path: str, vault_path: Path | str | None = None, new
     return status
 
 if __name__ == "__main__":
+    # Tests
     from icecream import ic
-    # Option 1: Provide just the vault path (name is extracted automatically)
 
+    # Option 1: Provide just the vault path (name is extracted automatically)
     # Open several notes so can verify that new tab for each note works
     vault_path = Path(r"C:\Users\scott\OneDrive\share\ref\obsidian\Obsidian Share Vault")
     status = open_obsidian_note( "lit/lit_notes/Coursera24SQLVsNoSQLdiffExplain", vault_path=vault_path, new_tab=True)
