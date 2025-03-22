@@ -7,7 +7,8 @@ The companion python script for this one is zotero_to_obsidian_note_receiver_tes
 const SEND_PORT = 5050;
 
 // how long the webhook interface will wait before a zotero popup error
-const RECEIVER_TIMEOUT_SECONDS = 10 // 10 second timeout for python receiver
+// s/b a fair amount longer than pytyon's RECEIVER_BUTTON_WAIT_SECS  
+const RECEIVER_RESPONSE_WAIT_TIMEOUT_SECS = 60 // seconds
 
 // the name of the script receifing the webhook message, and writing the lit note
 const RECEIVER_PROGRAM_NAME = "'zotero_to_obsidian_note_receiver'"
@@ -188,11 +189,11 @@ function sendToWebhook(itemDataArray, requestId) {
     
     timeoutId = setTimeout(function() {
         if (!requestCompleted) {
-            Zotero.debug(`Webhook request timed out after ${RECEIVER_TIMEOUT_SECONDS} seconds`);
-            Zotero.alert(null, "Webhook Warning", `The receiving serv did not respond within ${RECEIVER_TIMEOUT_SECONDS} seconds (timeout). Is ${RECEIVER_PROGRAM_NAME} running?`);
+            Zotero.debug(`Webhook request timed out after ${RECEIVER_RESPONSE_WAIT_TIMEOUT_SECS} seconds`);
+            Zotero.alert(null, "Webhook Warning", `The receiving serv did not respond within ${RECEIVER_RESPONSE_WAIT_TIMEOUT_SECS} seconds (timeout). Is ${RECEIVER_PROGRAM_NAME} running?`);
             Zotero.ZoteroWebhookLock.inProgress = false;
         }
-    }, RECEIVER_TIMEOUT_SECONDS * 1000);
+    }, RECEIVER_RESPONSE_WAIT_TIMEOUT_SECS * 1000);
     
     fetch(webhookUrl, {
         method: "POST",

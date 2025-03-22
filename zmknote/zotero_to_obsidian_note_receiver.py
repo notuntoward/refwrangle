@@ -23,7 +23,14 @@ import open_obsidian_note_by_uri as onu
 
 # Create storage directory path
 VAULT_PATH = Path(r"C:\Users\scott\OneDrive\share\ref\obsidian\Obsidian Share Vault").expanduser()
-NOTE_VAULT_PATH = 'lit/lit_notes'
+
+NOTE_VAULT_PATH = 'Scratch Space'
+#NOTE_VAULT_PATH = 'lit/lit_notes'
+
+# Max button wait for each note in payload 
+# (should be << RECEIVER_RESPONSE_WAIT_TIMEOUT_SECS)
+RECEIVER_BUTTON_WAIT_SECS = 20
+
 NOTE_OS_PATH = VAULT_PATH / NOTE_VAULT_PATH
 LISTEN_PORT = 5050
 # the installer script should use the same file
@@ -370,12 +377,16 @@ DIALOG_TEMPLATE = """
             cursor: pointer;
             font-size: 14px;
         }
+        .open {
+            background-color: #5fb236;
+            color: white;
+        }
         .overwrite {
-            background-color: #4CAF50;
+            background-color: #b24b36;
             color: white;
         }
         .skip {
-            background-color: #f44336;
+            background-color: #365fb2;
             color: white;
         }
         .skip-all {
@@ -416,11 +427,12 @@ DIALOG_TEMPLATE = """
 <body>
     <div class="message">{{ message }}</div>
     <div class="buttons">
-        <button onclick="submitAndClose('overwrite');" class="overwrite">Overwrite</button>
-        <button onclick="submitAndClose('cancel');" class="skip">Skip</button>
+        <button onclick="submitAndClose('open');" class="open">Open</button>
+        <button onclick="submitAndClose('skip');" class="skip">Skip</button>
         {% if show_skip_all %}
-        <button onclick="submitAndClose('cancel_all');" class="skip-all">Skip All</button>
-        {% endif %}
+        <button onclick="submitAndClose('skip_all');" class="skip-all">Skip All</button>
+        {% endif %}        
+        <button onclick="submitAndClose('overwrite');" class="overwrite">Overwrite</button>
     </div>
 </body>
 </html>
@@ -471,7 +483,7 @@ def dialog_response(dialog_id: str) -> tuple:
     if dialog_id not in dialog_events:
         return "Dialog not found", 404
         
-    action = request.form.get('action', 'cancel')
+    action = request.form.get('action', 'skip')
     logger.info(f"Dialog {dialog_id} response: {action}")
     
     # Store the result
@@ -495,7 +507,7 @@ def show_web_dialog(title: str, message: str, options: str, request_id: str) -> 
         'title': title,
         'message': message,
         'event': event,
-        'show_skip_all': options == 'yesnocancel'
+        'show_skip_all': options == 'yesnoskip'
     }
     
     # URL for the dialog
@@ -506,15 +518,15 @@ def show_web_dialog(title: str, message: str, options: str, request_id: str) -> 
     webbrowser.open(url)
     
     # Wait for response with timeout
-    if not event.wait(timeout=60):
-        logger.warning(f"[{request_id}] Dialog timeout after 60 seconds")
+    if not event.wait(timeout=RECEIVER_BUTTON_WAIT_SECS):
+        logger.warning(f"[{request_id}] Dialog timeout after {RECEIVER_BUTTON_WAIT_SECS} seconds")
         # Clean up
         if dialog_id in dialog_events:
             del dialog_events[dialog_id]
-        return "cancel"  # Default to cancel on timeout
+        return "skip"  # Default to skip on timeout
     
     # Get the result
-    answer = dialog_answers.get(dialog_id, "cancel")
+    answer = dialog_answers.get(dialog_id, "skip")
     
     # Clean up
     if dialog_id in dialog_answers:
@@ -535,7 +547,7 @@ def ask_overwrite_popup(citekey: str, is_last_item: bool, total_items: int, requ
     answer = show_web_dialog(
         "File Exists",
         message,
-        "yesno" if (total_items == 1 or is_last_item) else "yesnocancel",
+        "yesno" if (total_items == 1 or is_last_item) else "yesnoskip",
         request_id)
     
     logger.info(f"[{request_id}] User selected: {answer} for '{citekey}'")
@@ -588,7 +600,24 @@ def webhook() -> Response:
     except Exception as e:
         logger.exception(f"[{request_id}] Error processing webhook data: {str(e)}")
         return jsonify({"status": "error", "message": str(e), "request_id": request_id}), 500
+    
+def handle_obsidian_opening(citekey: str, itemkey: str, notepath_vault: Path, request_id: str) -> None:
+    """Open Obsidian Note"""
+    keys_str = f'{citekey=}, {itemkey=}'
+    logger.info("[{request_id}] Opening Obsidian note write attemp for item {keys_str}")
+    
+    try:
+        status = onu.open_obsidian_note(notepath_vault, VAULT_PATH)
+        
+        message_tail = f'({keys_str}): {status=})'
+        if not (status['note_found'] and status['vault_found'] and status["uri_used"] != ""):
+            logger.info(f"[{request_id}] Couldn't open note in Obsidian due to path or URI problem {message_tail}")
+        elif status['new_tab_requested'] and status['new_tab_possible'] is not True:
+            logger.info(f"[{request_id}] Couldn't open note in NEW Obsidian tab due to Obsidian config problem {message_tail}")
 
+    except Exception as e:
+        logger.info(f"[{request_id}] Problem opening Obsidian note written for item {keys_str}: ", e)
+    
 def  write_obsidian_md_note(items: list, request_id: str) -> list:
     """ Write an Obsidian note from the items data, avoiding overwrite unless user accepts it,
     and returning status of items written."""
@@ -599,10 +628,10 @@ def  write_obsidian_md_note(items: list, request_id: str) -> list:
     
     total_items = len(items)
     obs_note_write_record = []
-    cancel_all = False
+    skip_all = False
     for index, item in enumerate(items):
-        if cancel_all:
-            logger.info(f"[{request_id}] Skipping remaining items due to 'cancel all' selection")
+        if skip_all:
+            logger.info(f"[{request_id}] Skipping remaining items due to timeout or 'skip all' selection")
             break
             
         itemkey = item.get('itemkey')
@@ -647,21 +676,10 @@ def  write_obsidian_md_note(items: list, request_id: str) -> list:
             obs_note_write_record.append(dict(itemkey=itemkey, citekey=citekey,
                               timestamp=datetime.now().strftime("%Y%m%d_%H%M%S"),
                               filepath=str(filepath_os)))
-
-            keys_str = f'{citekey=}, {itemkey=}'
-            try:
-                status = onu.open_obsidian_note(notepath_vault, VAULT_PATH)
-                
-                message_tail = f'({keys_str}): {status=})'
-                if not (status['note_found'] and status['vault_found'] and status["uri_used"] != ""):
-                    logger.info(f"[{request_id}] Couldn't open note in Obsidian due to path or URI problem {message_tail}")
-                elif status['new_tab_requested'] and status['new_tab_possible'] is not True:
-                    logger.info(f"[{request_id}] Couldn't open note in NEW Obsidian tab due to Obsidian config problem {message_tail}")
-
-            except Exception as e:
-                logger.info(f"[{request_id}] Problem opening Obsidian note written for item {keys_str}: ", e)
             
-            logger.info(f"[{request_id}] Completed item: {keys_str}")
+            handle_obsidian_opening(citekey, itemkey, notepath_vault, request_id)
+
+            logger.info(f"[{request_id}] Completed item: {citekey=}, {itemkey=}")
             
             return 'done'
 
@@ -674,12 +692,16 @@ def  write_obsidian_md_note(items: list, request_id: str) -> list:
             logger.info(f"[{request_id}] File already exists: {note_path_in_vault}")
         
             answer = ask_overwrite_popup(citekey, is_last_item, total_items, request_id)
-            if answer == "cancel":
+            if answer == "open":
+                logger.info(f"[{request_id}] Opening file: {note_path_in_vault}")
+                handle_obsidian_opening(citekey, itemkey, note_path_in_vault, request_id)
+                continue
+            if answer == "skip":
                 logger.info(f"[{request_id}] Skipping file: {note_path_in_vault}")
                 continue
-            elif answer == "cancel_all":
-                logger.info(f"[{request_id}] Cancelling all remaining operations")
-                cancel_all = True
+            elif answer == "skip_all":
+                logger.info(f"[{request_id}] Skipping all remaining operations")
+                skip_all = True
                 continue
             
             # Do overwrite, as requested
