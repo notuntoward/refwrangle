@@ -34,7 +34,7 @@ RECEIVER_BUTTON_WAIT_SECS = 20
 NOTE_OS_PATH = VAULT_PATH / NOTE_VAULT_PATH
 LISTEN_PORT = 5050
 # the installer script should use the same file
-# TODO: make a central file for this? or is that more complexity for little gain?
+# TODO: just move this to onu.* so it's in one central file?
 RECEIVER_LOG_FILE = "zotero_item_receiver.log"
 
 # Jinja2 template for output obsidian literature note.  
