@@ -604,7 +604,7 @@ def webhook() -> Response:
 def handle_obsidian_opening(citekey: str, itemkey: str, notepath_vault: Path, request_id: str) -> None:
     """Open Obsidian Note"""
     keys_str = f'{citekey=}, {itemkey=}'
-    logger.info("[{request_id}] Opening Obsidian note write attemp for item {keys_str}")
+    logger.info("[{request_id}] Opening Obsidian note write attempt for item {keys_str}")
     
     try:
         status = onu.open_obsidian_note(notepath_vault, VAULT_PATH)
