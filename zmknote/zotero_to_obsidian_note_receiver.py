@@ -24,8 +24,8 @@ import open_obsidian_note_by_uri as onu
 # Create storage directory path
 VAULT_PATH = Path(r"C:\Users\scott\OneDrive\share\ref\obsidian\Obsidian Share Vault").expanduser()
 
-NOTE_VAULT_PATH = 'Scratch Space'
-#NOTE_VAULT_PATH = 'lit/lit_notes'
+#NOTE_VAULT_PATH = 'Scratch Space'
+NOTE_VAULT_PATH = 'lit/lit_notes'
 
 # Max button wait for each note in payload 
 # (should be << RECEIVER_RESPONSE_WAIT_TIMEOUT_SECS)
