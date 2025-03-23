@@ -600,7 +600,8 @@ def webhook() -> tuple:
         if sender_id == SENDER_ID_ZOTERO_TO_OBSIDIAN_NOTE:
             results =  write_obsidian_md_note(webhook_item_list, request_id)
         elif sender_id == SENDER_ID_OPEN_OBSIDIAN_NOTE:
-            results = open_existing_notes(webhook_item_list, request_id)
+            results = open_note_in_new_tab(webhook_item_list, request_id)
+            # results = open_existing_notes(webhook_item_list, request_id)
         else:
             logger.error(f"[{request_id}] Unknown sender_id, got {sender_id}")
             return jsonify({"status": "error", "message": f"Unknown {sender_id=}"}), 400
@@ -618,34 +619,29 @@ def webhook() -> tuple:
         logger.exception(f"[{request_id}] Error processing webhook data: {str(e)}")
         return jsonify({"status": "error", "message": str(e), "request_id": request_id}), 500
 
-def open_existing_notes(citekeys: list, request_id: str) -> list:
-    """Opens existing notes in new obsidian tabs.  Return value is nearly useless for now."""
-    
+def open_note_in_new_tab(citekey_or_keys: Union[str, list], request_id: str) -> list:
+    """Opens existing note(s) in new obsidian tab(s).  Return value is list of attempted citekeys, for now."""
+
+    citekeys = citekey_or_keys if isinstance(citekey_or_keys, list) else [citekey_or_keys]
     results = []
     for citekey in citekeys:
-        notepath_vault = f'{NOTE_VAULT_PATH}/{citekey}.md'
-        open_note_in_new_tab(citekey, notepath_vault, request_id)
-        results.append(f"Tried to open not at {notepath_vault}")
-        
-    return results
-    
-def open_note_in_new_tab(citekey: str, notepath_vault: Union[str, Path], request_id: str) -> None:
-    """Open Obsidian note in a new Obsidian tab"""
-    logger.info("[{request_id}] Opening Obsidian note write attempt for item {citekey}")
-    
-    try:
-        note_path = notepath_vault if isinstance(notepath_vault, str) else str(notepath_vault)
-        status = onu.open_obsidian_note(note_path, VAULT_PATH)
-        
-        message_tail = f'({citekey}): {status=})'
-        if not (status['note_found'] and status['vault_found'] and status["uri_used"] != ""):
-            logger.info(f"[{request_id}] Couldn't open note in Obsidian due to path or URI problem {message_tail}")
-        elif status['new_tab_requested'] and status['new_tab_possible'] is not True:
-            logger.info(f"[{request_id}] Couldn't open note in NEW Obsidian tab due to Obsidian config problem {message_tail}")
+        try:
+            notepath_vault = f'{NOTE_VAULT_PATH}/{citekey}.md'
+            status = onu.open_obsidian_note(notepath_vault, VAULT_PATH)
+            
+            message_tail = f'({citekey}): {status=})'
+            if not (status['note_found'] and status['vault_found'] and status["uri_used"] != ""):
+                logger.info(f"[{request_id}] Couldn't open note in Obsidian due to path or URI problem {message_tail}")
+            elif status['new_tab_requested'] and status['new_tab_possible'] is not True:
+                logger.info(f"[{request_id}] Couldn't open note in NEW Obsidian tab due to Obsidian config problem {message_tail}")
+        except Exception as e:
+            logger.info(f"[{request_id}] Problem opening Obsidian note for item {citekey}: ", e)
 
-    except Exception as e:
-        logger.info(f"[{request_id}] Problem opening Obsidian note for item {citekey}: ", e)
-    
+        results.append(f"Tried to open note at {notepath_vault}")
+
+    return results
+
+
 def  write_obsidian_md_note(items: list, request_id: str) -> list:
     """ Write an Obsidian note from the items data, avoiding overwrite unless user accepts it,
     and returning status of items written."""
@@ -705,7 +701,7 @@ def  write_obsidian_md_note(items: list, request_id: str) -> list:
                               timestamp=datetime.now().strftime("%Y%m%d_%H%M%S"),
                               filepath=str(filepath_os)))
             
-            open_note_in_new_tab(citekey, notepath_in_vault, request_id)
+            open_note_in_new_tab(citekey, request_id)
 
             logger.info(f"[{request_id}] Completed item: {citekey=}, {itemkey=}")
             
@@ -722,7 +718,7 @@ def  write_obsidian_md_note(items: list, request_id: str) -> list:
             answer = ask_overwrite_popup(citekey, is_last_item, total_items, request_id)
             if answer == "open":
                 logger.info(f"[{request_id}] Opening file: {note_path_in_vault}")
-                open_note_in_new_tab(citekey, note_path_in_vault, request_id)
+                open_note_in_new_tab(citekey, request_id)
                 continue
             if answer == "skip":
                 logger.info(f"[{request_id}] Skipping file: {note_path_in_vault}")
