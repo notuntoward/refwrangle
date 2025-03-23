@@ -5,16 +5,19 @@ https://www.perplexity.ai/search/the-javascript-below-is-intend-Tic7.jP4TQiZ6R9C
 
 The companion javascript for this, zotero_to_obsidian_note_sender.js, goes into the zotero action and tags plugin."""
 
-from flask import Flask, request, jsonify, render_template_string, Response
-import logging
 import json
-from datetime import datetime
-import time
+import logging
 import threading
-from pathlib import Path
+import time
 import uuid
 import webbrowser
+from datetime import datetime
+from pathlib import Path
 from typing import Union
+
+import bs4
+from flask import Flask, Response, jsonify, render_template_string, request
+from jinja2 import Template
 from waitress import serve
 
 import bs4
@@ -465,7 +468,7 @@ def ensure_storage_dir(request_id: str) -> bool:
 app = Flask(__name__)
 
 @app.route('/dialog/<dialog_id>')
-def show_dialog(dialog_id: str) -> str:
+def show_dialog(dialog_id: str) -> tuple:
     """Show a dialog in the browser"""
     if dialog_id not in dialog_events:
         return "Dialog not found", 404
@@ -478,7 +481,7 @@ def show_dialog(dialog_id: str) -> str:
         message=dialog_data['message'],
         dialog_id=dialog_id,
         show_skip_all=dialog_data.get('show_skip_all', False)
-    )
+    ), 200
 
 @app.route('/dialog-response/<dialog_id>', methods=['POST'])
 def dialog_response(dialog_id: str) -> tuple:
@@ -496,7 +499,7 @@ def dialog_response(dialog_id: str) -> tuple:
     dialog_events[dialog_id]['event'].set()
     
     # Return success - the browser window should be closed by JavaScript
-    return "OK"
+    return "OK", 200
 
 def show_web_dialog(title: str, message: str, options: str, request_id: str) -> str:
     """Show a dialog in the browser and wait for response"""
@@ -557,7 +560,7 @@ def ask_overwrite_popup(citekey: str, is_last_item: bool, total_items: int, requ
     return answer
 
 @app.route('/webhook', methods=['POST'])
-def webhook() -> Response:
+def webhook() -> tuple:
     """
     Endpoint that receives webhook data from Zotero Tags and Actions plugin.
     Expects a JSON array of objects with zotero item information, including itemkey and citekey.
@@ -609,7 +612,7 @@ def webhook() -> Response:
             "processed": len(results),
             "items": results,
             "request_id": request_id
-        })
+        }), 200
         
     except Exception as e:
         logger.exception(f"[{request_id}] Error processing webhook data: {str(e)}")
@@ -626,12 +629,13 @@ def open_existing_notes(citekeys: list, request_id: str) -> list:
         
     return results
     
-def open_note_in_new_tab(citekey: str, notepath_vault: Path, request_id: str) -> None:
-    """Open Obsidian Note"""
+def open_note_in_new_tab(citekey: str, notepath_vault: Union[str, Path], request_id: str) -> None:
+    """Open Obsidian note in a new Obsidian tab"""
     logger.info("[{request_id}] Opening Obsidian note write attempt for item {citekey}")
     
     try:
-        status = onu.open_obsidian_note(str(notepath_vault), VAULT_PATH)
+        note_path = notepath_vault if isinstance(notepath_vault, str) else str(notepath_vault)
+        status = onu.open_obsidian_note(note_path, VAULT_PATH)
         
         message_tail = f'({citekey}): {status=})'
         if not (status['note_found'] and status['vault_found'] and status["uri_used"] != ""):
@@ -677,11 +681,11 @@ def  write_obsidian_md_note(items: list, request_id: str) -> list:
         template = Template(template_str, trim_blocks=True, lstrip_blocks=True)
         obs_note_markdown = template.render(**item)
         
-        def write_note(notepath_vault: Path, obs_note_markdown: str, overwrite: bool) -> str:
+        def write_note(notepath_in_vault: Union[str, Path], obs_note_markdown: str, overwrite: bool) -> str:
             """Write an obsidian note and open it in a new Obsidian tab.  If overwrite=False,
             then a write Exception will mean that the file already exists."""
             
-            filepath_os = VAULT_PATH / notepath_vault
+            filepath_os = VAULT_PATH / notepath_in_vault
             try:
                 if overwrite:
                     with open(filepath_os, 'w', encoding='utf-8') as f:
@@ -701,7 +705,7 @@ def  write_obsidian_md_note(items: list, request_id: str) -> list:
                               timestamp=datetime.now().strftime("%Y%m%d_%H%M%S"),
                               filepath=str(filepath_os)))
             
-            open_note_in_new_tab(citekey, notepath_vault, request_id)
+            open_note_in_new_tab(citekey, notepath_in_vault, request_id)
 
             logger.info(f"[{request_id}] Completed item: {citekey=}, {itemkey=}")
             
