@@ -755,7 +755,6 @@ def status():
             "files_in_dir": []
         })
     
-    # Get files if directory exists
     try:
         files_list = [f.name for f in NOTE_OS_PATH.iterdir() if f.is_file()]
     except Exception as e:
@@ -783,11 +782,6 @@ if __name__ == '__main__':
     except Exception as e:
         logger.warning(f"Note: Could not create storage directory at startup: {e}")
     
-    # Start Flask server
+    # Start waitress server, intead of flask, as it's more "production ready"
     logger.info(f"Starting server on port {LISTEN_PORT}")
-
-    # waitress is "production ready"
     serve(app, host='0.0.0.0', port=LISTEN_PORT)
-    # fits OS service env better, but it isn't better
-    #app.run(host='0.0.0.0', port=LISTEN_PORT, debug=False, threaded=True)
-    # app.run(host='localhost', port=LISTEN_PORT, debug=False, threaded=True)
