@@ -24,17 +24,17 @@ import bs4
 from jinja2 import Template
 import open_obsidian_note_by_uri as onu
 
-# Create storage directory path
-VAULT_PATH = Path(r"C:\Users\scott\OneDrive\share\ref\obsidian\Obsidian Share Vault").expanduser()
+# Root of Obsidian Vault
+OS_PATH_TO_VAULT_ROOT = Path(r"C:\Users\scott\OneDrive\share\ref\obsidian\Obsidian Share Vault").expanduser()
 
 #NOTE_VAULT_PATH = 'Scratch Space'
-NOTE_VAULT_PATH = 'lit/lit_notes'
+VAULT_PATH_NOTES = 'lit/lit_notes'
+NOTES_OS_PATH = OS_PATH_TO_VAULT_ROOT / VAULT_PATH_NOTES
 
 # Max button wait for each note in payload 
 # (should be << RECEIVER_RESPONSE_WAIT_TIMEOUT_SECS)
 RECEIVER_BUTTON_WAIT_SECS = 20
 
-NOTE_OS_PATH = VAULT_PATH / NOTE_VAULT_PATH
 LISTEN_PORT = 5050
 # the installer script should use the same file
 # TODO: just move this to onu.* so it's in one central file?
@@ -43,7 +43,8 @@ RECEIVER_LOG_FILE = "zotero_item_receiver.log"
 SENDER_ID_ZOTERO_TO_OBSIDIAN_NOTE  = 'zotero_to_obsidian_note'
 SENDER_ID_OPEN_OBSIDIAN_NOTE  = 'open_obsidian_note'
 
-# Jinja2 template for output obsidian literature note.  
+# Jinja2 template for output obsidian literature note.
+# Should fairly well match Zotero Integration Plugin template, "literature note.md"
 # DON'T TOUCH ANY SPACES WITHIN 
 template_str = """{%- macro truncateTitle(title, n) -%}
   {%- set words = title.split(' ') -%}
@@ -448,10 +449,10 @@ def ensure_storage_dir(request_id: str) -> bool:
     """Ensure the storage directory exists with proper synchronization.
     Returns True if successful, False otherwise."""
     with dir_lock:
-        if not NOTE_OS_PATH.exists():
-            logger.info(f"[{request_id}] Creating storage directory: {NOTE_OS_PATH}")
+        if not NOTES_OS_PATH.exists():
+            logger.info(f"[{request_id}] Creating storage directory: {NOTES_OS_PATH}")
             try:
-                NOTE_OS_PATH.mkdir(parents=True, exist_ok=True)
+                NOTES_OS_PATH.mkdir(parents=True, exist_ok=True)
                 # Small delay to ensure directory is fully created and visible to all threads
                 time.sleep(0.1)
             except Exception as e:
@@ -459,8 +460,8 @@ def ensure_storage_dir(request_id: str) -> bool:
                 return False
         
         # Double-check directory exists
-        if not NOTE_OS_PATH.exists():
-            logger.error(f"[{request_id}] Directory does not exist after creation attempt: {NOTE_OS_PATH}")
+        if not NOTES_OS_PATH.exists():
+            logger.error(f"[{request_id}] Directory does not exist after creation attempt: {NOTES_OS_PATH}")
             return False
             
         return True
@@ -600,8 +601,8 @@ def webhook() -> tuple:
         if sender_id == SENDER_ID_ZOTERO_TO_OBSIDIAN_NOTE:
             results =  write_obsidian_md_note(webhook_item_list, request_id)
         elif sender_id == SENDER_ID_OPEN_OBSIDIAN_NOTE:
+            # TODO: add dialog asking if want to write the note, since item should already be in zotero if here
             results = open_note_in_new_tab(webhook_item_list, request_id)
-            # results = open_existing_notes(webhook_item_list, request_id)
         else:
             logger.error(f"[{request_id}] Unknown sender_id, got {sender_id}")
             return jsonify({"status": "error", "message": f"Unknown {sender_id=}"}), 400
@@ -626,8 +627,8 @@ def open_note_in_new_tab(citekey_or_keys: Union[str, list], request_id: str) -> 
     results = []
     for citekey in citekeys:
         try:
-            notepath_vault = f'{NOTE_VAULT_PATH}/{citekey}.md'
-            status = onu.open_obsidian_note(notepath_vault, VAULT_PATH)
+            notepath_vault = f'{VAULT_PATH_NOTES}/{citekey}.md'
+            status = onu.open_obsidian_note(notepath_vault, OS_PATH_TO_VAULT_ROOT)
             
             message_tail = f'({citekey}): {status=})'
             if not (status['note_found'] and status['vault_found'] and status["uri_used"] != ""):
@@ -681,7 +682,7 @@ def  write_obsidian_md_note(items: list, request_id: str) -> list:
             """Write an obsidian note and open it in a new Obsidian tab.  If overwrite=False,
             then a write Exception will mean that the file already exists."""
             
-            filepath_os = VAULT_PATH / notepath_in_vault
+            filepath_os = OS_PATH_TO_VAULT_ROOT / notepath_in_vault
             try:
                 if overwrite:
                     with open(filepath_os, 'w', encoding='utf-8') as f:
@@ -709,7 +710,7 @@ def  write_obsidian_md_note(items: list, request_id: str) -> list:
 
         # Write obsidian lit note without overwiting existing note, unless user confirms
         note_basename = f"{citekey}.md"
-        note_path_in_vault = f'{NOTE_VAULT_PATH}/{note_basename}'
+        note_path_in_vault = f'{VAULT_PATH_NOTES}/{note_basename}'
         is_last_item = (index == total_items - 1)
 
         if (write_resp := write_note(note_path_in_vault, obs_note_markdown, overwrite=False)) == 'exists':
@@ -742,24 +743,24 @@ def  write_obsidian_md_note(items: list, request_id: str) -> list:
 def status():
     """Simple endpoint to verify to sender that receiver is running"""
     # First ensure storage directory exists
-    if not NOTE_OS_PATH.exists():
+    if not NOTES_OS_PATH.exists():
         return jsonify({
             "status": "running",
             "time": datetime.now().isoformat(),
-            "storage_dir": str(NOTE_OS_PATH),
+            "storage_dir": str(NOTES_OS_PATH),
             "storage_exists": False,
             "files_in_dir": []
         })
     
     try:
-        files_list = [f.name for f in NOTE_OS_PATH.iterdir() if f.is_file()]
+        files_list = [f.name for f in NOTES_OS_PATH.iterdir() if f.is_file()]
     except Exception as e:
         files_list = [f"Error listing files: {str(e)}"]
         
     return jsonify({
         "status": "running",
         "time": datetime.now().isoformat(),
-        "storage_dir": str(NOTE_OS_PATH),
+        "storage_dir": str(NOTES_OS_PATH),
         "storage_exists": True,
         "files_in_dir": files_list,
         "active_dialogs": list(dialog_events.keys())
@@ -768,12 +769,12 @@ def status():
 if __name__ == '__main__':
     log_file = Path(RECEIVER_LOG_FILE)
     logger.info(f"Starting Zotero Item Receiver")
-    logger.info(f"Storage directory path: {NOTE_OS_PATH}")
+    logger.info(f"Storage directory path: {NOTES_OS_PATH}")
     logger.info(f"Log file: {log_file.resolve()}")
     
     # Create storage directory at startup
     try:
-        NOTE_OS_PATH.mkdir(parents=True, exist_ok=True)
+        NOTES_OS_PATH.mkdir(parents=True, exist_ok=True)
         logger.info(f"Storage directory exists or was created successfully")
     except Exception as e:
         logger.warning(f"Note: Could not create storage directory at startup: {e}")
