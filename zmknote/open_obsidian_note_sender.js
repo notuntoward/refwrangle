@@ -1,5 +1,5 @@
 /* This is the zotero side of a webhook interface between zotero items and a python webhook message receiver, 
-which writes one or more obsidian literature notes. The job here is to get and send the necessary item data.
+which opens one or more obsidian literature notes. The job here is to get and send the necessary item data.
 
 The companion python script for this one is zotero_to_obsidian_note_receiver_test.py */
 
@@ -7,7 +7,7 @@ The companion python script for this one is zotero_to_obsidian_note_receiver_tes
 const SEND_PORT = 5050;
 
 // this ID tells the receiver who sent the message (and what to do wih it)
-const SENDER_ID_ZOTERO_TO_OBSIDIAN_NOTE  = 'zotero_to_obsidian_note'
+const SENDER_ID_OPEN_OBSIDIAN_NOTE  = 'open_obsidian_note'
 
 // how long the webhook interface will wait before a zotero popup error
 // s/b a fair amount longer than python's RECEIVER_BUTTON_WAIT_SECS  
@@ -72,102 +72,7 @@ try {
             continue;
         }
         let citekey = citekeyMatch[1];
-    
-        // Fetch bibliography using Better BibTeX's JSON-RPC API
-        let bibliography = '';
-        if (citekey) {
-            try {
-                const response = await fetch("http://localhost:23119/better-bibtex/json-rpc", {
-                    method: "POST",
-                    headers: {
-                        "Content-Type": "application/json",
-                        "Accept": "application/json"
-                    },
-                    body: JSON.stringify({
-                        jsonrpc: "2.0",
-                        method: "item.bibliography",
-                        params: [
-                            [citekey],
-                            { contentType: "text", id: "modern-language-association", locale: "en-US", quickCopy: false }
-                        ]
-                    })
-                });
-
-                const result = await response.json();
-                if (result && result.result) {
-                    bibliography = result.result;
-                }
-            } catch (error) {
-                Zotero.debug(`Failed to fetch bibliography for citekey ${citekey}: ${error}`);
-            }
-        }
-
-        // item tags: for now.  Obsidian will store separately from its own tags.
-        const tags = item.getTags().map(tag => tag.tag);
-
-        // Collections (names)
-        const collectionIDs = item.getCollections();
-        let collectionNames = [];
-        for (let collectionID of collectionIDs) {
-            let collectionObj = Zotero.Collections.get(collectionID);
-            if (collectionObj) {
-                collectionNames.push(collectionObj.name);
-            }
-        }
-
-        // item notes (they're in html)
-        const noteIDs = item.getNotes();
-        let notes = [];
-        for (let noteID of noteIDs) {
-            let noteItem = Zotero.Items.get(noteID);
-            if (noteItem) {
-                const htmlNote = noteItem.getNote();
-				notes.push(htmlNote);
-            }
-        }
-
-        // item attachments
-        const attachmentIDs = item.getAttachments();
-        let attachments = [];
-        for (let attachmentID of attachmentIDs) {
-            let attachmentItem = Zotero.Items.get(attachmentID);
-            if (attachmentItem && attachmentItem.isAttachment()) {
-                attachments.push({
-                    title: attachmentItem.getField('title'),
-                    path: attachmentItem.getFilePath() || '', // Get file path if available
-                    url: attachmentItem.getField('url') || '' // Include URL if available
-                });
-            }
-        }
-
-        // load this item's payload structure
-        const itemData = item.toJSON();
-        itemDataArray.push({
-            title: itemData.title || '',
-            citekey: citekey,
-            bibliography: bibliography,
-            tags: tags,
-            collections: collectionNames,
-            exportDate: new Date().toLocaleString(),
-            desktopURI: `zotero://select/library/items/${itemkey}`,
-            DOI: itemData.DOI || '',
-            url: itemData.url || '',
-            abstractNote: itemData.abstractNote || '',
-            creators: itemData.creators || [],
-            date: itemData.date || new Date().toISOString(),
-            itemkey: itemkey,
-            itemType: itemData.itemType || '',
-            publicationTitle: itemData.publicationTitle || '',
-            volume: itemData.volume || '',
-            issue: itemData.issue || '',
-            publisher: itemData.publisher || '',
-            place: itemData.place || '',
-            pages: itemData.pages || '',
-            ISBN: itemData.ISBN || '',
-            allTags: tags,
-            notes: notes,
-            attachments: attachments
-        });
+        itemDataArray.push(citekey)
     }
     
     // Only send if we have at least one valid item
@@ -175,7 +80,7 @@ try {
         // Send data to webhook (once!)
         sendToWebhook(itemDataArray, Zotero.ZoteroWebhookLock.requestId);
     } else {
-        Zotero.alert(null, "Error", "No valid items with citkeys found.");
+        Zotero.alert(null, "Error", "No valid items with citekeys found.");
         Zotero.ZoteroWebhookLock.inProgress = false;
     }
 } catch (e) {
@@ -198,7 +103,7 @@ function sendToWebhook(itemDataArray, requestId) {
         }
     }, RECEIVER_RESPONSE_WAIT_TIMEOUT_SECS * 1000);
     
-    const payload = {sender_id: SENDER_ID_ZOTERO_TO_OBSIDIAN_NOTE,
+    const payload = {sender_id: SENDER_ID_OPEN_OBSIDIAN_NOTE,
                      data: itemDataArray};
 
     fetch(webhookUrl, {

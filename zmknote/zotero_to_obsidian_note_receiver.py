@@ -37,6 +37,9 @@ LISTEN_PORT = 5050
 # TODO: just move this to onu.* so it's in one central file?
 RECEIVER_LOG_FILE = "zotero_item_receiver.log"
 
+SENDER_ID_ZOTERO_TO_OBSIDIAN_NOTE  = 'zotero_to_obsidian_note'
+SENDER_ID_OPEN_OBSIDIAN_NOTE  = 'open_obsidian_note'
+
 # Jinja2 template for output obsidian literature note.  
 # DON'T TOUCH ANY SPACES WITHIN 
 template_str = """{%- macro truncateTitle(title, n) -%}
@@ -565,7 +568,9 @@ def webhook() -> Response:
     
     try:
         # Get the JSON data from the request
-        webhook_item_list = request.get_json()
+        payload = request.get_json()
+        sender_id = payload.get('sender_id')
+        webhook_item_list = payload.get('data')
         
         if not webhook_item_list:
             logger.error(f"[{request_id}] No data received")
@@ -585,10 +590,19 @@ def webhook() -> Response:
                 "request_id": request_id
             }), 500
         
-        # Process the received items
-        results =  write_obsidian_md_note(webhook_item_list, request_id)
+        if not sender_id:
+            logger.error(f"[{request_id}] Payload missing sender_id")
+            return jsonify({"status": "error", "message": "Missing sender_id"}), 400
+
+        if sender_id == SENDER_ID_ZOTERO_TO_OBSIDIAN_NOTE:
+            results =  write_obsidian_md_note(webhook_item_list, request_id)
+        elif sender_id == SENDER_ID_OPEN_OBSIDIAN_NOTE:
+            results = open_existing_notes(webhook_item_list, request_id)
+        else:
+            logger.error(f"[{request_id}] Unknown sender_id, got {sender_id}")
+            return jsonify({"status": "error", "message": f"Unknown {sender_id=}"}), 400
         
-        logger.info(f"[{request_id}] Ended webhook message processing with {len(results)} items added or changed")
+        logger.info(f"[{request_id}] Ended webhook message processing with {len(results)} items acted upon")
         
         return jsonify({
             "status": "success", 
@@ -600,23 +614,33 @@ def webhook() -> Response:
     except Exception as e:
         logger.exception(f"[{request_id}] Error processing webhook data: {str(e)}")
         return jsonify({"status": "error", "message": str(e), "request_id": request_id}), 500
+
+def open_existing_notes(citekeys: list, request_id: str) -> list:
+    """Opens existing notes in new obsidian tabs.  Return value is nearly useless for now."""
     
-def handle_obsidian_opening(citekey: str, itemkey: str, notepath_vault: Path, request_id: str) -> None:
+    results = []
+    for citekey in citekeys:
+        notepath_vault = f'{NOTE_VAULT_PATH}/{citekey}.md'
+        open_note_in_new_tab(citekey, notepath_vault, request_id)
+        results.append(f"Tried to open not at {notepath_vault}")
+        
+    return results
+    
+def open_note_in_new_tab(citekey: str, notepath_vault: Path, request_id: str) -> None:
     """Open Obsidian Note"""
-    keys_str = f'{citekey=}, {itemkey=}'
-    logger.info("[{request_id}] Opening Obsidian note write attempt for item {keys_str}")
+    logger.info("[{request_id}] Opening Obsidian note write attempt for item {citekey}")
     
     try:
-        status = onu.open_obsidian_note(notepath_vault, VAULT_PATH)
+        status = onu.open_obsidian_note(str(notepath_vault), VAULT_PATH)
         
-        message_tail = f'({keys_str}): {status=})'
+        message_tail = f'({citekey}): {status=})'
         if not (status['note_found'] and status['vault_found'] and status["uri_used"] != ""):
             logger.info(f"[{request_id}] Couldn't open note in Obsidian due to path or URI problem {message_tail}")
         elif status['new_tab_requested'] and status['new_tab_possible'] is not True:
             logger.info(f"[{request_id}] Couldn't open note in NEW Obsidian tab due to Obsidian config problem {message_tail}")
 
     except Exception as e:
-        logger.info(f"[{request_id}] Problem opening Obsidian note written for item {keys_str}: ", e)
+        logger.info(f"[{request_id}] Problem opening Obsidian note for item {citekey}: ", e)
     
 def  write_obsidian_md_note(items: list, request_id: str) -> list:
     """ Write an Obsidian note from the items data, avoiding overwrite unless user accepts it,
@@ -677,7 +701,7 @@ def  write_obsidian_md_note(items: list, request_id: str) -> list:
                               timestamp=datetime.now().strftime("%Y%m%d_%H%M%S"),
                               filepath=str(filepath_os)))
             
-            handle_obsidian_opening(citekey, itemkey, notepath_vault, request_id)
+            open_note_in_new_tab(citekey, notepath_vault, request_id)
 
             logger.info(f"[{request_id}] Completed item: {citekey=}, {itemkey=}")
             
@@ -694,7 +718,7 @@ def  write_obsidian_md_note(items: list, request_id: str) -> list:
             answer = ask_overwrite_popup(citekey, is_last_item, total_items, request_id)
             if answer == "open":
                 logger.info(f"[{request_id}] Opening file: {note_path_in_vault}")
-                handle_obsidian_opening(citekey, itemkey, note_path_in_vault, request_id)
+                open_note_in_new_tab(citekey, note_path_in_vault, request_id)
                 continue
             if answer == "skip":
                 logger.info(f"[{request_id}] Skipping file: {note_path_in_vault}")
