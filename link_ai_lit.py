@@ -140,9 +140,20 @@ def split_single_prs_text_perplex(pr_text: str) -> lpz.PromptResponseSplit:
     to associate citenums to urls, as stock perplexity response citenums are markdown footnotes,
     with plain citenums, like this: [citenum] or [^citenum].  Here, these are left as is."""
 
-    match = re.search(r'(?m)^# (?P<heading_text>.+)', pr_text)
-    if match is None or ((heading_start_index := match.start('heading_text')) == -1):
-        raise ValueError('Could not find prompt heading')
+    # Find the first non-empty heading
+    matches = re.finditer(r'(?m)^# (?P<heading_text>.+)', pr_text)
+    heading_start_index = -1
+    for match in matches:
+        if match.group('heading_text').strip():  # Check if heading is non-empty
+            heading_start_index = match.start('heading_text')
+            break
+
+    if heading_start_index == -1:
+        raise ValueError('Could not find non-empty prompt heading')
+
+    # match = re.search(r'(?m)^# (?P<heading_text>.+)', pr_text)
+    # if match is None or ((heading_start_index := match.start('heading_text')) == -1):
+    #     raise ValueError('Could not find prompt heading')
     
     preamble = pr_text[:heading_start_index].strip()
     
@@ -421,7 +432,7 @@ def relink_chat_files(input_files: List[pl.Path], output_file: pl.Path,
 if __name__ == "__main__":
     datdir = rfw.refwrangle_test_dir / 'dat' / 'merge_chats_perplex'
     # multi-file perplex, same prompt
-    chat_files = list(datdir.glob('*.md'))
+    #chat_files = list(datdir.glob('*.md'))
     # multi-file, different prompt
     #chat_files = [chat_files[3], pl.Path(r"C:\Users\scott\OneDrive\share\ref\refwrangle\test\dat\perplexity_example.md")]
     # single file
@@ -432,6 +443,8 @@ if __name__ == "__main__":
     
     #chat_files = [pl.Path(r"C:\Users\scott\OneDrive\share\ref\refwrangle\test\dat\bannon_smc_test.md")]
 
+    chat_files = [pl.Path(r"C:\Users\scott\tmp\Find me a good html color picking tool or web that.md"),
+                  pl.Path(r"C:\Users\scott\tmp\Now pick the same but python libraries that can do.md")]
     output_dir = pl.Path(r"C:\Users\scott\OneDrive\share\ref\obsidian\Obsidian Share Vault\Scratch Space")
     merged_output_file = output_dir / 'tmp_link_ai_lit_output.md'
 
