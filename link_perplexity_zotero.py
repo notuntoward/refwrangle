@@ -193,19 +193,26 @@ class ZoteroLinkConverter:
         citenum_to_url_df = rfw.unique_rows(prsplit.citenum_to_url_df,[citenum_col, 'url'])
         citenum_to_url = dict(zip(citenum_to_url_df[citenum_col], citenum_to_url_df.url))
         
-        all_response_nums = set(re.findall(citenum_plain_re, prsplit.response_dedup))
+        relinked_source_lines, response_relinked = self.basic_relink(prsplit.response_dedup, citenum_to_url, prsplit.url_to_source_title)
+
+        return response_relinked, relinked_source_lines
+
+    def basic_relink(self, response_str: str, citenum_to_url: Dict[str, str], 
+                     url_to_source_title: Optional[pd.Series] = None) -> Tuple[List[str], str]:
+        
+        all_response_nums = set(re.findall(citenum_plain_re, response_str))
         
         source_num_to_link, relinked_source_lines = {}, []
         for num, url in citenum_to_url.items():
-            title = prsplit.url_to_source_title[url] if prsplit.url_to_source_title.empty else None
+            title = url_to_source_title[url] if url_to_source_title.empty else None
             response_link, relinked_source = self.make_relinks(num, url, all_response_nums, title)
             source_num_to_link[num] = response_link
             relinked_source_lines.append(relinked_source)
         
         response_relinked = re.sub(citenum_plain_re,  # only matching and replace the num
-                    lambda m: f' {source_num_to_link.get(m.group(1))}', prsplit.response_dedup)
-
-        return response_relinked, relinked_source_lines
+                    lambda m: f' {source_num_to_link.get(m.group(1))}', response_str)
+                    
+        return relinked_source_lines, response_relinked
     
     def split_single_prs_dedup(self, markdown_text: str, prs_split_func: Callable[[str], PromptResponseSplit]) -> PromptResponseSplitDeDup:
         """Splits a single perplexity output markdown text into prompt, response and source sections.
