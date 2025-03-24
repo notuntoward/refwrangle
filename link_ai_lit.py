@@ -2,8 +2,9 @@
 #
 #  ### Zoteroize and Obsidianize a Perplexity Dialogue
 # 
-#  In a Perplexity dialogue copied to the clipboard by the perplexity copy button and then saved to a file, replace
-#  the citation numbers with matching Obsidian literature note or Zotero item links
+#  The dialogs can be either exported directy by Perplexity or by the 
+# SaveMychatbot browser extension.  The citation are replaced numbers with any
+# matching Obsidian literature notes or Zotero item links.
 
 import datetime as dt
 import pathlib as pl
