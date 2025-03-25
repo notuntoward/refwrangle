@@ -7,13 +7,9 @@
 # literature notes (if it exists) or to the matching Zotero item.  The foot notes are also turned into
 # the appropriate markdown links.
 
-import datetime as dt
 from pathlib import Path
 import re
-import sys
-from typing import List, Tuple, Union
-import numpy as np
-import pandas as pd
+from typing import Union
 from icecream import ic
 import link_perplexity_zotero as lpz
 import refwrangle as rfw
@@ -23,22 +19,6 @@ relinker = lpz.ZoteroLinkConverter()
 
 def split_markdown_footnotes(text: str) -> tuple[str, str]:
     """Split markdown text into body and footnotes sections using regex only."""
-    
-    # remove pointless leading markdwown divider and 1st empty heading, if either exist
-    text = rfw.remove_markdown_dividers(text)
-    
-    if lines := text.splitlines():
-        empty_heading_index = None
-        for i, line in enumerate(lines):
-            if line.strip() == '#':
-                empty_heading_index = i
-                break
-        
-        if empty_heading_index is not None:
-            lines = lines[:empty_heading_index] + lines[empty_heading_index+1:]
-        
-        # Join the remaining lines back into a string
-        text = '\n'.join(lines)
     
     # Regex pattern to identify footnote definitions with integers and URLs
     footnote_def_pattern = re.compile(r'^\s*\[\^?(\d+)\]:\s*(https?://\S+)')
@@ -55,8 +35,27 @@ def split_markdown_footnotes(text: str) -> tuple[str, str]:
     
     return '\n'.join(body_lines), '\n'.join(footnote_lines)
 
-def relink_text(md_text):
-
+def perplex_to_obs_note_text(md_text:str) -> str:
+    """Convert perplexity export markdown text to better formatted obsidian note
+    with the footnotes replaced with links to obsidian notes or zotero items 
+    (when the exist), and to markdown URL links otherwise."""
+    
+    # remove pointless leading markdwown divider and 1st empty heading, if either exist
+    md_text = rfw.remove_markdown_dividers(md_text)
+    
+    if lines := md_text.splitlines():
+        empty_heading_index = None
+        for i, line in enumerate(lines):
+            if line.strip() == '#':
+                empty_heading_index = i
+                break
+        
+        if empty_heading_index is not None:
+            lines = lines[:empty_heading_index] + lines[empty_heading_index+1:]
+        
+        # Join the remaining lines back into a string
+        md_text = '\n'.join(lines)
+    
     body, footnotes = split_markdown_footnotes(md_text)
     citenum_to_url = dict(rfw.get_link_tu_pairs(footnotes, lat.SOURCE_LIST_PATTERN_PERPLEX_RE))
     
@@ -65,12 +64,15 @@ def relink_text(md_text):
    
     return f'{body_relinked.strip()}\n# Sources\n{footnote_links}'
 
-def relink_file(in_filepath: Union[str, Path], out_filepath: Union[str, Path]):
-    
+def perplex_to_obs_note_file(in_filepath: Union[str, Path], out_filepath: Union[str, Path]) -> None:
+    """Convert perplexity export markdown file to better formatted obsidian note
+    file, with the footnotes replaced with links to obsidian notes or zotero items 
+    (when the exist), and to markdown URL links otherwise."""
+
     md_text = rfw.read_markdown_file(in_filepath)
     md_text = '\n'.join(line for line in md_text.splitlines() if line.strip()) # remove blank lines
 
-    relinked_text = relink_text(md_text)
+    relinked_text = perplex_to_obs_note_text(md_text)
     relinked_text = f'{lat.make_obsidian_front_matter()}\n{relinked_text}'
     
     out_filepath = out_filepath if isinstance(out_file, Path) else Path(out_filepath)
@@ -81,10 +83,11 @@ def relink_file(in_filepath: Union[str, Path], out_filepath: Union[str, Path]):
 # %%
 
 if __name__ == "__main__":
-   in_file = Path('~/ref/refwrangle/dat/orig/dialog_perplex_250323.md').expanduser()
+   in_file = Path('~/ref/refwrangle/dat/orig/dialog_2_perplex_250323.md').expanduser()
    out_dir = Path(r"C:\Users\scott\OneDrive\share\ref\obsidian\Obsidian Share Vault\Scratch Space")
    out_file = out_dir / 'tmp_basic_relink.md'
    ic(in_file, out_file)
-   
-   ic(in_file, out_file)
-   relink_file(in_file, out_file)
+
+   perplex_to_obs_note_file(in_file, out_file)
+
+# %%
