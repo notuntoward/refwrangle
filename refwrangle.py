@@ -13,7 +13,7 @@ import json
 import traceback
 import unicodedata
 from datetime import datetime
-from typing import Any, Dict, List, Optional, Tuple, Iterable
+from typing import Any, Dict, List, Optional, Tuple, Iterable, Union
 from urllib.parse import urlparse, urlunparse
 from xml.sax.saxutils import escape
 import chardet
@@ -878,14 +878,13 @@ def is_file_big(file_path: pl.Path, min_bytes_for_big: int) -> bool:
     
     return nbytes_dest >= min_bytes_for_big
 
-def read_markdown_file(file_path: pl.Path) -> str:
+def read_markdown_file(file_path: Union[str, pl.Path]) -> str:
     """Reads a markdown file and returns its content as a string.
     Always read with utf-8, and converts to python standard \n newlines, 
     as some AI files have windows-styple \r\n e.g. ChatGPT-4o exported from Perplexity."""
     
     try:
-        if isinstance(file_path, str):
-            file_path = pl.Path(file_path)
+        file_path = pl.Path(file_path)        
     except Exception as e:
         raise ValueError(f"Invalid file path: {file_path}") from e
         
@@ -899,6 +898,7 @@ def read_markdown_file(file_path: pl.Path) -> str:
         raise Exception(e)
     
     return markdown_content
+
 class DividerNotFoundError(Exception):
     """When the a Markdown divider '---' is searched for and not found."""
     pass
