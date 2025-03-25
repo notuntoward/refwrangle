@@ -38,9 +38,9 @@ def split_markdown_footnotes(text: str) -> tuple[str, str]:
 def perplex_to_obs_note_text(md_text:str) -> str:
     """Convert perplexity export markdown text to better formatted obsidian note
     with the footnotes replaced with links to obsidian notes or zotero items 
-    (when the exist), and to markdown URL links otherwise."""
+    (when they exist), and to markdown URL links otherwise."""
     
-    # remove pointless leading markdwown divider and 1st empty heading, if either exist
+    # Remove pointless leading markdwown divider and 1st empty heading, if either exist
     md_text = rfw.remove_markdown_dividers(md_text)
     
     if lines := md_text.splitlines():
@@ -57,12 +57,13 @@ def perplex_to_obs_note_text(md_text:str) -> str:
         md_text = '\n'.join(lines)
     
     body, footnotes = split_markdown_footnotes(md_text)
-    citenum_to_url = dict(rfw.get_link_tu_pairs(footnotes, lat.SOURCE_LIST_PATTERN_PERPLEX_RE))
+    citenum_to_url = dict(rfw.get_link_tu_pairs(footnotes, 
+                                                lat.SOURCE_LIST_PATTERN_PERPLEX_RE))
     
-    footnote_links, body_relinked = relinker.basic_relink(body, citenum_to_url)
-    footnote_links = "\n".join(footnote_links)
+    sources_relinked, body_relinked = relinker.basic_relink(body, citenum_to_url)
+    sources_relinked_str = "\n".join(sources_relinked)
    
-    return f'{body_relinked.strip()}\n# Sources\n{footnote_links}'
+    return f'{body_relinked.strip()}\n# Sources\n{sources_relinked_str}'
 
 def perplex_to_obs_note_file(in_filepath: Union[str, Path], out_filepath: Union[str, Path]) -> None:
     """Convert perplexity export markdown file to better formatted obsidian note
@@ -70,6 +71,8 @@ def perplex_to_obs_note_file(in_filepath: Union[str, Path], out_filepath: Union[
     (when the exist), and to markdown URL links otherwise."""
 
     md_text = rfw.read_markdown_file(in_filepath)
+
+    # strip out all the extra white space
     md_text = '\n'.join(line for line in md_text.splitlines() if line.strip()) # remove blank lines
 
     relinked_text = perplex_to_obs_note_text(md_text)
