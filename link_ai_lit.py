@@ -433,9 +433,9 @@ def relink_chat_files(input_files: List[pl.Path], output_file: pl.Path,
 if __name__ == "__main__":
     datdir = rfw.refwrangle_test_dir / 'dat' / 'merge_chats_perplex'
     # multi-file perplex, same prompt
-    #chat_files = list(datdir.glob('*.md'))
+    chat_files = list(datdir.glob('*.md'))
     # multi-file, different prompt
-    #chat_files = [chat_files[3], pl.Path(r"C:\Users\scott\OneDrive\share\ref\refwrangle\test\dat\perplexity_example.md")]
+    chat_files = [chat_files[3], pl.Path(r"C:\Users\scott\OneDrive\share\ref\refwrangle\test\dat\perplexity_example.md")]
     # single file
     #chat_files = [chat_files[3]]
 
@@ -444,11 +444,14 @@ if __name__ == "__main__":
     
     #chat_files = [pl.Path(r"C:\Users\scott\OneDrive\share\ref\refwrangle\test\dat\bannon_smc_test.md")]
 
-    chat_files = [pl.Path(r"C:\Users\scott\tmp\Find me a good html color picking tool or web that.md"),
-                  pl.Path(r"C:\Users\scott\tmp\Now pick the same but python libraries that can do.md")]
+    # new format perpplex: split function is broken for them
+    # chat_files = [pl.Path(r"C:\Users\scott\tmp\Find me a good html color picking tool or web that.md"),
+    #               pl.Path(r"C:\Users\scott\tmp\Now pick the same but python libraries that can do.md")]
     output_dir = pl.Path(r"C:\Users\scott\OneDrive\share\ref\obsidian\Obsidian Share Vault\Scratch Space")
     merged_output_file = output_dir / 'tmp_link_ai_lit_output.md'
 
     relink_chat_files(chat_files, merged_output_file, verbose=True)
 
 
+
+# %%

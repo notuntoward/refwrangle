@@ -193,18 +193,20 @@ class ZoteroLinkConverter:
         citenum_to_url_df = rfw.unique_rows(prsplit.citenum_to_url_df,[citenum_col, 'url'])
         citenum_to_url = dict(zip(citenum_to_url_df[citenum_col], citenum_to_url_df.url))
         
-        relinked_source_lines, response_relinked = self.basic_relink(prsplit.response_dedup, citenum_to_url, prsplit.url_to_source_title)
+        relinked_source_lines, response_relinked = self.basic_relink(prsplit.response_dedup, citenum_to_url,
+                                                                     prsplit.url_to_source_title)
 
         return response_relinked, relinked_source_lines
 
-    def basic_relink(self, response_str: str, citenum_to_url: Dict[str, str], 
+    def basic_relink(self, response_str: str, citenum_to_url: Dict[str, str],
                      url_to_source_title: Optional[pd.Series] = None) -> Tuple[List[str], str]:
+        """Replaces citation numbers in response_str with corresponding urls, obsidian notes, or zotero items."""
         
         all_response_nums = set(re.findall(citenum_plain_re, response_str))
         
         source_num_to_link, relinked_source_lines = {}, []
         for num, url in citenum_to_url.items():
-            title = url_to_source_title[url] if url_to_source_title.empty else None
+            title = None if url_to_source_title is None else url_to_source_title.get(url, None)
             response_link, relinked_source = self.make_relinks(num, url, all_response_nums, title)
             source_num_to_link[num] = response_link
             relinked_source_lines.append(relinked_source)
