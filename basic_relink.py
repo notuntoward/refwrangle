@@ -9,7 +9,6 @@
 
 import datetime as dt
 from pathlib import Path
-# %%
 import re
 import sys
 from typing import List, Tuple, Union
@@ -21,22 +20,6 @@ import refwrangle as rfw
 import link_ai_lit as lat
 
 relinker = lpz.ZoteroLinkConverter()
-
-# %load_ext autoreload
-# %autoreload 2
-
-# %%
-#relinker = lpz.ZoteroLinkConverter()
-#
-# # Save my chatbot output section separator headings
-# PROMPT_HEADER_SMC = '## User'
-# RESPONSE_HEADER_SMC = '## AI answer'
-# SOURCES_HEADER_SMC = r'\*\*Sources:\*\*'
-
-# # Matches both ^ and plain number syntax
-# CITENUM_URL_LINK_RE = r'\[\^?(?P<num>\d+)\]\((?P<url>https?://[^\)]+)\)'
-# SOURCE_CITENUM_TITLE_RE = re.compile(r'^\((?P<citenum>\d+)\)\s*(?P<title>.+)')
-
 
 def split_markdown_footnotes(text: str) -> tuple[str, str]:
     """Split markdown text into body and footnotes sections using regex only."""
@@ -75,9 +58,7 @@ def split_markdown_footnotes(text: str) -> tuple[str, str]:
 def relink_text(md_text):
 
     body, footnotes = split_markdown_footnotes(md_text)
-
-    source_list_pattern_perplex = r'\[\^?(?P<num>\d+)\]:\s*(?P<url>http[s]?://\S+)'
-    citenum_to_url = dict(rfw.get_link_tu_pairs(footnotes, source_list_pattern_perplex))
+    citenum_to_url = dict(rfw.get_link_tu_pairs(footnotes, lat.SOURCE_LIST_PATTERN_PERPLEX_RE))
     
     footnote_links, body_relinked = relinker.basic_relink(body, citenum_to_url)
     footnote_links = "\n".join(footnote_links)

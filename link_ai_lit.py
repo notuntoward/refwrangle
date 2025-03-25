@@ -33,6 +33,9 @@ SOURCES_HEADER_SMC = r'\*\*Sources:\*\*'
 CITENUM_URL_LINK_RE = r'\[\^?(?P<num>\d+)\]\((?P<url>https?://[^\)]+)\)'
 SOURCE_CITENUM_TITLE_RE = re.compile(r'^\((?P<citenum>\d+)\)\s*(?P<title>.+)')
 
+# perplexity source list pattern
+SOURCE_LIST_PATTERN_PERPLEX_RE = r'\[\^?(?P<num>\d+)\]:\s*(?P<url>http[s]?://\S+)'
+
 def split_single_prs_text_smc(single_prs_markdown: str) -> lpz.PromptResponseSplit:
     """Splits a single prompt-response-source chunk from a Save my Chatbot perplexity export
     into prompt, response and source sections, returning the source information in citenum_url_pairs 
@@ -178,8 +181,7 @@ def split_single_prs_text_perplex(pr_text: str) -> lpz.PromptResponseSplit:
     response = f"{pr_text[response_start_index:response_sources_divider_index]}".strip()
     
     sources = pr_text[response_sources_divider_index:]
-    source_list_pattern_perplex = r'\[\^?(?P<num>\d+)\]:\s*(?P<url>http[s]?://\S+)'
-    citenum_url_pairs = rfw.get_link_tu_pairs(sources, source_list_pattern_perplex)
+    citenum_url_pairs = rfw.get_link_tu_pairs(sources, SOURCE_LIST_PATTERN_PERPLEX_RE)
     
     url_to_source_title = pd.Series()  # no titles in stock perplexity chat source lists
     
