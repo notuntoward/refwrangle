@@ -1,7 +1,7 @@
 """Utility functions for reference wrangling."""
 
 import io
-import pathlib as pl
+from pathlib import Path
 import pickle
 import re
 import struct
@@ -51,14 +51,13 @@ pdfmetrics.registerFontFamily('Verdana',
     boldItalic='VerdanaBoldItalic'
 )
 
-refdir = obsidian_vault_dir = pl.Path(r"C:\Users\scott\OneDrive\share\ref")
+refdir = obsidian_vault_dir = Path(r"C:\Users\scott\OneDrive\share\ref")
 
 # path to obsidian vault  (MACHINE SPECIFIC)
 obsidian_vault_dir = refdir / "obsidian/Obsidian Share Vault"
 
 # entry info extracted from Zotero DB
-refwrangle_dir = Path(__file__).resolve().parent.parent # works??
-#refwrangle_dir = refdir / 'refwrangle'
+refwrangle_dir = Path(__file__).resolve().parent
 extractedZoteroEntriesFNm = refwrangle_dir / 'dat/zotero_entries.pkl'
 
 refwrangle_test_dir = refwrangle_dir / 'test'
@@ -76,12 +75,6 @@ zotero_library_type = 'user'  # or 'group' if using a group library
 zotero_api_key = 'VFJnuXqeaJPcVjCQHQAELCuu'
 
 procDir = refwrangle_dir / 'dat' / 'proc'
-# html2pdf_cachedir = procDir / 'h2p_cache'
-# html2pdf_cachedir.mkdir(parents=True, exist_ok=True)
-
-# processed_source_cachedir = procDir / 'processed_source_cache'
-# processed_source_cachedir.mkdir(parents=True, exist_ok=True)
-
 attachments_as_md_cachedir = procDir / 'attachments_as_md_cache'
 attachments_as_md_cachedir.mkdir(parents=True, exist_ok=True)
 
@@ -129,6 +122,7 @@ class ZoteroCache:
         :param api_key: Zotero API key.
         """
         self.filename = filename
+        ic(self.filename)
         self.zot = zotero.Zotero(library_id, zotero_library_type, zotero_api_key)
 
     def download_and_save_cache(self) -> Optional[List[Dict[str, Any]]]:
@@ -137,6 +131,7 @@ class ZoteroCache:
             parent_items = self.zot.everything(self.zot.top())
             current_version = self.zot.last_modified_version()
 
+            Path(self.filename).parent.mkdir(parents=True, exist_ok=True)
             with open(self.filename, 'wb') as f:
                 # Write the current version as a fixed-size header
                 f.write(struct.pack(self.HEADER_FORMAT, current_version))
@@ -559,7 +554,7 @@ def get_youtube_video_id(url: str):
         return video_id_match.group(1)
     return None
 
-def youtube2md(video_url: str, output_file: pl.Path):
+def youtube2md(video_url: str, output_file: Path):
     """Gets a youtube transcript and saves it in a timestamped markdown file"""
     video_id = get_youtube_video_id(video_url)
     if not video_id:
@@ -583,7 +578,7 @@ def youtube2md(video_url: str, output_file: pl.Path):
         raise Exception(f"An error occurred: {e}")
 
 
-def read_html_file(html_file: pl.Path) -> str:
+def read_html_file(html_file: Path) -> str:
     """Returns the html in an html file, with (hopefully) correct decoding."""
     with open(html_file, 'rb') as f:
         raw_data = f.read()
@@ -689,12 +684,12 @@ def clean_html(html_file_path: str) -> str:
 
     return str(article)
 
-def html_to_pdf_wkhtmltopdf(input_file: pl.Path, output_file: pl.Path):
+def html_to_pdf_wkhtmltopdf(input_file: Path, output_file: Path):
     """Converts and html_file into and html_file"""
-    wkhtmltopdf_exe = pl.Path(r"C:\Program Files\wkhtmltopdf\bin\wkhtmltopdf.exe")
+    wkhtmltopdf_exe = Path(r"C:\Program Files\wkhtmltopdf\bin\wkhtmltopdf.exe")
     subprocess.run([str(wkhtmltopdf_exe), str(input_file), str(output_file)], check=False)
 
-def html_to_pdf_playwright(input_html: str, output_pdf_path: pl.Path):
+def html_to_pdf_playwright(input_html: str, output_pdf_path: Path):
     """Converts an HTML string to a PDF file.
     Args:
         input_html (str): HTML content as a string.
@@ -706,8 +701,8 @@ def html_to_pdf_playwright(input_html: str, output_pdf_path: pl.Path):
 
     Example: html_to_pdf_playwright("<h1>Hello</h1>", "output.pdf") """
 
-    ic(pl.Path(output_pdf_path).exists() and not os.access(output_pdf_path, os.W_OK))
-    if pl.Path(output_pdf_path).exists() and not os.access(output_pdf_path, os.W_OK):
+    ic(Path(output_pdf_path).exists() and not os.access(output_pdf_path, os.W_OK))
+    if Path(output_pdf_path).exists() and not os.access(output_pdf_path, os.W_OK):
         print(f"Error: File '{output_pdf_path}' is not writable", file=sys.stderr)
         sys.exit(1)
 
@@ -720,7 +715,7 @@ def html_to_pdf_playwright(input_html: str, output_pdf_path: pl.Path):
                 landscape=True, margin={"top": "2cm"})
         browser.close()
 
-def convert_html_to_pdf_subproc(html_file: pl.Path, pdf_file: pl.Path, cleaning=True):
+def convert_html_to_pdf_subproc(html_file: Path, pdf_file: Path, cleaning=True):
     """Converts an html file to a pdf file, calling the converter in a subprocess. 
        Conversion uses the playwright lib, which doesn't work in an jupyter notebook or 
        vscode interactive cell.  So this function runs playwright by calling a 
@@ -735,14 +730,14 @@ def convert_html_to_pdf_subproc(html_file: pl.Path, pdf_file: pl.Path, cleaning=
     if result.returncode != 0:
         print(f"Subprocess Error: {result.stderr}")
 
-def load_pickle_data(fNm: pl.Path):
+def load_pickle_data(fNm: Path):
     """Returns the data stored in a pickle file"""
     print(f'Reading from {fNm}...')
     with open(fNm, 'rb') as file:
         data = pickle.load(file)
     return data
 
-def save_pickle_data(file_name: pl.Path, data):
+def save_pickle_data(file_name: Path, data):
     """Saves data to a pickle file"""
     print(f'Writing to {file_name}...')
     with open(file_name, 'wb') as file:
@@ -868,24 +863,24 @@ def total_size(obj, seen=None):
 
     return size
 
-def is_file_big(file_path: pl.Path, min_bytes_for_big: int) -> bool:
+def is_file_big(file_path: Path, min_bytes_for_big: int) -> bool:
     """Returns True if the size of the file pointed to by file_path is >= min_bytes_for_big bytes.
     Returns False if the file is smaller or doesn't exist."""
 
-    if not isinstance(file_path, pl.Path):
-        raise ValueError(f'file_path is not of type {str(pl.Path)}: {file_path}')
+    if not isinstance(file_path, Path):
+        raise ValueError(f'file_path is not of type {str(Path)}: {file_path}')
     
     nbytes_dest = file_path.stat().st_size if file_path.exists() else 0
     
     return nbytes_dest >= min_bytes_for_big
 
-def read_markdown_file(file_path: Union[str, pl.Path]) -> str:
+def read_markdown_file(file_path: Union[str, Path]) -> str:
     """Reads a markdown file and returns its content as a string.
     Always read with utf-8, and converts to python standard \n newlines, 
     as some AI files have windows-styple \r\n e.g. ChatGPT-4o exported from Perplexity."""
     
     try:
-        file_path = pl.Path(file_path)  
+        file_path = Path(file_path)  
     except Exception as e:
         raise ValueError(f"Invalid file path: {file_path}") from e
         
@@ -991,10 +986,10 @@ def condense_markdown_lists(markdown_text: str) -> str:
     return "\n".join(cleaned)
 
 
-def file_link_md(link_text: str, file_path: pl.Path) -> str:
+def file_link_md(link_text: str, file_path: Path) -> str:
     """Makes a markdown link to a file."""
-    if not isinstance(file_path, pl.Path):
-        file_path = pl.Path(file_path) # so can use windows-friendly .as_uri()
+    if not isinstance(file_path, Path):
+        file_path = Path(file_path) # so can use windows-friendly .as_uri()
     
     return f'[{link_text}]({file_path.as_uri()})'
 
@@ -1030,7 +1025,7 @@ def hierarch_shift_markdown_headers(markdown_text: int, top_level: int = None):
 
     return re.sub(r'^(#+)\s', replace_header, markdown_text, flags=re.MULTILINE)
 
-def html2md_cautious(html_input_file: pl.Path, md_output_file: pl.Path, verbose: bool = False):
+def html2md_cautious(html_input_file: Path, md_output_file: Path, verbose: bool = False):
     """Converts an html file to a cleaned markdown file, trying for maximum quality first,
      but if the markdown result is too short, it tries again with a more lenient cleaner."""
     
@@ -1044,7 +1039,7 @@ def html2md_cautious(html_input_file: pl.Path, md_output_file: pl.Path, verbose:
 
     html2md_BS_html_to_markdown(html_input_file, md_output_file)
     
-def html2md_readability(html_input_file: pl.Path, md_output_file: pl.Path, verbose=False):
+def html2md_readability(html_input_file: Path, md_output_file: Path, verbose=False):
     """Converts an html file to a markdown file with readability, 
     post processed with markdownify.  This produces the cleanest and best markdown results 
     I've seen on most html files.  But occasionally, it deletes lot of the
@@ -1131,7 +1126,7 @@ def preproc_bs4_lenient(html: str) -> str:
 
     return extracted_text
 
-def html2md_BS_html_to_markdown(input_html_file: pl.Path, output_md_file: pl.Path):
+def html2md_BS_html_to_markdown(input_html_file: Path, output_md_file: Path):
     """Converts an html file into a markdown file, using lenient BeautifulSoup html
     preprocessing, then converting to markdown with Johannes Kaufmann's html2markdown CLI.
     The result is usually fairly clean markdown text, occasionally with some leftover junk.
@@ -1264,7 +1259,7 @@ def fix_markdown_errors(content: str) -> str:
 
     return content
 
-def pdf2md_pymupdf4llm(input_pdf: pl.Path, output_md: pl.Path):
+def pdf2md_pymupdf4llm(input_pdf: Path, output_md: Path):
     "Reads a pdf file, cleans it, and writes it as utf-8 markdown"    
 
     md_text = pymupdf4llm.to_markdown(input_pdf, write_images=False,
@@ -1272,7 +1267,7 @@ def pdf2md_pymupdf4llm(input_pdf: pl.Path, output_md: pl.Path):
     
     md_text = fix_markdown_errors(md_text)
     
-    pl.Path(output_md).write_bytes(md_text.encode()) # encode w/ no args uses utf-8
+    Path(output_md).write_bytes(md_text.encode()) # encode w/ no args uses utf-8
 
 def bin_items_ffd(item_weights: list[float], max_bin_weight: float) -> pd.DataFrame:
     """
@@ -1419,7 +1414,7 @@ def remove_unsupported_html_tags(html_content: str) -> str:
     
     return str(soup)
 
-def md2pdf_markdown_reportlab(markdown_data: str, output_file: pl.Path, verbose: bool = False) -> None:
+def md2pdf_markdown_reportlab(markdown_data: str, output_file: Path, verbose: bool = False) -> None:
     """Convert markdown to PDF with debug information.""" 
     try:
         # Register Verdana font family
@@ -1514,7 +1509,7 @@ def md2pdf_markdown_reportlab(markdown_data: str, output_file: pl.Path, verbose:
         raise
 
 
-def merge_pdfs_with_structure(pdfs_info: List[Dict[str, Any]], output_path: pl.Path) -> List[Dict[str, str]]:
+def merge_pdfs_with_structure(pdfs_info: List[Dict[str, Any]], output_path: Path) -> List[Dict[str, str]]:
     """Merge pdfs into a single pdf, intended to have RAG-friendly page and bookmark structure
     Perplexity:
       https://www.perplexity.ai/search/fix-the-bug-in-the-code-below-plw_2PR4TUWH6xqSZ7M_nQ#27"""
