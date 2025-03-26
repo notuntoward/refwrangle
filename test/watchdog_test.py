@@ -19,7 +19,7 @@ import basic_relink as br
 
 class PerplexExportRelinker(FileSystemEventHandler):
     """When a new file arrives in the WATCH_DIR, change the footnotes to URL, obsidian or zotero links.
-    Save the result to DEST_DIR."""
+    Save the result to DEST_DIR.  If save was successful, cleans out the WATCH_DIR."""
     
     def on_moved(self, event: FileSystemEventHandler) -> None:
         """Once a file has been fully downloaded to WATCH_DIR, relink and move to DEST_DIR"""
