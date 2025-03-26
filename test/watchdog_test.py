@@ -2,16 +2,13 @@
 
 # %%
 import time
-import sys
-import time
 from pathlib import Path
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
-from icecream import ic
 
-refwrangle_dir = Path('~/ref/refwrangle').expanduser() # can't reliably get dir of your .ipynb 
+refwrangle_dir = Path('~/ref/refwrangle').expanduser()
+import sys
 sys.path.append(str(refwrangle_dir))
-import refwrangle as rfw
 import basic_relink as br
 
 (WATCH_DIR := Path(r"C:\Users\scott\tmp\watchpad")).mkdir(parents=True, exist_ok=True)
@@ -19,12 +16,14 @@ import basic_relink as br
 
 class PerplexExportRelinker(FileSystemEventHandler):
     """When a new file arrives in the WATCH_DIR, change the footnotes to URL, obsidian or zotero links.
-    Save the result to DEST_DIR.  If save was successful, cleans out the WATCH_DIR."""
+    Save the result to DEST_DIR.  If save was successful, cleans out the WATCH_DIR.  This is expecting
+    Perplexity export .md files: special handling of chrome download-in-progress file extension, which
+    can trigger the handler before the file is fully downloaded."""
     
-    def on_moved(self, event: FileSystemEventHandler) -> None:
-        """Once a file has been fully downloaded to WATCH_DIR, relink and move to DEST_DIR"""
-        if not event.is_directory and not event.dest_path.endswith('.crdownload'):
-            in_file: Path = Path(event.dest_path)
+    def on_moved(self, event: 'DirMovedEvent | FileMovedEvent') -> None:
+        """Once file is fully downloaded to WATCH_DIR (no longer .crdownload), relink and move to DEST_DIR"""
+        if not getattr(event, 'is_directory', False) and not event.dest_path.endswith('.crdownload'):
+            in_file: Path = Path(event.dest_path if hasattr(event, 'dest_path') else event.src_path)
             out_file: Path = DEST_DIR / in_file.name
             print(f"Relinking new file:\n"
                   f"       {str(in_file)}\n"
