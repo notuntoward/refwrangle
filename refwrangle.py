@@ -1,34 +1,35 @@
 """Utility functions for reference wrangling."""
 
 import io
-from pathlib import Path
+import json
 import pickle
 import re
 import struct
 import subprocess
 import sys
-import requests
 import time
-import json
 import traceback
 import unicodedata
 from datetime import datetime
-from typing import Any, Dict, List, Optional, Tuple, Iterable, Union
+from pathlib import Path
+from typing import Any, Dict, Iterable, List, Optional, Tuple, Union
 from urllib.parse import urlparse, urlunparse
 from xml.sax.saxutils import escape
+
 import chardet
 import markdown
-import pandas as pd
 import numpy as np
+import pandas as pd
 import plotly.graph_objects as go
 import pymupdf4llm
+import requests
 from bs4 import BeautifulSoup
 from icecream import ic
 from markdownify import markdownify
 from playwright.sync_api import sync_playwright
 from pypdf import PdfReader, PdfWriter
 from pyzotero import zotero
-from rapidfuzz import fuzz  # faster, more accurate than fuzzywuzzy
+from rapidfuzz import fuzz
 from readability import Document
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import letter
