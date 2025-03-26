@@ -4,6 +4,7 @@ TODO: what to do if there are more than one files there anyway?"""
 # %%
 import time
 import sys
+import time
 from pathlib import Path
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
@@ -21,19 +22,30 @@ class PerplexExportRelinker(FileSystemEventHandler):
     """When a new file arrives in the WATCH_DIR, change the footnotes to URL, obsidian or zotero links.
     Save the result to DEST_DIR."""
     
-    def on_created(self, event):
-        if not event.is_directory:
-            #print(f"New file created: {event.src_path}")
-            
-            in_file = Path(event.src_path)
-            out_file = DEST_DIR / Path(event.src_path).name
-            ic(in_file, in_file.exists(), out_file)
-            br.perplex_to_obs_note_file(in_file, out_file)
-
+    def on_moved(self, event: FileSystemEventHandler) -> None:
+        """Once a file has been fully downloaded to WATCH_DIR, relink and move to DEST_DIR"""
+        if not event.is_directory and not event.dest_path.endswith('.crdownload'):
+            in_file: Path = Path(event.dest_path)
+            out_file: Path = DEST_DIR / in_file.name
+            print(f"Relinking new file:\n"
+                  f"\t{str(in_file)=}\n\t---> {str(out_file)}")
+            if in_file.exists():
+                try:
+                    br.perplex_to_obs_note_file(in_file, out_file)
+                except Exception as e:
+                    print(f"Failed to read or write: {e}")
+                    return
+            if out_file.exists():
+                time.sleep(1)  # small delay avoids chrome error msg   
+                print(f'Cleaning out {str(WATCH_DIR)}')            
+                for file in WATCH_DIR.rglob('*'):
+                    if file.is_file():
+                        file.unlink()
+                            
 if __name__ == "__main__":
     event_handler = PerplexExportRelinker()
     observer = Observer()
-    observer.schedule(event_handler, WATCH_DIR, recursive=False)
+    observer.schedule(event_handler, str(WATCH_DIR), recursive=False)
     observer.start()
 
     print(f'Watching Perplexy Export Dir: {WATCH_DIR}  ...')
