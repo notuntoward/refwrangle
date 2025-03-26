@@ -5,8 +5,7 @@ import sys
 import time
 from pathlib import Path
 
-from watchdog.events import (DirMovedEvent, FileMovedEvent,
-                             FileSystemEventHandler)
+from watchdog.events import FileSystemEventHandler
 from watchdog.observers import Observer
 
 refwrangle_dir = Path(__file__).resolve().parent.parent

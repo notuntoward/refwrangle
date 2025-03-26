@@ -14,8 +14,7 @@ from tkinter import filedialog
 from flask import Flask, Response, request
 from icecream import ic
 
-refwrangle_dir = Path(__file__).resolve().parent.parent
-# refwrangle_dir = pl.Path('~/ref/refwrangle').expanduser() # can't reliably get dir of an .ipynb 
+refwrangle_dir = Path(__file__).resolve().parent
 sys.path.append(str(refwrangle_dir))
 import refwrangle as rfw
 import link_ai_lit as lal

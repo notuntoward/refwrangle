@@ -3,9 +3,9 @@ import re
 from collections import defaultdict
 from typing import Optional, Dict, Tuple, List, Callable
 import pandas as pd
-import refwrangle as rfw
 from dataclasses import dataclass
 from icecream import ic
+import refwrangle as rfw
 
 # like in smc source list
 source_link_re = re.compile(r'\[\((\d+)\)\s*(.*?)\]\((https?://\S+)\)')
