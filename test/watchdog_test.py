@@ -1,24 +1,34 @@
 """Tests of the watchdog library.  It works."""
 
 # %%
+import sys
 import time
 from pathlib import Path
+
+from watchdog.events import (DirMovedEvent, FileMovedEvent,
+                             FileSystemEventHandler)
 from watchdog.observers import Observer
-from watchdog.events import FileSystemEventHandler
 
-refwrangle_dir = Path('~/ref/refwrangle').expanduser()
-import sys
+# Add refwrangle_dir to sys.path for importing basic_relink
+refwrangle_dir = Path("~/ref/refwrangle").expanduser()
 sys.path.append(str(refwrangle_dir))
-import basic_relink as br
 
-(WATCH_DIR := Path(r"C:\Users\scott\tmp\watchpad")).mkdir(parents=True, exist_ok=True)
-(DEST_DIR := Path(r"C:\Users\scott\OneDrive\share\ref\obsidian\Obsidian Share Vault\Scratch Space")).mkdir(parents=True, exist_ok=True)
+import basic_relink as br  # pylint: disable=import-error
+
+WATCH_DIR = Path(r"C:\Users\scott\tmp\watchpad")
+DEST_DIR = Path(r"C:\Users\scott\OneDrive\share\ref\obsidian\Obsidian Share Vault\Scratch Space")
 
 class PerplexExportRelinker(FileSystemEventHandler):
     """When a new file arrives in the WATCH_DIR, change the footnotes to URL, obsidian or zotero links.
     Save the result to DEST_DIR.  If save was successful, cleans out the WATCH_DIR.  This is expecting
     Perplexity export .md files: special handling of chrome download-in-progress file extension, which
     can trigger the handler before the file is fully downloaded."""
+    
+    def __init__(self, watch_dir=WATCH_DIR, dest_dir=DEST_DIR, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.watch_dir = Path(watch_dir)
+        self.watch_dir.mkdir(exist_ok=True)
+        self.dest_dir = Path(dest_dir)
     
     def on_moved(self, event: 'DirMovedEvent | FileMovedEvent') -> None:
         """Once file is fully downloaded to WATCH_DIR (no longer .crdownload), relink and move to DEST_DIR"""
@@ -28,8 +38,10 @@ class PerplexExportRelinker(FileSystemEventHandler):
             print(f"Relinking new file:\n"
                   f"       {str(in_file)}\n"
                   f"  ---> {str(out_file)}")
+            
             if in_file.exists():
                 try:
+                    self.dest_dir.mkdir(parents=True, exist_ok=True)
                     br.perplex_to_obs_note_file(in_file, out_file)
                 except Exception as e:
                     print(f"Failed to read or write: {e}")
