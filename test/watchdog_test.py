@@ -1,6 +1,5 @@
-"""Tests of the watchdog library.  It works.
-TODO: delete files from watch_dir after completion, otherwise, they'll accumulate
-TODO: what to do if there are more than one files there anyway?"""
+"""Tests of the watchdog library.  It works."""
+
 # %%
 import time
 import sys
@@ -28,7 +27,8 @@ class PerplexExportRelinker(FileSystemEventHandler):
             in_file: Path = Path(event.dest_path)
             out_file: Path = DEST_DIR / in_file.name
             print(f"Relinking new file:\n"
-                  f"\t{str(in_file)=}\n\t---> {str(out_file)}")
+                  f"       {str(in_file)}\n"
+                  f"  ---> {str(out_file)}")
             if in_file.exists():
                 try:
                     br.perplex_to_obs_note_file(in_file, out_file)
