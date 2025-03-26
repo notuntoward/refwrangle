@@ -884,7 +884,7 @@ def read_markdown_file(file_path: Union[str, pl.Path]) -> str:
     as some AI files have windows-styple \r\n e.g. ChatGPT-4o exported from Perplexity."""
     
     try:
-        file_path = pl.Path(file_path)        
+        file_path = pl.Path(file_path)  
     except Exception as e:
         raise ValueError(f"Invalid file path: {file_path}") from e
         

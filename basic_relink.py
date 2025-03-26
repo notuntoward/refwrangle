@@ -67,8 +67,7 @@ def perplex_to_obs_note_file(in_filepath: Union[str, Path], out_filepath: Union[
     file, with the footnotes replaced with links to obsidian notes or zotero items 
     (when the exist), and to markdown URL links otherwise."""
 
-    in_filepath = in_filepath if isinstance(in_filepath, Path) else Path(in_filepath)
-    md_text = rfw.read_markdown_file(in_filepath)
+    md_text = rfw.read_markdown_file(Path(in_filepath))
 
     relinked_text = perplex_to_obs_note_text(md_text)
     relinked_text = f'{lat.make_obsidian_front_matter()}\n{relinked_text}'
