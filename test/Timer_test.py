@@ -2,7 +2,8 @@ import sys
 import pathlib as pl
 import time
 # Define paths and credentials
-refwrangle_dir = pl.Path('~/ref/refwrangle').expanduser()
+refwrangle_dir = Path(__file__).resolve().parent.parent # works??
+#refwrangle_dir = pl.Path('~/ref/refwrangle').expanduser()
 sys.path.append(str(refwrangle_dir))
 import refwrangle as rfw  
 

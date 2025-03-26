@@ -164,7 +164,7 @@ if __name__ == "__main__":
     ic(status)
 
     # a prototype for caller error handling
-    if not (status['note_found'] and  status['vault_found'] and status["uri_used"] is not ""):
+    if not (status['note_found'] and  status['vault_found'] and status["uri_used"] != ""):
         error_message = f'Note, Vault or URI problem: {status=}'
     elif status['new_tab_requested'] and status['new_tab_possible'] is not True:
         error_message = f'Could not make new note tab: {status=}'

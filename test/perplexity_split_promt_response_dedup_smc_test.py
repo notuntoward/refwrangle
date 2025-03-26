@@ -5,7 +5,8 @@
 from icecream import ic
 import pathlib as pl
 
-refwrangle_dir = pl.Path('~/ref/refwrangle').expanduser() # can't reliably get dir of an .ipynb 
+refwrangle_dir = Path(__file__).resolve().parent.parent # works??
+#refwrangle_dir = pl.Path('~/ref/refwrangle').expanduser() # can't reliably get dir of an .ipynb 
 import sys
 sys.path.append(str(refwrangle_dir))
 import refwrangle as rfw

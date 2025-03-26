@@ -57,7 +57,8 @@ refdir = obsidian_vault_dir = pl.Path(r"C:\Users\scott\OneDrive\share\ref")
 obsidian_vault_dir = refdir / "obsidian/Obsidian Share Vault"
 
 # entry info extracted from Zotero DB
-refwrangle_dir = refdir / 'refwrangle'
+refwrangle_dir = Path(__file__).resolve().parent.parent # works??
+#refwrangle_dir = refdir / 'refwrangle'
 extractedZoteroEntriesFNm = refwrangle_dir / 'dat/zotero_entries.pkl'
 
 refwrangle_test_dir = refwrangle_dir / 'test'

@@ -14,8 +14,8 @@ from icecream import ic
 import re
 from typing import Optional, Dict, List, Tuple
 import datetime as dt
-
-refwrangle_dir = pl.Path('~/ref/refwrangle').expanduser() # can't reliably get dir of an .ipynb 
+refwrangle_dir = Path(__file__).resolve().parent.parent # works??
+#refwrangle_dir = pl.Path('~/ref/refwrangle').expanduser() # can't reliably get dir of an .ipynb 
 sys.path.append(str(refwrangle_dir))
 # import refwrangle as rfw
 import refwrangle as rfw

@@ -161,8 +161,8 @@ if __name__ == "__main__":
     from bs4 import BeautifulSoup
     from requests.exceptions import Timeout, RequestException
     import time
-
-    refwrangle_dir = pl.Path('~/ref/refwrangle').expanduser() # can't reliably get dir of an .ipynb 
+    refwrangle_dir = Path(__file__).resolve().parent.parent # works??
+    #refwrangle_dir = pl.Path('~/ref/refwrangle').expanduser() # can't reliably get dir of an .ipynb 
     sys.path.append(str(refwrangle_dir))
     import refwrangle as rfw
 

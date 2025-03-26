@@ -1,4 +1,0 @@
-Form Data:
-{}
-Files:
-['file']
