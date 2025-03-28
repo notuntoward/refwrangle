@@ -24,9 +24,10 @@ import bs4
 from jinja2 import Template
 import open_obsidian_note_by_uri as onu
 
-# Root of Obsidian Vault
+# Operating system path Obsidian Vault the top directory (includes the vault name)
 OS_PATH_TO_VAULT_ROOT = Path(r"C:\Users\scott\OneDrive\share\ref\obsidian\Obsidian Share Vault").expanduser()
 
+# Path to notes directory within obsidian vault (NOTE_VAULT_PATH for root would be "")
 #NOTE_VAULT_PATH = 'Scratch Space'
 VAULT_PATH_NOTES = 'lit/lit_notes'
 NOTES_OS_PATH = OS_PATH_TO_VAULT_ROOT / VAULT_PATH_NOTES
@@ -35,6 +36,7 @@ NOTES_OS_PATH = OS_PATH_TO_VAULT_ROOT / VAULT_PATH_NOTES
 # (should be << RECEIVER_RESPONSE_WAIT_TIMEOUT_SECS)
 RECEIVER_BUTTON_WAIT_SECS = 20
 
+# port used by webhook
 LISTEN_PORT = 5050
 # the installer script should use the same file
 # TODO: just move this to onu.* so it's in one central file?
