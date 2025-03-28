@@ -2,7 +2,7 @@
 
 After a very simple split of a perplexity exported markdown file, turn the markdown footnotes into links.
 If the corresponding footnote number is associated with a url in zotero, the link is to matching Obsidian
-literature notes (if it exists) or to the matching Zotero item.  The foot notes are also turned into
+literature notes (if they exist) or to matching Zotero items.  The footnotes are also turned into
 the appropriate markdown links."""
 
 # %% [markdown]
@@ -63,7 +63,7 @@ def perplex_to_obs_note_text(md_text:str) -> str:
     return f'{body_relinked.strip()}\n# Sources\n{sources_relinked_str}'
 
 def perplex_to_obs_note_file(in_filepath: Union[str, Path], out_filepath: Union[str, Path]) -> None:
-    """Convert perplexity export markdown file to better formatted obsidian note
+    """Convert perplexity export markdown file to better-formatted obsidian note
     file, with the footnotes replaced with links to obsidian notes or zotero items 
     (when the exist), and to markdown URL links otherwise."""
 

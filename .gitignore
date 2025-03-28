@@ -1,6 +1,6 @@
 old/
-/bin/
-/dat/
+bin/
+dat/
 /test/dat/
 /test/node_modules/
 /test/tmp/

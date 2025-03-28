@@ -340,7 +340,7 @@ def convert_inline_formatting(element: Union[str, bs4.element.Tag]) -> str:
 
 # %%
 
-# Set up functions webhook receiver overwrite/skip/skip all popup dialogs
+# Set up functions for webhook receiver overwrite/skip/skip all popup dialogs
 
 logging.basicConfig(
     level=logging.DEBUG,
