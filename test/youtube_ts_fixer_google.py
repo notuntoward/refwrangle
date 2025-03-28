@@ -3,7 +3,8 @@
 import os
 import re
 import time
-from patlib import Path
+from pathlib import Path
+from icecream import ic
 import google.generativeai as genai
 from youtube_transcript_api import YouTubeTranscriptApi, TranscriptsDisabled, NoTranscriptFound
 
@@ -43,7 +44,7 @@ You are processing a *segment* of a longer video transcript. Process this segmen
 1.  **Input:** The input contains text interspersed with frequent YouTube timestamps (e.g., `[HH:MM:SS] Text...`).
 2.  **Timestamp Goal:** Modify the text and timestamps so that timestamps primarily mark the beginning of:
     *   A new speaker's turn.
-    *   A new "sentence" or, preferably, a new "paragraph" (a distinct thought or topic block) by the *same* speaker.
+    *   A new "sentence" or a new "paragraph" by the *same* speaker.  Paragraphs are a distinct thought or topic block, if this is clear, and by the *same* speaker.
 3.  **Timestamp Action:** *Delete* timestamps that do not meet these criteria. Merge the text previously separated by the deleted timestamps.
 4.  **Timestamp Preference:** Aim for paragraph-length intervals between timestamps for a single speaker, unless interrupted or significant topic shift. Avoid timestamps mid-sentence or for minor pauses.
 5.  **Correction Goal:** Correct obvious transcription errors based on context *within this segment*, especially technical terms, software names, etc.
