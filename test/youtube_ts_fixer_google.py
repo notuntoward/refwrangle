@@ -15,10 +15,22 @@ MODEL_NAME = "gemini-1.5-pro-latest" # Or whichever model you prefer
 
 # Chunking Strategy: Aim for chunks of roughly this many source transcript lines.
 # Adjust based on video length and density. Too small = many API calls; too large = context limits.
+# From yTranscript obidian plugin, the transcript for the 1hr 20 min (80 min) long
+# https://www.youtube.com/watch?v=Sx0J7dIlL7c&t=12s video
+# had about 454 lines.  My timestamp fixing prompt for this plugin, using Google Gemini 2.0 Flash died in 7 mins,
+# so 1M of context is worth about 454 * 7/80 ~ 40 lines. Google Gemini 1.5 Pro has 2M of context
+# so the max num lines it can handle is 140 lines: 150 lines per chunk is very close to, if not over,
+# the limit for 1.5 Pro
 LINES_PER_CHUNK = 150
 # Overlap: Number of lines from the end of the previous chunk to include at the start of the next.
 # Helps the AI maintain context across boundaries.
 OVERLAP_LINES = 10
+
+# Google AI workbench'es own idea of defaults
+# LINES_PER_CHUNK = 150
+# # Overlap: Number of lines from the end of the previous chunk to include at the start of the next.
+# # Helps the AI maintain context across boundaries.
+# OVERLAP_LINES = 10
 
 # --- API Key ---
 try:
@@ -304,3 +316,4 @@ if __name__ == "__main__":
         print(f"🛑 Error saving file: {e}")
 
     print("\n✨ Process complete.")
+# %%
