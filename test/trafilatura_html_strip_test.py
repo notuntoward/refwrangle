@@ -14,8 +14,13 @@ file_path = html_file_path
 
 # -------- detect encoding for open() if necessary
 # use cchardet instead of chardet b/c perplexity sez it's more efficient
+# Nah. When converting from conda to uv, I had to install MS dev tools, and their warnings
+# said that could make "visual studio" slow (not vscode, I think, but I"m not sure).
+# And even then, I still got warning messages from:
+#   uv pip install -r requirements.txt
+# So skip cchardet
+import chardet # 
 
-import cchardet as chardet  # alias faster cchardet to standard chardet 
 #from trafilatura import extract_from_file # doesn't exist
 
 def detect_encoding(file_path, max_bytes=1048576):  # 1 MB limit

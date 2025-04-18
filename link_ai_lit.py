@@ -145,7 +145,7 @@ def split_single_prs_text_perplex(pr_text: str) -> lpz.PromptResponseSplit:
     with plain citenums, like this: [citenum] or [^citenum].  Here, these are left as is."""
 
     # Find the first non-empty heading
-    matches = re.finditer(r'(?m)^# (?P<heading_text>.+)', pr_text)
+    matches = re.finditer(r'(?m)^(#{1,6})\s+(?P<heading_text>.+)', pr_text) # first non-empty heading of any level
     heading_start_index = -1
     for match in matches:
         if match.group('heading_text').strip():  # Check if heading is non-empty
@@ -155,19 +155,18 @@ def split_single_prs_text_perplex(pr_text: str) -> lpz.PromptResponseSplit:
     if heading_start_index == -1:
         raise ValueError('Could not find non-empty prompt heading')
 
-    # match = re.search(r'(?m)^# (?P<heading_text>.+)', pr_text)
-    # if match is None or ((heading_start_index := match.start('heading_text')) == -1):
-    #     raise ValueError('Could not find prompt heading')
-    
     preamble = pr_text[:heading_start_index].strip()
     
-    prompt_end_index, response_start_index = rfw.find_markdown_divider_boundaries(pr_text)
-        
-    if heading_start_index >= prompt_end_index:
-        raise ValueError(f'{heading_start_index=} >= {prompt_end_index=}. '
-                         'Probably missed the starting level 1 header part of the prompt.')
+    response_start_index = heading_start_index # just grab everything at and below the heading
     
-    prompt = pr_text[heading_start_index:prompt_end_index+1].strip()
+    #prompt_end_index, response_start_index = rfw.find_markdown_divider_boundaries(pr_text)
+        
+    # if heading_start_index >= prompt_end_index:
+    #     raise ValueError(f'{heading_start_index=} >= {prompt_end_index=}. '
+    #                      'Probably missed the starting level 1 header part of the prompt.')
+    
+    #prompt = pr_text[heading_start_index:prompt_end_index+1].strip()
+    prompt = "Perplexity Prompt Not Always There"
 
     response_sources_divider = '<div style="text-align: center">⁂</div>'
     response_sources_divider_index = pr_text.rfind(response_sources_divider)
@@ -179,13 +178,63 @@ def split_single_prs_text_perplex(pr_text: str) -> lpz.PromptResponseSplit:
         raise ValueError('response_sources_divider_index <= response_sources_divider_index')
     
     response = f"{pr_text[response_start_index:response_sources_divider_index]}".strip()
-    
+        
     sources = pr_text[response_sources_divider_index:]
     citenum_url_pairs = rfw.get_link_tu_pairs(sources, SOURCE_LIST_PATTERN_PERPLEX_RE)
     
     url_to_source_title = pd.Series()  # no titles in stock perplexity chat source lists
     
     return lpz.PromptResponseSplit(preamble, prompt, response, citenum_url_pairs, url_to_source_title)
+
+# Badly broken as of 4/16/25, as perplexity changed the format of their markdown export yet again
+# def split_single_prs_text_perplex_OLD(pr_text: str) -> lpz.PromptResponseSplit:
+#     """Splits stock perplexity export markdown text into prompt, response and source sections,
+#     returning the source information in citenum_url_pairs.  This is the only way
+#     to associate citenums to urls, as stock perplexity response citenums are markdown footnotes,
+#     with plain citenums, like this: [citenum] or [^citenum].  Here, these are left as is."""
+
+#     # Find the first non-empty heading
+#     matches = re.finditer(r'(?m)^# (?P<heading_text>.+)', pr_text)
+#     heading_start_index = -1
+#     for match in matches:
+#         if match.group('heading_text').strip():  # Check if heading is non-empty
+#             heading_start_index = match.start('heading_text')
+#             break
+
+#     if heading_start_index == -1:
+#         raise ValueError('Could not find non-empty prompt heading')
+
+#     # match = re.search(r'(?m)^# (?P<heading_text>.+)', pr_text)
+#     # if match is None or ((heading_start_index := match.start('heading_text')) == -1):
+#     #     raise ValueError('Could not find prompt heading')
+    
+#     preamble = pr_text[:heading_start_index].strip()
+    
+#     prompt_end_index, response_start_index = rfw.find_markdown_divider_boundaries(pr_text)
+        
+#     if heading_start_index >= prompt_end_index:
+#         raise ValueError(f'{heading_start_index=} >= {prompt_end_index=}. '
+#                          'Probably missed the starting level 1 header part of the prompt.')
+    
+#     prompt = pr_text[heading_start_index:prompt_end_index+1].strip()
+
+#     response_sources_divider = '<div style="text-align: center">⁂</div>'
+#     response_sources_divider_index = pr_text.rfind(response_sources_divider)
+
+#     if response_sources_divider_index == -1:
+#         raise ValueError('Could not find divider between AI response and sources list')
+
+#     if response_sources_divider_index <= response_start_index:
+#         raise ValueError('response_sources_divider_index <= response_sources_divider_index')
+    
+#     response = f"{pr_text[response_start_index:response_sources_divider_index]}".strip()
+    
+#     sources = pr_text[response_sources_divider_index:]
+#     citenum_url_pairs = rfw.get_link_tu_pairs(sources, SOURCE_LIST_PATTERN_PERPLEX_RE)
+    
+#     url_to_source_title = pd.Series()  # no titles in stock perplexity chat source lists
+    
+#     return lpz.PromptResponseSplit(preamble, prompt, response, citenum_url_pairs, url_to_source_title)
 
 # %% [markdown]
 # ##### Fix any duplicate cite numbers inside of each body and collect them
@@ -437,7 +486,10 @@ if __name__ == "__main__":
     # multi-file perplex, same prompt
     chat_files = list(datdir.glob('*.md'))
     # multi-file, different prompt
-    chat_files = [chat_files[3], pl.Path(r"C:\Users\scott\OneDrive\share\ref\refwrangle\test\dat\perplexity_example.md")]
+    #chat_files = [chat_files[3], pl.Path(r"C:\Users\scott\OneDrive\share\ref\refwrangle\test\dat\perplexity_example.md")]
+    #chat_files = [chat_files[3], pl.Path(r"C:\Users\scott\OneDrive\share\ref\refwrangle\test\dat\perplexity_example.md")]
+    datdir = pl.Path(r"C:\Users\scott\OneDrive\share\ref\obsidian\Obsidian Share Vault\Work\Between Jobs\Interview Projects\Habitat Energy 2025\prob_frcst_value")
+    chat_files = list(datdir.glob('*.md'))
     # single file
     #chat_files = [chat_files[3]]
 

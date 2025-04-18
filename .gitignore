@@ -22,3 +22,6 @@ dist/
 **/__pycache__/
 zmknote/dist/zotero_item_receiver.log
 /test/split_footnotes_body_test.py
+utils/collect_pip_installs_SAVE.py
+dry-run.txt
+environment.yml
