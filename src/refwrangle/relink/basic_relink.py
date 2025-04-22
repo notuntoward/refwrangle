@@ -11,9 +11,9 @@ from pathlib import Path
 import re
 from typing import Union
 from icecream import ic
-import link_perplexity_zotero as lpz
+import src.refwrangle.relink.link_perplexity_zotero as lpz
 import refwrangle as rfw
-import link_ai_lit as lat
+import src.refwrangle.relink.link_ai_lit as lat
 
 relinker = lpz.ZoteroLinkConverter()
 

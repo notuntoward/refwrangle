@@ -13,7 +13,7 @@ from icecream import ic
 # Add refwrangle_dir to sys.path for importing basic_relink
 refwrangle_dir = Path("~/ref/refwrangle").expanduser()
 sys.path.append(str(refwrangle_dir))
-import basic_relink as br  # pylint: disable=import-error
+import src.refwrangle.relink.basic_relink as br  # pylint: disable=import-error
 
 # Input files to be relinked are expected here
 WATCH_DIR = Path(r"C:\Users\scott\tmp\watchpad")

@@ -10,7 +10,7 @@ refwrangle_dir = Path(__file__).resolve().parent.parent # works??
 import sys
 sys.path.append(str(refwrangle_dir))
 import refwrangle as rfw
-import link_perplexity_zotero as lpz
+import src.refwrangle.relink.link_perplexity_zotero as lpz
 
 # %load_ext autoreload
 # %autoreload 2

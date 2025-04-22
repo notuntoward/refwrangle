@@ -15,7 +15,7 @@ from typing import List, Tuple
 import numpy as np
 import pandas as pd
 from icecream import ic
-import link_perplexity_zotero as lpz
+import src.refwrangle.relink.link_perplexity_zotero as lpz
 import refwrangle as rfw
 
 # %load_ext autoreload
