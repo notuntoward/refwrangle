@@ -1,9 +1,7 @@
-"""Tests the Obsidian Advanced URI plugin's ability to open a note in a new tab.
+"""For opening a note in a new obsidian tab.
 
-It works!
-
-NOTE: It won't open the note in a new tab unless Obsidian's Advanced URI plugin is installed and has the right options.  
-Without that, it will back off to the default obsidian URI mechanism, which reuses an existing tab."""
+NOTE: It won't open the note in a NEW tab unless Obsidian's Advanced URI plugin is installed and has the right options.  
+Without that, it will back off to the default obsidian URI mechanism, which REUSES an existing tab."""
 
 import os
 import json
