@@ -16,7 +16,7 @@ from icecream import ic
 
 refwrangle_dir = Path(__file__).resolve().parent
 sys.path.append(str(refwrangle_dir))
-import refwrangle as rfw
+import refwrangle.utils.refwrangle as rfw
 import src.refwrangle.relink.link_ai_lit as lal
 
 WRITE_LOG_FILE = True

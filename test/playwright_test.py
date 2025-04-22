@@ -7,7 +7,7 @@ refwrangle_dir = Path(__file__).resolve().parent.parent # works??
 #refwrangle_dir = pl.Path('~/ref/refwrangle').expanduser() # can't reliably get dir of your .ipynb 
 
 sys.path.append(str(refwrangle_dir))
-import refwrangle as rfw
+import refwrangle.utils.refwrangle as rfw
 from icecream import ic
 
 test_dir = refwrangle_dir / 'test'

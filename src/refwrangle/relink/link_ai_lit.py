@@ -16,7 +16,7 @@ import numpy as np
 import pandas as pd
 from icecream import ic
 import src.refwrangle.relink.link_perplexity_zotero as lpz
-import refwrangle as rfw
+import refwrangle.utils.refwrangle as rfw
 
 # %load_ext autoreload
 # %autoreload 2

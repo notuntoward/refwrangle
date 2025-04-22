@@ -5,7 +5,7 @@ import time
 refwrangle_dir = Path(__file__).resolve().parent.parent # works??
 #refwrangle_dir = pl.Path('~/ref/refwrangle').expanduser()
 sys.path.append(str(refwrangle_dir))
-import refwrangle as rfw  
+import refwrangle.utils.refwrangle as rfw  
 
 # Example Usage:
 if __name__ == '__main__':

@@ -164,7 +164,7 @@ if __name__ == "__main__":
     refwrangle_dir = Path(__file__).resolve().parent.parent # works??
     #refwrangle_dir = pl.Path('~/ref/refwrangle').expanduser() # can't reliably get dir of an .ipynb 
     sys.path.append(str(refwrangle_dir))
-    import refwrangle as rfw
+    import refwrangle.utils.refwrangle as rfw
 
     zot_cache = ZoteroCache(rfw.zotero_library_id, library_type="user", api_key=rfw.zotero_api_key, cache_file="tmp_zotero_cache.json")
         

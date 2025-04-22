@@ -9,7 +9,7 @@ from icecream import ic
 refwrangle_dir = Path(__file__).resolve().parent.parent # works??
 #refwrangle_dir = pl.Path('~/ref/refwrangle').expanduser()
 sys.path.append(str(refwrangle_dir))
-import refwrangle as rfw  # Import your custom refwrangle module
+import refwrangle.utils.refwrangle as rfw  # Import your custom refwrangle module
 
 # %%
 # Works when I add local=True. From here:  https://github.com/urschrei/pyzotero

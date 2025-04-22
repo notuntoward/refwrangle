@@ -1,9 +1,19 @@
+[build-system]
+# Specifies the build tools needed to create your package
+requires = ["setuptools>=61.0"] # Common requirement for setuptools-based builds
+build-backend = "setuptools.build_meta" # Tells pip/uv how to build the package
+
 [project]
 name = "refwrangle"
 version = "0.1.0"
-description = "Add your description here"
+description = "Tools for connecting zotero to obsidian and perplexity, among other things."
 readme = "README.md"
 requires-python = ">=3.12"
+authors = [
+    { name = "Scott Otterson", email = "scotto@sharpleaf.org" }
+]
+
+# --- Core dependencies needed for your package to RUN ---
 dependencies = [
     "beautifulsoup4>=4.13.4",
     "chardet>=5.2.0",
@@ -17,13 +27,13 @@ dependencies = [
     "nbformat>=5.10.4",
     "numpy>=2.2.4",
     "pandas>=2.2.3",
-    "pip>=25.0.1",
+    # pip removed - it's the installer, not a runtime dependency
     "playwright>=1.51.0",
     "plotly>=6.0.1",
     "pydantic>=2.11.3",
     "pymupdf4llm>=0.0.21",
     "pypdf>=5.4.0",
-    "pywin32>=302",
+    "pywin32>=302", # Be mindful of platform-specific dependencies like this
     "pyzotero>=1.6.11",
     "rapidfuzz>=3.13.0",
     "readability>=0.3.2",
@@ -35,5 +45,48 @@ dependencies = [
     "youtube-transcript-api>=1.0.3",
 ]
 
-[tool.uv.workspace]
-members = ["project"]
+# --- Optional Dependencies (Extras) ---
+[project.optional-dependencies]
+# Dependencies for development (testing, linting, formatting, notebooks, etc.)
+dev = [
+    "pytest >= 8.0.0",        # For running tests
+    "pytest-cov >= 5.0.0",    # For measuring test coverage
+    "ruff >= 0.5.5",          # Fast linter and formatter
+    "mypy >= 1.11.1",         # Static type checker
+    "pre-commit >= 3.8.0",    # For managing git hooks
+    "build >= 1.2.1",         # For building the package locally (sdist, wheel)
+    "twine >= 5.1.1",         # For uploading the package to PyPI
+    # --- Dependencies for Jupyter/IPython kernel ---
+    "ipykernel>=6.29.5",      # Core requirement for Jupyter kernels
+    "jupyter>=1.1.1",         # Or 'notebook' or 'jupyterlab' if you prefer
+    # uv removed - it's the tool, not a project dependency
+]
+# You could add other groups too, e.g., for documentation:
+# docs = [
+#     "sphinx >= 7.0.0",
+# ]
+
+# --- Tool-specific configurations ---
+
+# Configuration for setuptools to find your package code
+[tool.setuptools.packages.find]
+# If your actual Python package code (the 'refwrangle' directory containing __init__.py)
+# lives inside a 'src' directory (i.e., ./src/refwrangle/__init__.py),
+# then keep this section uncommented:
+where = ["src"]
+
+[dependency-groups]
+dev = [
+    "ipykernel>=6.29.5",
+    "jupyter>=1.1.1",
+]
+# If your package code is directly in the root alongside pyproject.toml
+# (i.e., ./refwrangle/__init__.py), then DELETE or COMMENT OUT this entire
+# [tool.setuptools.packages.find] section. The default is where = ["."].
+
+
+# --- Optional: Add project URLs for PyPI ---
+# [project.urls]
+# "Homepage" = "https://github.com/yourusername/refwrangle"
+# "Bug Tracker" = "https://github.com/yourusername/refwrangle/issues"
+# "Repository" = "https://github.com/yourusername/refwrangle.git"

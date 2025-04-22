@@ -6,7 +6,7 @@ import pathlib as pl
 from icecream import ic
 import urllib.parse
 import os
-import refwrangle as rfw
+import refwrangle.utils.refwrangle as rfw
 
 
 # Set paths to GTK and Fontconfig

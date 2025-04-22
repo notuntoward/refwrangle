@@ -5,7 +5,7 @@ from typing import Optional, Dict, Tuple, List, Callable
 import pandas as pd
 from dataclasses import dataclass
 from icecream import ic
-import refwrangle as rfw
+import refwrangle.utils.refwrangle as rfw
 
 # like in smc source list
 source_link_re = re.compile(r'\[\((\d+)\)\s*(.*?)\]\((https?://\S+)\)')

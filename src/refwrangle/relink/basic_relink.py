@@ -12,7 +12,7 @@ import re
 from typing import Union
 from icecream import ic
 import src.refwrangle.relink.link_perplexity_zotero as lpz
-import refwrangle as rfw
+import refwrangle.utils.refwrangle as rfw
 import src.refwrangle.relink.link_ai_lit as lat
 
 relinker = lpz.ZoteroLinkConverter()

@@ -31,7 +31,7 @@ import zotero_to_obsidian_note_listener as zol
 refwrangle_dir = Path(__file__).resolve().parent.parent.parent # works??
 #refwrangle_dir = pl.Path('~/ref/refwrangle').expanduser()
 sys.path.append(str(refwrangle_dir))
-import refwrangle as rfw  # Import your custom refwrangle module
+import refwrangle.utils.refwrangle as rfw  # Import your custom refwrangle module
 
 
 # %%

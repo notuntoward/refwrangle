@@ -25,3 +25,5 @@ zmknote/dist/zotero_item_receiver.log
 utils/collect_pip_installs_SAVE.py
 dry-run.txt
 environment.yml
+src/refwrangle.egg-info/
+src/refwrangle/zmknote/tmp.ipynb
