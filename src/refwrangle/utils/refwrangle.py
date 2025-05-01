@@ -333,7 +333,45 @@ def error_message(message: str) -> None:
     In the future, this could include a timestamp, file path, could log errors, etc."""
     print(message)
     print(message, file=sys.stderr)
+
+from typing import Dict, Any
+
+def is_ignorable_child(child: Dict[str, Any]) -> bool:
+    """ Returns True if a Zotero child is an attachment type I want to crunch with AI.
+
+    Args:
+        child: the pyzotero dict that each child of a parent has. """
     
+    try:
+        item_data = child.get('data', {})
+        item_type = item_data.get('itemType')
+
+        if item_type == 'note':
+            return True # no zotero notes
+
+        if item_type != 'attachment':
+            return True  # It's neither a note nor an attachment, so ignore
+
+        # Ensure it's a file, not just a URL link
+        link_mode = item_data.get('linkMode')
+
+        # types that go to actual files
+        if link_mode not in {'imported_file', 'linked_file'}:
+            return True
+
+        return False
+
+    except KeyError as e:
+        # malformed key of some kind
+        child_key = child.get('key', 'N/A')
+        print(f"Warning: Missing key {e} in child item data for key: {child_key}. Ignoring item.")
+        return True 
+    except Exception as e:
+        # anything else weird
+        child_key = child.get('key', 'N/A')
+        print(f"Warning: Unexpected error processing child item {child_key}: {e}. Ignoring item.")
+        return True
+
 def extra2dict(extra: str) -> Dict[str, str]:
     """Converts zotero extra field string into dict of keys and values"""
     dictionary = {}
