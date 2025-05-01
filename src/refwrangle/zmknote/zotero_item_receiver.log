@@ -397,3 +397,99 @@ OSError: [Errno 22] Invalid argument: 'C:\\Users\\scott\\OneDrive\\share\\ref\\o
 2025-04-24 16:47:43,536 - INFO - [0aa53475] Ended webhook message processing with 1 items acted upon
 2025-04-27 11:16:37,597 - INFO - Starting Zotero Item Receiver
 2025-04-27 11:16:37,597 - INFO - Storage directory path: C:\Users\scott\OneDrive\share\ref\obsidian\Obsidian Share Vault\lit\lit_notes
+2025-04-27 11:16:37,600 - INFO - Log file: C:\Users\scott\repos\refwrangle\src\refwrangle\zmknote\zotero_item_receiver.log
+2025-04-27 11:16:37,600 - INFO - Storage directory exists or was created successfully
+2025-04-27 11:16:37,601 - INFO - Starting server on port 5050
+2025-04-27 11:16:37,610 - INFO - Serving on http://0.0.0.0:5050
+2025-04-27 11:18:04,964 - INFO - [63070184] Received webhook request
+2025-04-27 11:18:04,965 - INFO - [63070184] Processing 1 items
+2025-04-27 11:18:04,967 - INFO - [63070184] Working on item 1/1: Salvanto25trump100dayPollTariff
+2025-04-27 11:18:05,003 - INFO - [63070184] Successfully created file: C:\Users\scott\OneDrive\share\ref\obsidian\Obsidian Share Vault\lit\lit_notes\Salvanto25trump100dayPollTariff.md
+2025-04-27 11:18:05,006 - DEBUG - [63070184] Checking existence of: C:\Users\scott\OneDrive\share\ref\obsidian\Obsidian Share Vault\lit\lit_notes\Salvanto25trump100dayPollTariff.md
+2025-04-27 11:18:05,241 - INFO - [63070184] Completed item: citekey='Salvanto25trump100dayPollTariff', itemkey='63X5ZJIU'
+2025-04-27 11:18:05,244 - INFO - [63070184] Ended webhook message processing with 1 items acted upon
+2025-04-27 13:33:36,885 - INFO - [4901dd25] Received webhook request
+2025-04-27 13:33:36,900 - INFO - [4901dd25] Processing 1 items
+2025-04-27 13:33:36,900 - INFO - [4901dd25] Working on item 1/1: Balz25trumpApprovSink
+2025-04-27 13:33:36,944 - INFO - [4901dd25] Successfully created file: C:\Users\scott\OneDrive\share\ref\obsidian\Obsidian Share Vault\lit\lit_notes\Balz25trumpApprovSink.md
+2025-04-27 13:33:36,948 - DEBUG - [4901dd25] Checking existence of: C:\Users\scott\OneDrive\share\ref\obsidian\Obsidian Share Vault\lit\lit_notes\Balz25trumpApprovSink.md
+2025-04-27 13:33:37,176 - INFO - [4901dd25] Completed item: citekey='Balz25trumpApprovSink', itemkey='2E354ZAN'
+2025-04-27 13:33:37,176 - INFO - [4901dd25] Ended webhook message processing with 1 items acted upon
+2025-04-27 13:37:59,343 - INFO - [f80e6d8f] Received webhook request
+2025-04-27 13:37:59,343 - INFO - [f80e6d8f] Processing 1 items
+2025-04-27 13:37:59,345 - INFO - [f80e6d8f] Working on item 1/1: Balz25trumpApprovSink
+2025-04-27 13:37:59,391 - INFO - [f80e6d8f] File already exists: lit/lit_notes/Balz25trumpApprovSink.md
+2025-04-27 13:37:59,391 - INFO - [f80e6d8f] Showing overwrite popup for 'Balz25trumpApprovSink'
+2025-04-27 13:37:59,391 - INFO - [f80e6d8f] Opening dialog in browser: http://localhost:5050/dialog/dialog_d1487823
+2025-04-27 13:38:02,634 - INFO - Dialog dialog_d1487823 response: overwrite
+2025-04-27 13:38:02,638 - INFO - [f80e6d8f] User selected: overwrite for 'Balz25trumpApprovSink'
+2025-04-27 13:38:02,640 - INFO - [f80e6d8f] Successfully overwrote file: C:\Users\scott\OneDrive\share\ref\obsidian\Obsidian Share Vault\lit\lit_notes\Balz25trumpApprovSink.md
+2025-04-27 13:38:02,643 - DEBUG - [f80e6d8f] Checking existence of: C:\Users\scott\OneDrive\share\ref\obsidian\Obsidian Share Vault\lit\lit_notes\Balz25trumpApprovSink.md
+2025-04-27 13:38:02,770 - INFO - [f80e6d8f] Completed item: citekey='Balz25trumpApprovSink', itemkey='2E354ZAN'
+2025-04-27 13:38:02,781 - INFO - [f80e6d8f] Ended webhook message processing with 1 items acted upon
+2025-04-28 12:46:45,506 - INFO - [22fa7f2b] Received webhook request
+2025-04-28 12:46:45,524 - INFO - [22fa7f2b] Processing 1 items
+2025-04-28 12:46:45,524 - INFO - [22fa7f2b] Working on item 1/1: JoeBlogs25usSupplyChainMeltDown
+2025-04-28 12:46:45,581 - INFO - [22fa7f2b] Successfully created file: C:\Users\scott\OneDrive\share\ref\obsidian\Obsidian Share Vault\lit\lit_notes\JoeBlogs25usSupplyChainMeltDown.md
+2025-04-28 12:46:45,584 - DEBUG - [22fa7f2b] Checking existence of: C:\Users\scott\OneDrive\share\ref\obsidian\Obsidian Share Vault\lit\lit_notes\JoeBlogs25usSupplyChainMeltDown.md
+2025-04-28 12:46:45,955 - INFO - [22fa7f2b] Completed item: citekey='JoeBlogs25usSupplyChainMeltDown', itemkey='4AH4VCK3'
+2025-04-28 12:46:45,956 - INFO - [22fa7f2b] Ended webhook message processing with 1 items acted upon
+2025-04-28 14:14:59,133 - INFO - [c7c01c1f] Received webhook request
+2025-04-28 14:14:59,154 - INFO - [c7c01c1f] Processing 1 items
+2025-04-28 14:14:59,159 - INFO - [c7c01c1f] Working on item 1/1: Agiesta25trump100dayWorst7decades
+2025-04-28 14:14:59,263 - INFO - [c7c01c1f] Successfully created file: C:\Users\scott\OneDrive\share\ref\obsidian\Obsidian Share Vault\lit\lit_notes\Agiesta25trump100dayWorst7decades.md
+2025-04-28 14:14:59,265 - DEBUG - [c7c01c1f] Checking existence of: C:\Users\scott\OneDrive\share\ref\obsidian\Obsidian Share Vault\lit\lit_notes\Agiesta25trump100dayWorst7decades.md
+2025-04-28 14:14:59,632 - INFO - [c7c01c1f] Completed item: citekey='Agiesta25trump100dayWorst7decades', itemkey='E2XZ7PVS'
+2025-04-28 14:14:59,632 - INFO - [c7c01c1f] Ended webhook message processing with 1 items acted upon
+2025-04-28 14:17:42,115 - INFO - [c8c7f3f3] Received webhook request
+2025-04-28 14:17:42,118 - INFO - [c8c7f3f3] Processing 1 items
+2025-04-28 14:17:42,120 - INFO - [c8c7f3f3] Working on item 1/1: Agiesta25trump100dayWorst7decades
+2025-04-28 14:17:42,147 - INFO - [c8c7f3f3] File already exists: lit/lit_notes/Agiesta25trump100dayWorst7decades.md
+2025-04-28 14:17:42,147 - INFO - [c8c7f3f3] Showing overwrite popup for 'Agiesta25trump100dayWorst7decades'
+2025-04-28 14:17:42,148 - INFO - [c8c7f3f3] Opening dialog in browser: http://localhost:5050/dialog/dialog_d7089d4f
+2025-04-28 14:17:44,400 - INFO - Dialog dialog_d7089d4f response: overwrite
+2025-04-28 14:17:44,402 - INFO - [c8c7f3f3] User selected: overwrite for 'Agiesta25trump100dayWorst7decades'
+2025-04-28 14:17:44,404 - INFO - [c8c7f3f3] Successfully overwrote file: C:\Users\scott\OneDrive\share\ref\obsidian\Obsidian Share Vault\lit\lit_notes\Agiesta25trump100dayWorst7decades.md
+2025-04-28 14:17:44,406 - DEBUG - [c8c7f3f3] Checking existence of: C:\Users\scott\OneDrive\share\ref\obsidian\Obsidian Share Vault\lit\lit_notes\Agiesta25trump100dayWorst7decades.md
+2025-04-28 14:17:44,607 - INFO - [c8c7f3f3] Completed item: citekey='Agiesta25trump100dayWorst7decades', itemkey='E2XZ7PVS'
+2025-04-28 14:17:44,607 - INFO - [c8c7f3f3] Ended webhook message processing with 1 items acted upon
+2025-04-28 17:21:31,594 - INFO - [60069c10] Received webhook request
+2025-04-28 17:21:31,611 - INFO - [60069c10] Processing 1 items
+2025-04-28 17:21:31,613 - INFO - [60069c10] Working on item 1/1: Melber25MuskDemot100Days
+2025-04-28 17:21:31,660 - INFO - [60069c10] Successfully created file: C:\Users\scott\OneDrive\share\ref\obsidian\Obsidian Share Vault\lit\lit_notes\Melber25MuskDemot100Days.md
+2025-04-28 17:21:31,663 - DEBUG - [60069c10] Checking existence of: C:\Users\scott\OneDrive\share\ref\obsidian\Obsidian Share Vault\lit\lit_notes\Melber25MuskDemot100Days.md
+2025-04-28 17:21:32,063 - INFO - [60069c10] Completed item: citekey='Melber25MuskDemot100Days', itemkey='GMK9AS4A'
+2025-04-28 17:21:32,063 - INFO - [60069c10] Ended webhook message processing with 1 items acted upon
+2025-04-28 19:19:57,527 - INFO - [756f1a89] Received webhook request
+2025-04-28 19:19:57,536 - INFO - [756f1a89] Processing 1 items
+2025-04-28 19:19:57,539 - INFO - [756f1a89] Working on item 1/1: Robins-Robins-Early25muksConflictInterest
+2025-04-28 19:19:57,630 - INFO - [756f1a89] Successfully created file: C:\Users\scott\OneDrive\share\ref\obsidian\Obsidian Share Vault\lit\lit_notes\Robins-Robins-Early25muksConflictInterest.md
+2025-04-28 19:19:57,632 - DEBUG - [756f1a89] Checking existence of: C:\Users\scott\OneDrive\share\ref\obsidian\Obsidian Share Vault\lit\lit_notes\Robins-Robins-Early25muksConflictInterest.md
+2025-04-28 19:19:57,941 - INFO - [756f1a89] Completed item: citekey='Robins-Robins-Early25muksConflictInterest', itemkey='EL564NUZ'
+2025-04-28 19:19:57,943 - INFO - [756f1a89] Ended webhook message processing with 1 items acted upon
+2025-04-28 19:27:12,543 - INFO - [99ca3f5f] Received webhook request
+2025-04-28 19:27:12,548 - INFO - [99ca3f5f] Processing 1 items
+2025-04-28 19:27:12,548 - INFO - [99ca3f5f] Working on item 1/1: Robins-Early25muskConflictInt
+2025-04-28 19:27:12,585 - INFO - [99ca3f5f] Successfully created file: C:\Users\scott\OneDrive\share\ref\obsidian\Obsidian Share Vault\lit\lit_notes\Robins-Early25muskConflictInt.md
+2025-04-28 19:27:12,585 - DEBUG - [99ca3f5f] Checking existence of: C:\Users\scott\OneDrive\share\ref\obsidian\Obsidian Share Vault\lit\lit_notes\Robins-Early25muskConflictInt.md
+2025-04-28 19:27:12,713 - INFO - [99ca3f5f] Completed item: citekey='Robins-Early25muskConflictInt', itemkey='EL564NUZ'
+2025-04-28 19:27:12,714 - INFO - [99ca3f5f] Ended webhook message processing with 1 items acted upon
+2025-04-29 16:58:46,399 - INFO - [9a5c31fa] Received webhook request
+2025-04-29 16:58:46,427 - INFO - [9a5c31fa] Processing 1 items
+2025-04-29 16:58:46,429 - INFO - [9a5c31fa] Working on item 1/1: MorningConsult25negEconNewsBreakThru
+2025-04-29 16:58:46,545 - INFO - [9a5c31fa] Successfully created file: C:\Users\scott\OneDrive\share\ref\obsidian\Obsidian Share Vault\lit\lit_notes\MorningConsult25negEconNewsBreakThru.md
+2025-04-29 16:58:46,551 - DEBUG - [9a5c31fa] Checking existence of: C:\Users\scott\OneDrive\share\ref\obsidian\Obsidian Share Vault\lit\lit_notes\MorningConsult25negEconNewsBreakThru.md
+2025-04-29 16:58:47,019 - INFO - [9a5c31fa] Completed item: citekey='MorningConsult25negEconNewsBreakThru', itemkey='CTBCH6CE'
+2025-04-29 16:58:47,019 - INFO - [9a5c31fa] Ended webhook message processing with 1 items acted upon
+2025-04-29 17:00:11,860 - INFO - [6e2f6a0a] Received webhook request
+2025-04-29 17:00:11,864 - INFO - [6e2f6a0a] Processing 1 items
+2025-04-29 17:00:11,864 - INFO - [6e2f6a0a] Working on item 1/1: MorningConsult25negEconNewsBreakThru
+2025-04-29 17:00:11,909 - INFO - [6e2f6a0a] File already exists: lit/lit_notes/MorningConsult25negEconNewsBreakThru.md
+2025-04-29 17:00:11,910 - INFO - [6e2f6a0a] Showing overwrite popup for 'MorningConsult25negEconNewsBreakThru'
+2025-04-29 17:00:11,911 - INFO - [6e2f6a0a] Opening dialog in browser: http://localhost:5050/dialog/dialog_4202a111
+2025-04-29 17:00:14,757 - INFO - Dialog dialog_4202a111 response: overwrite
+2025-04-29 17:00:14,759 - INFO - [6e2f6a0a] User selected: overwrite for 'MorningConsult25negEconNewsBreakThru'
+2025-04-29 17:00:14,765 - INFO - [6e2f6a0a] Successfully overwrote file: C:\Users\scott\OneDrive\share\ref\obsidian\Obsidian Share Vault\lit\lit_notes\MorningConsult25negEconNewsBreakThru.md
+2025-04-29 17:00:14,768 - DEBUG - [6e2f6a0a] Checking existence of: C:\Users\scott\OneDrive\share\ref\obsidian\Obsidian Share Vault\lit\lit_notes\MorningConsult25negEconNewsBreakThru.md
+2025-04-29 17:00:15,009 - INFO - [6e2f6a0a] Completed item: citekey='MorningConsult25negEconNewsBreakThru', itemkey='CTBCH6CE'
+2025-04-29 17:00:15,010 - INFO - [6e2f6a0a] Ended webhook message processing with 1 items acted upon

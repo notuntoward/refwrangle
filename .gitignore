@@ -27,3 +27,4 @@ dry-run.txt
 environment.yml
 src/refwrangle.egg-info/
 src/refwrangle/zmknote/tmp.ipynb
+src/refwrangle/zmknote/zotero_item_receiver.log
