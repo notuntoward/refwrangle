@@ -302,3 +302,98 @@
 2025-04-21 10:13:41,496 - DEBUG - [afb00d9e] Checking existence of: C:\Users\scott\OneDrive\share\ref\obsidian\Obsidian Share Vault\lit\lit_notes\Dolan25authoritPrimeCnsprcy.md
 2025-04-21 10:13:41,589 - INFO - [afb00d9e] Completed item: citekey='Dolan25authoritPrimeCnsprcy', itemkey='XA4WHJPJ'
 2025-04-21 10:13:41,590 - INFO - [afb00d9e] Ended webhook message processing with 2 items acted upon
+2025-04-23 12:51:04,201 - INFO - Starting Zotero Item Receiver
+2025-04-23 12:51:04,202 - INFO - Storage directory path: C:\Users\scott\OneDrive\share\ref\obsidian\Obsidian Share Vault\lit\lit_notes
+2025-04-23 12:51:04,203 - INFO - Log file: C:\Users\scott\repos\refwrangle\src\refwrangle\zmknote\zotero_item_receiver.log
+2025-04-23 12:51:04,203 - INFO - Storage directory exists or was created successfully
+2025-04-23 12:51:04,203 - INFO - Starting server on port 5050
+2025-04-23 12:51:04,214 - INFO - Serving on http://0.0.0.0:5050
+2025-04-23 12:51:20,398 - INFO - [7415aa60] Received webhook request
+2025-04-23 12:51:20,400 - INFO - [7415aa60] Processing 1 items
+2025-04-23 12:51:20,400 - INFO - [7415aa60] Working on item 1/1: Hendrickson25demsManProblem
+2025-04-23 12:51:20,416 - INFO - [7415aa60] Successfully created file: C:\Users\scott\OneDrive\share\ref\obsidian\Obsidian Share Vault\lit\lit_notes\Hendrickson25demsManProblem.md
+2025-04-23 12:51:20,426 - DEBUG - [7415aa60] Checking existence of: C:\Users\scott\OneDrive\share\ref\obsidian\Obsidian Share Vault\lit\lit_notes\Hendrickson25demsManProblem.md
+2025-04-23 12:51:20,718 - INFO - [7415aa60] Completed item: citekey='Hendrickson25demsManProblem', itemkey='YAQIMF8S'
+2025-04-23 12:51:20,718 - INFO - [7415aa60] Ended webhook message processing with 1 items acted upon
+2025-04-23 13:27:32,988 - INFO - [c2dca4bd] Received webhook request
+2025-04-23 13:27:32,992 - INFO - [c2dca4bd] Processing 2 items
+2025-04-23 13:27:32,993 - INFO - [c2dca4bd] Working on item 1/2: MorningConsult25trustTrumpVsMedia
+2025-04-23 13:27:33,028 - INFO - [c2dca4bd] Successfully created file: C:\Users\scott\OneDrive\share\ref\obsidian\Obsidian Share Vault\lit\lit_notes\MorningConsult25trustTrumpVsMedia.md
+2025-04-23 13:27:33,030 - DEBUG - [c2dca4bd] Checking existence of: C:\Users\scott\OneDrive\share\ref\obsidian\Obsidian Share Vault\lit\lit_notes\MorningConsult25trustTrumpVsMedia.md
+2025-04-23 13:27:33,284 - INFO - [c2dca4bd] Completed item: citekey='MorningConsult25trustTrumpVsMedia', itemkey='5W8WXFCB'
+2025-04-23 13:27:33,286 - INFO - [c2dca4bd] Working on item 2/2: Hendrickson25demsManProblem
+2025-04-23 13:27:33,305 - INFO - [c2dca4bd] File already exists: lit/lit_notes/Hendrickson25demsManProblem.md
+2025-04-23 13:27:33,305 - INFO - [c2dca4bd] Showing overwrite popup for 'Hendrickson25demsManProblem'
+2025-04-23 13:27:33,305 - INFO - [c2dca4bd] Opening dialog in browser: http://localhost:5050/dialog/dialog_32f51f24
+2025-04-23 13:27:36,291 - INFO - Dialog dialog_32f51f24 response: overwrite
+2025-04-23 13:27:36,292 - INFO - [c2dca4bd] User selected: overwrite for 'Hendrickson25demsManProblem'
+2025-04-23 13:27:36,293 - INFO - [c2dca4bd] Successfully overwrote file: C:\Users\scott\OneDrive\share\ref\obsidian\Obsidian Share Vault\lit\lit_notes\Hendrickson25demsManProblem.md
+2025-04-23 13:27:36,294 - DEBUG - [c2dca4bd] Checking existence of: C:\Users\scott\OneDrive\share\ref\obsidian\Obsidian Share Vault\lit\lit_notes\Hendrickson25demsManProblem.md
+2025-04-23 13:27:36,527 - INFO - [c2dca4bd] Completed item: citekey='Hendrickson25demsManProblem', itemkey='YAQIMF8S'
+2025-04-23 13:27:36,530 - INFO - [c2dca4bd] Ended webhook message processing with 2 items acted upon
+2025-04-23 16:01:28,204 - INFO - [5997c15f] Received webhook request
+2025-04-23 16:01:28,215 - INFO - [5997c15f] Processing 1 items
+2025-04-23 16:01:28,216 - INFO - [5997c15f] Working on item 1/1: Nowrasteh25natImmigVotedRep
+2025-04-23 16:01:28,267 - INFO - [5997c15f] Successfully created file: C:\Users\scott\OneDrive\share\ref\obsidian\Obsidian Share Vault\lit\lit_notes\Nowrasteh25natImmigVotedRep.md
+2025-04-23 16:01:28,271 - DEBUG - [5997c15f] Checking existence of: C:\Users\scott\OneDrive\share\ref\obsidian\Obsidian Share Vault\lit\lit_notes\Nowrasteh25natImmigVotedRep.md
+2025-04-23 16:01:28,563 - INFO - [5997c15f] Completed item: citekey='Nowrasteh25natImmigVotedRep', itemkey='LUBGX6ZD'
+2025-04-23 16:01:28,563 - INFO - [5997c15f] Ended webhook message processing with 1 items acted upon
+2025-04-23 16:05:17,100 - INFO - [42988e69] Received webhook request
+2025-04-23 16:05:17,104 - INFO - [42988e69] Processing 1 items
+2025-04-23 16:05:17,104 - INFO - [42988e69] Working on item 1/1: JournalismFeatured*242024PresidentialElection
+2025-04-23 16:05:17,133 - ERROR - [42988e69] Error processing webhook data: [Errno 22] Invalid argument: 'C:\\Users\\scott\\OneDrive\\share\\ref\\obsidian\\Obsidian Share Vault\\lit\\lit_notes\\JournalismFeatured*242024PresidentialElection.md'
+Traceback (most recent call last):
+  File "C:\Users\scott\repos\refwrangle\src\refwrangle\zmknote\zotero_to_obsidian_note_receiver.py", line 604, in webhook
+    results =  write_obsidian_md_note(webhook_item_list, request_id)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\scott\repos\refwrangle\src\refwrangle\zmknote\zotero_to_obsidian_note_receiver.py", line 718, in write_obsidian_md_note
+    if (write_resp := write_note(note_path_in_vault, obs_note_markdown, overwrite=False)) == 'exists':
+                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\scott\repos\refwrangle\src\refwrangle\zmknote\zotero_to_obsidian_note_receiver.py", line 695, in write_note
+    with open(filepath_os, 'x', encoding='utf-8') as f:
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+OSError: [Errno 22] Invalid argument: 'C:\\Users\\scott\\OneDrive\\share\\ref\\obsidian\\Obsidian Share Vault\\lit\\lit_notes\\JournalismFeatured*242024PresidentialElection.md'
+2025-04-23 16:05:25,410 - INFO - [48ebe0fa] Received webhook request
+2025-04-23 16:05:25,412 - INFO - [48ebe0fa] Processing 1 items
+2025-04-23 16:05:25,412 - INFO - [48ebe0fa] Working on item 1/1: JournalismFeatured*242024PresidentialElection
+2025-04-23 16:05:25,438 - ERROR - [48ebe0fa] Error processing webhook data: [Errno 22] Invalid argument: 'C:\\Users\\scott\\OneDrive\\share\\ref\\obsidian\\Obsidian Share Vault\\lit\\lit_notes\\JournalismFeatured*242024PresidentialElection.md'
+Traceback (most recent call last):
+  File "C:\Users\scott\repos\refwrangle\src\refwrangle\zmknote\zotero_to_obsidian_note_receiver.py", line 604, in webhook
+    results =  write_obsidian_md_note(webhook_item_list, request_id)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\scott\repos\refwrangle\src\refwrangle\zmknote\zotero_to_obsidian_note_receiver.py", line 718, in write_obsidian_md_note
+    if (write_resp := write_note(note_path_in_vault, obs_note_markdown, overwrite=False)) == 'exists':
+                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\scott\repos\refwrangle\src\refwrangle\zmknote\zotero_to_obsidian_note_receiver.py", line 695, in write_note
+    with open(filepath_os, 'x', encoding='utf-8') as f:
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+OSError: [Errno 22] Invalid argument: 'C:\\Users\\scott\\OneDrive\\share\\ref\\obsidian\\Obsidian Share Vault\\lit\\lit_notes\\JournalismFeatured*242024PresidentialElection.md'
+2025-04-23 16:06:52,127 - INFO - [027dfb53] Received webhook request
+2025-04-23 16:06:52,128 - INFO - [027dfb53] Processing 1 items
+2025-04-23 16:06:52,129 - INFO - [027dfb53] Working on item 1/1: Woodland24electAmericanNations
+2025-04-23 16:06:52,152 - INFO - [027dfb53] Successfully created file: C:\Users\scott\OneDrive\share\ref\obsidian\Obsidian Share Vault\lit\lit_notes\Woodland24electAmericanNations.md
+2025-04-23 16:06:52,152 - DEBUG - [027dfb53] Checking existence of: C:\Users\scott\OneDrive\share\ref\obsidian\Obsidian Share Vault\lit\lit_notes\Woodland24electAmericanNations.md
+2025-04-23 16:06:52,449 - INFO - [027dfb53] Completed item: citekey='Woodland24electAmericanNations', itemkey='J3UKPCGC'
+2025-04-23 16:06:52,450 - INFO - [027dfb53] Ended webhook message processing with 1 items acted upon
+2025-04-24 10:09:30,714 - INFO - Starting Zotero Item Receiver
+2025-04-24 10:09:30,715 - INFO - Storage directory path: C:\Users\scott\OneDrive\share\ref\obsidian\Obsidian Share Vault\lit\lit_notes
+2025-04-24 10:09:30,716 - INFO - Log file: C:\Users\scott\repos\refwrangle\src\refwrangle\zmknote\zotero_item_receiver.log
+2025-04-24 10:09:30,718 - INFO - Storage directory exists or was created successfully
+2025-04-24 10:09:30,718 - INFO - Starting server on port 5050
+2025-04-24 10:09:30,726 - INFO - Serving on http://0.0.0.0:5050
+2025-04-24 10:09:35,767 - INFO - [99f610b3] Received webhook request
+2025-04-24 10:09:35,767 - INFO - [99f610b3] Processing 1 items
+2025-04-24 10:09:35,767 - INFO - [99f610b3] Working on item 1/1: MorningConsult25trump100days
+2025-04-24 10:09:35,806 - INFO - [99f610b3] Successfully created file: C:\Users\scott\OneDrive\share\ref\obsidian\Obsidian Share Vault\lit\lit_notes\MorningConsult25trump100days.md
+2025-04-24 10:09:35,808 - DEBUG - [99f610b3] Checking existence of: C:\Users\scott\OneDrive\share\ref\obsidian\Obsidian Share Vault\lit\lit_notes\MorningConsult25trump100days.md
+2025-04-24 10:09:36,174 - INFO - [99f610b3] Completed item: citekey='MorningConsult25trump100days', itemkey='W4PV4K92'
+2025-04-24 10:09:36,174 - INFO - [99f610b3] Ended webhook message processing with 1 items acted upon
+2025-04-24 16:47:43,120 - INFO - [0aa53475] Received webhook request
+2025-04-24 16:47:43,133 - INFO - [0aa53475] Processing 1 items
+2025-04-24 16:47:43,134 - INFO - [0aa53475] Working on item 1/1: Bertsimas97linOptIntroBk
+2025-04-24 16:47:43,216 - INFO - [0aa53475] Successfully created file: C:\Users\scott\OneDrive\share\ref\obsidian\Obsidian Share Vault\lit\lit_notes\Bertsimas97linOptIntroBk.md
+2025-04-24 16:47:43,224 - DEBUG - [0aa53475] Checking existence of: C:\Users\scott\OneDrive\share\ref\obsidian\Obsidian Share Vault\lit\lit_notes\Bertsimas97linOptIntroBk.md
+2025-04-24 16:47:43,535 - INFO - [0aa53475] Completed item: citekey='Bertsimas97linOptIntroBk', itemkey='FLI5IW6C'
+2025-04-24 16:47:43,536 - INFO - [0aa53475] Ended webhook message processing with 1 items acted upon
+2025-04-27 11:16:37,597 - INFO - Starting Zotero Item Receiver
+2025-04-27 11:16:37,597 - INFO - Storage directory path: C:\Users\scott\OneDrive\share\ref\obsidian\Obsidian Share Vault\lit\lit_notes

@@ -38,7 +38,7 @@ def check_newpane_setting(vault_path: Path) -> bool:
     """Checks if the "Open file without write in new pane" option is enabled.
         vault_path: Path to the Obsidian vault, including the vault name itself
         
-        Return: bbool: True if the setting is enabled, False otherwise"""
+        Return: bool: True if the setting is enabled, False otherwise"""
         
     plugin_data_path = vault_path / ".obsidian" / "plugins" / "obsidian-advanced-uri" / "data.json"
     
@@ -63,9 +63,8 @@ def open_obsidian_note(note_path: str, vault_path: Path | str | None = None, new
           new_tab: Whether to open in a new tab (requires Obsidian's Advanced URI plugin, 
                    with its "Open file without write in new pane" option enabled)
     
-          Returns: dict: Status information about the operation """
+          Returns: dict: Status information about the operation (see comments)"""
     
-    # Initialize status with only the essential information
     status = {"vault_found": False,          # vault_path works
               "note_found": None,            # note_path works
               "advanced_uri_plugin_installed": None,      # plugin installed
@@ -129,8 +128,7 @@ def open_obsidian_note(note_path: str, vault_path: Path | str | None = None, new
                 os.system(f'start "" "{uri}"')
             elif os.name == 'posix':  # macOS or Linux
                 if Path('/proc/version').exists() and 'microsoft' in Path('/proc/version').read_text().lower():
-                    # WSL detection
-                    os.system(f'cmd.exe /c start "" "{uri}"')
+                    os.system(f'cmd.exe /c start "" "{uri}"') # it's Linux but WSL
                 elif Path('/System').exists():  # macOS
                     subprocess.run(['open', uri])
                 else:  # Linux

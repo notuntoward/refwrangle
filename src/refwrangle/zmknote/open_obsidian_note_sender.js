@@ -48,19 +48,16 @@ try {
     // Collect all selected items into an array
     let selectedItems = [];
     if (item) {
-        // Single item selected
-        selectedItems.push(item);
+        selectedItems.push(item);      // Single item selected
     } else if (items && items.length > 0) {
-        // Multiple items selected
-        selectedItems = items;
+         selectedItems = items;        // Multiple items selected
     } else {
         Zotero.alert(null, "Error", "No item selected.");
         Zotero.ZoteroWebhookLock.inProgress = false;
         return;
     }
     
-    // Put item data into a JSON message strucure
-
+    // Put item in JSON
     let itemDataArray = [];
     for (let item of selectedItems) {
         let itemkey = item.key; // zotero item key
