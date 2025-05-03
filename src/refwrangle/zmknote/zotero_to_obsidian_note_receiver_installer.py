@@ -5,13 +5,21 @@ To compile:
 
 uv run pyinstaller --runtime-tmpdir=. --hidden-import win32timezone --exclude-module PyQt5 --exclude-module PySide6 --onefile zotero_to_obsidian_note_receiver.py
 
-To install:
+To install, in an admin terminal, type:
 
-uv run zotero_to_obsidian_note_sender.py install
+uv run zotero_to_obsidian_note_receiver_installer.py install
+
+and you should see a message that ZoteroObsidianService has been installed.
 
 To start it right after install (do this when you change the listener, etc.)
 
-uv run python zotero_to_obsidian_note_receiver_installer.py start
+uv run zotero_to_obsidian_note_receiver_installer.py start
+
+Howver, at this point, it doesn't start.  The error is:
+
+2025-05-02 21:10:21,649 - INFO - Handling command line: zotero_to_obsidian_note_receiver_installer.py start
+Starting service ZoteroObsidianService
+Error starting service: The service did not respond to the start or control request in a timely fashion.
 
 To uninstall (remove from Windows Registry):
 
