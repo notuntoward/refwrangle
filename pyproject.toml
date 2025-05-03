@@ -31,6 +31,7 @@ dependencies = [
     "playwright>=1.51.0",
     "plotly>=6.0.1",
     "pydantic>=2.11.3",
+    "pyinstaller>=6.13.0",
     "pymupdf4llm>=0.0.21",
     "pypdf>=5.4.0",
     "pywin32>=302", # Be mindful of platform-specific dependencies like this
