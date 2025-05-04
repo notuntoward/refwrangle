@@ -29,4 +29,6 @@ src/refwrangle.egg-info/
 src/refwrangle/zmknote/tmp.ipynb
 src/refwrangle/zmknote/zotero_item_receiver.log
 src/refwrangle/zmknote/zotero_to_obsidian_note_receiver.spec
-src/refwrangle/zmknote/zotero_item_receiver.log
+
+src/refwrangle/zmknote/_MEI524242/
+
