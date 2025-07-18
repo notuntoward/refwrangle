@@ -14,12 +14,20 @@ __pycache__/
 /zmknote/zotero_note_to_markdown_test.py
 /zmknote/test/zotero_watcher.log
 /zmknote/zotero_item_receiver.log
-build/
-dist/
+/zmknote/dist/
+/zmknote/build/
 *.pkg
 *.exe
 **/.mypy_cache/
 **/__pycache__/
+
+# Ignore large DLL files
+*.dll
+
+# Ignore the entire _MEI directories (these appear to be PyInstaller temp files)
+*/_MEI*/
+*/_MEI*/*
+
 zmknote/dist/zotero_item_receiver.log
 /test/split_footnotes_body_test.py
 utils/collect_pip_installs_SAVE.py
