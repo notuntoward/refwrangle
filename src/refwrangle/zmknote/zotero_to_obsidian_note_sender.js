@@ -96,6 +96,28 @@ try {
                 const result = await response.json();
                 if (result && result.result) {
                     bibliography = result.result;
+                    
+                    // Remove URLs (http://, https://)
+                    bibliography = bibliography.replace(/https?:\/\/\S+/g, '');
+                    
+                    // Remove other URLs (www.something.com style)
+                    bibliography = bibliography.replace(/www\.\S+/g, '');
+                    
+                    // Remove DOIs (doi.org pattern)
+                    bibliography = bibliography.replace(/doi\.org\/\S+/g, '');
+                    
+                    // Remove trailing commas and spaces before a period
+                    bibliography = bibliography.replace(/,\s*\./g, '.');
+                    
+                    // Remove trailing comma at end of string and replace with period
+                    bibliography = bibliography.replace(/,\s*$/g, '.');
+                    
+                    // Remove orphaned commas
+                    bibliography = bibliography.replace(/,\s+,/g, ',');
+                    bibliography = bibliography.replace(/,\s*\./g, '.');
+                    
+                    // Clean up multiple spaces
+                    bibliography = bibliography.replace(/\s+/g, ' ').trim();
                 }
             } catch (error) {
                 Zotero.debug(`Failed to fetch bibliography for citekey ${citekey}: ${error}`);

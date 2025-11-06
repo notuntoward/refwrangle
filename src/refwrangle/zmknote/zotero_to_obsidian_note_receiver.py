@@ -118,14 +118,10 @@ modified date:
 
 
 > {% if bibliography %} {{ bibliography }}{% endif %}
-{% block persist_Obsidian_Notes %}
 
-%% begin Obsidian Notes %%
+
+
 ___
-==Delete this and write here. Don't delete the `persist` directives above and below.==
-___
-{% endblock persist_Obsidian_Notes %}
-%% end Obsidian Notes %%
 {% if notes|length > 0 %}
 > [!note]- &nbsp;Zotero Note ({{ notes|length }})
 >
