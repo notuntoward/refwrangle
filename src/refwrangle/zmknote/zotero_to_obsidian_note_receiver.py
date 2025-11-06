@@ -10,13 +10,14 @@ import logging
 import threading
 import time
 import uuid
-import webbrowser
+import tkinter as tk
+from tkinter import messagebox
 from datetime import datetime
 from pathlib import Path
 from typing import Union
 
 import bs4
-from flask import Flask, Response, jsonify, render_template_string, request
+from flask import Flask, Response, jsonify, request
 from jinja2 import Template
 from waitress import serve
 
@@ -355,98 +356,8 @@ logger = logging.getLogger(__name__)
 dir_lock = threading.Lock() # lock needed for reliable existence detect
 
 # Dictionary to store overwrite/skip/skipall dialog results
-dialog_answers = {}
-dialog_events: dict[str, dict] = {}
 
 # HTML template for the dialog
-DIALOG_TEMPLATE = """
-<!DOCTYPE html>
-<html>
-<head>
-    <title>{{ title }}</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            padding: 20px;
-            max-width: 500px;
-            margin: 0 auto;
-        }
-        .message {
-            margin-bottom: 20px;
-        }
-        .buttons {
-            display: flex;
-            gap: 10px;
-        }
-        button {
-            padding: 10px 15px;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-            font-size: 14px;
-        }
-        .open {
-            background-color: #5fb236;
-            color: white;
-        }
-        .overwrite {
-            background-color: #b24b36;
-            color: white;
-        }
-        .skip {
-            background-color: #365fb2;
-            color: white;
-        }
-        .skip-all {
-            background-color: #ff9800;
-            color: white;
-        }
-    </style>
-    <script>
-        function submitAndClose(action) {
-            // Submit the form via fetch API
-            fetch('/dialog-response/{{ dialog_id }}', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/x-www-form-urlencoded',
-                },
-                body: 'action=' + action
-            })
-            .then(response => {
-                // Try multiple ways to close the window
-                window.close();
-                
-                // If window is still open, try with a delay
-                setTimeout(function() {
-                    window.close();
-                }, 100);
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                // Still try to close the window even if there was an error
-                window.close();
-            });
-            
-            // Return false to prevent default form submission
-            return false;
-        }
-    </script>
-</head>
-<body>
-    <div class="message">{{ message }}</div>
-    <div class="buttons">
-        <button onclick="submitAndClose('open');" class="open">Open</button>
-        <button onclick="submitAndClose('skip');" class="skip">Skip</button>
-        {% if show_skip_all %}
-        <button onclick="submitAndClose('skip_all');" class="skip-all">Skip All</button>
-        {% endif %}        
-        <button onclick="submitAndClose('overwrite');" class="overwrite">Overwrite</button>
-    </div>
-</body>
-</html>
-"""
-
 def ensure_storage_dir(request_id: str) -> bool:
     """Ensure the storage directory exists with proper synchronization.
     Returns True if successful, False otherwise."""
@@ -470,23 +381,7 @@ def ensure_storage_dir(request_id: str) -> bool:
 
 app = Flask(__name__)
 
-@app.route('/dialog/<dialog_id>')
-def show_dialog(dialog_id: str) -> tuple:
-    """Show a dialog in the browser"""
-    if dialog_id not in dialog_events:
-        return "Dialog not found", 404
-        
-    dialog_data = dialog_events[dialog_id]
-    
-    return render_template_string(
-        DIALOG_TEMPLATE,
-        title="File Exists",
-        message=dialog_data['message'],
-        dialog_id=dialog_id,
-        show_skip_all=dialog_data.get('show_skip_all', False)
-    ), 200
 
-@app.route('/dialog-response/<dialog_id>', methods=['POST'])
 def dialog_response(dialog_id: str) -> tuple:
     """Handle dialog response"""
     if dialog_id not in dialog_events:
@@ -504,62 +399,14 @@ def dialog_response(dialog_id: str) -> tuple:
     # Return success - the browser window should be closed by JavaScript
     return "OK", 200
 
-def show_web_dialog(title: str, message: str, options: str, request_id: str) -> str:
-    """Show a dialog in the browser and wait for response"""
-    dialog_id = f"dialog_{uuid.uuid4().hex[:8]}"
-    
-    # Create an event to wait for the response
-    event = threading.Event()
-    
-    # Store dialog information
-    dialog_events[dialog_id] = {
-        'title': title,
-        'message': message,
-        'event': event,
-        'show_skip_all': options == 'yesnoskip'
-    }
-    
-    # URL for the dialog
-    url = f"http://localhost:{LISTEN_PORT}/dialog/{dialog_id}"
-    
-    # Open the URL in a browser
-    logger.info(f"[{request_id}] Opening dialog in browser: {url}")
-    webbrowser.open(url)
-    
-    # Wait for response with timeout
-    if not event.wait(timeout=RECEIVER_BUTTON_WAIT_SECS):
-        logger.warning(f"[{request_id}] Dialog timeout after {RECEIVER_BUTTON_WAIT_SECS} seconds")
-        # Clean up
-        if dialog_id in dialog_events:
-            del dialog_events[dialog_id]
-        return "skip"  # Default to skip on timeout
-    
-    # Get the result
-    answer = dialog_answers.get(dialog_id, "skip")
-    
-    # Clean up
-    if dialog_id in dialog_answers:
-        del dialog_answers[dialog_id]
-    if dialog_id in dialog_events:
-        del dialog_events[dialog_id]
-    
-    return answer
-
-def ask_overwrite_popup(citekey: str, is_last_item: bool, total_items: int, request_id: str) -> str:
-    """Display a popup asking whether to overwrite the file"""
-    logger.info(f"[{request_id}] Showing overwrite popup for '{citekey}'")
-    
-    # Simple message for all cases
-    message = f"File for citekey '{citekey}' already exists."
-    
-    # Use our web-based dialog
-    answer = show_web_dialog(
-        "File Exists",
-        message,
-        "yesno" if (total_items == 1 or is_last_item) else "yesnoskip",
-        request_id)
-    
-    logger.info(f"[{request_id}] User selected: {answer} for '{citekey}'")
+def ask_overwrite_popup(citekey: str, is_last_item: bool,
+                       total_items: int, request_id: str) -> str:
+    root = tk.Tk()
+    root.withdraw()
+    result = messagebox.askyesno("File Exists", f"File '{citekey}.md' already exists. Overwrite?")
+    root.destroy()
+    answer = "overwrite" if result else "skip"
+    logger.info(f"User selected '{answer}' for {citekey}")
     return answer
 
 @app.route('/webhook', methods=['POST'])
