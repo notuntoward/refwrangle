@@ -117,7 +117,7 @@ modified date:
 > **Related**::{% for relation in relations if relation.citekey %} [[@{{ relation.citekey }}]]{% if not loop.last %}, {% endif %}{% endfor %}
 
 
-> {% if bibliography %} {{ bibliography }}{% endif %}
+>{% if bibliography %} {{ bibliography }}{% endif %}
 
 
 
