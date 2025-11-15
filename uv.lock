@@ -2413,6 +2413,7 @@ dev = [
 dev = [
     { name = "ipykernel" },
     { name = "jupyter" },
+    { name = "types-waitress" },
 ]
 
 [package.metadata]
@@ -2463,6 +2464,7 @@ provides-extras = ["dev"]
 dev = [
     { name = "ipykernel", specifier = ">=6.29.5" },
     { name = "jupyter", specifier = ">=1.1.1" },
+    { name = "types-waitress", specifier = ">=3.0.1.20250801" },
 ]
 
 [[package]]
@@ -2787,6 +2789,15 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/a9/60/47d92293d9bc521cd2301e423a358abfac0ad409b3a1606d8fbae1321961/types_python_dateutil-2.9.0.20241206.tar.gz", hash = "sha256:18f493414c26ffba692a72369fea7a154c502646301ebfe3d56a04b3767284cb", size = 13802 }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/0f/b3/ca41df24db5eb99b00d97f89d7674a90cb6b3134c52fb8121b6d8d30f15c/types_python_dateutil-2.9.0.20241206-py3-none-any.whl", hash = "sha256:e248a4bc70a486d3e3ec84d0dc30eec3a5f979d6e7ee4123ae043eedbb987f53", size = 14384 },
+]
+
+[[package]]
+name = "types-waitress"
+version = "3.0.1.20250801"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/39/d4/ec386bf1166249c59fd6fc6bb83b174da33540a272d4b45b6ecac3978a7c/types_waitress-3.0.1.20250801.tar.gz", hash = "sha256:f919fda09e44798771d8ac54bb8573c165f1a1bc1aa9bfbf4296603db59455be", size = 14215 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/03/14/0bd9a8de7c618de4434b3954eedf2ba11a962d5b1ab2311d7c10b8402bdc/types_waitress-3.0.1.20250801-py3-none-any.whl", hash = "sha256:17830a3bf096a967368cfc4dfaf19e2ab6cde8ac880747ebb47c01ca85704d9f", size = 17477 },
 ]
 
 [[package]]

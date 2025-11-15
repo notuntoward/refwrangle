@@ -81,6 +81,7 @@ where = ["src"]
 dev = [
     "ipykernel>=6.29.5",
     "jupyter>=1.1.1",
+    "types-waitress>=3.0.1.20250801",
 ]
 # If your package code is directly in the root alongside pyproject.toml
 # (i.e., ./refwrangle/__init__.py), then DELETE or COMMENT OUT this entire
