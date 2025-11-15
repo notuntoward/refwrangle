@@ -486,29 +486,27 @@ def webhook() -> tuple:
         logger.exception(f"[{request_id}] Error processing webhook data: {str(e)}")
         return jsonify({"status": "error", "message": str(e), "request_id": request_id}), 500
 
-def ask_create_note_popup(citekey: str, request_id: str) -> str:
-    """Show a popup asking user if they want to create a non-existent note or cancel.
+def nonexistent_note_popup(citekey: str, request_id: str) -> None:
+    """Show a warning popup that a note doesn't exist.
 
     Args:
         citekey: The citekey of the note that doesn't exist
         request_id: Unique ID for this request
 
     Returns:
-        'create' if user wants to create the note, 'cancel' if user wants to cancel
+        None
     """
     root = tk.Tk()
     root.withdraw()
 
-    result = messagebox.askyesno(
+    messagebox.showwarning(
         "Note Does Not Exist",
-        f"Note '{citekey}.md' does not exist.\n\nDo you want to create it?"
+        f"Note '{citekey}.md' does not exist."
     )
 
     root.destroy()
 
-    answer = 'create' if result else 'cancel'
-    logger.info(f"[{request_id}] User selected '{answer}' for non-existent note {citekey}")
-    return answer
+    logger.info(f"[{request_id}] User acknowledged non-existent note warning for {citekey}")
 
 
 def open_note_in_new_tab(citekey_or_keys: Union[str, list], request_id: str, items_data: Union[dict, list, None] = None) -> list:
@@ -543,52 +541,13 @@ def open_note_in_new_tab(citekey_or_keys: Union[str, list], request_id: str, ite
             filepath_os = OS_PATH_TO_VAULT_ROOT / notepath_vault
 
             # Check if note exists before trying to open it
+
+
             if not filepath_os.exists():
                 logger.info(f"[{request_id}] Note does not exist: {notepath_vault}")
-
-                # Show popup asking user what to do
-                answer = ask_create_note_popup(citekey, request_id)
-
-                if answer == 'create':
-                    logger.info(f"[{request_id}] User chose to create note for {citekey}")
-
-                    # Try to create the note if we have item data
-                    if citekey in items_dict:
-                        item = items_dict[citekey]
-                        try:
-                            # Convert item data to markdown
-                            template = Template(template_str, trim_blocks=True, lstrip_blocks=True)
-
-                            # Process notes if present
-                            notes_md = []
-                            for note_html in item.get('notes', []):
-                                md_note = zotero_note_html_to_md(note_html)
-                                notes_md.append(md_note)
-                            item['notes'] = notes_md
-
-                            obs_note_markdown = template.render(item)
-
-                            # Write the note
-                            write_resp = write_note(notepath_vault, obs_note_markdown, overwrite=False)
-                            if write_resp == 'done':
-                                logger.info(f"[{request_id}] Successfully created note for {citekey}")
-                                # Now open it
-                                status = onu.open_obsidian_note(notepath_vault, OS_PATH_TO_VAULT_ROOT)
-                                results.append(f"Created and opened note at {notepath_vault}")
-                            else:
-                                logger.error(f"[{request_id}] Failed to create note for {citekey}: {write_resp}")
-                                results.append(f"Failed to create note at {notepath_vault}")
-                        except Exception as e:
-                            logger.error(f"[{request_id}] Error creating note for {citekey}: {e}", exc_info=True)
-                            results.append(f"Error creating note at {notepath_vault}")
-                    else:
-                        logger.warning(f"[{request_id}] No item data available to create note for {citekey}")
-                        results.append(f"Cannot create note - no item data for {citekey}")
-                else:
-                    # User chose 'cancel'
-                    logger.info(f"[{request_id}] User cancelled opening non-existent note {citekey}")
-                    results.append(f"Cancelled - note does not exist: {notepath_vault}")
-
+                nonexistent_note_popup(citekey, request_id)
+                logger.info(f"[{request_id}] Skipping non-existent note {citekey}")
+                results.append(f"Skipped - note does not exist: {notepath_vault}")
                 continue
 
             # Note exists, proceed to open it
