@@ -10,6 +10,7 @@ import logging
 import threading
 import time
 import uuid
+import urllib.parse
 import tkinter as tk
 from tkinter import messagebox
 from datetime import datetime
@@ -17,12 +18,9 @@ from pathlib import Path
 from typing import Union
 
 import bs4
-from flask import Flask, Response, jsonify, request
+from flask import Flask, jsonify, request
 from jinja2 import Template
-from waitress import serve
-
-import bs4
-from jinja2 import Template
+from waitress import serve  # type: ignore
 import open_obsidian_note_by_uri as onu
 
 # Operating system path Obsidian Vault the top directory (includes the vault name)
@@ -145,16 +143,28 @@ def zotero_note_html_to_md(zotero_note_html: str) -> str:
     
     # if no html structure captured, just get the pure text (won't have children)
     markdown_blocks = [] # obsidian note markdown
-    if main_div.string and main_div.string.strip():
+    if hasattr(main_div, 'string') and main_div.string and main_div.string.strip():
         markdown_blocks.append(main_div.string.strip())
     
     # Get structured blocks (if no html children structure, then this doesn't do anything)
-    for child in main_div.children:
+    # Some bs4 PageElement subclasses may not expose `.children`, so fall back to `.contents`
+    if hasattr(main_div, 'children'):
+        child_iterable = main_div.children
+    elif hasattr(main_div, 'contents'):
+        child_iterable = main_div.contents
+    else:
+        # Last resort: treat the main_div itself as a single node
+        child_iterable = [main_div]
+
+    for child in child_iterable:
         if isinstance(child, str) and child.strip():
             markdown_blocks.append(child.strip())
-            continue # next childe
+            continue # next child
             
         if not hasattr(child, 'name'):
+            continue # skips blank space and non-tag elements
+        
+        if child.name is None:
             continue # skips blank space, I think
             
         if child.name == 'blockquote':
@@ -224,9 +234,12 @@ def process_blockquote(blockquote: bs4.element.Tag) -> str:
                 for line in element.strip().split('\n'):
                     if line.strip():
                         markdown_chunks.append(f"> {line.strip()}")
-        elif element.name == 'p':
+        elif getattr(element, 'name', None) == 'p':
             # Process each paragraph
-            p_text = convert_inline_formatting(element)
+            if isinstance(element, bs4.element.Tag):
+                p_text = convert_inline_formatting(element)
+            else:
+                p_text = str(element)
             if p_text.strip():
                 # Split paragraph text into lines if it contains newlines
                 for line in p_text.strip().split('\n'):
@@ -237,7 +250,10 @@ def process_blockquote(blockquote: bs4.element.Tag) -> str:
                 markdown_chunks.append(">")
         else:
             # Process other elements (headings, lists, etc.) in the blockquote
-            formatted_text = convert_inline_formatting(element)
+            if isinstance(element, bs4.element.Tag):
+                formatted_text = convert_inline_formatting(element)
+            else:
+                formatted_text = str(element)
             if formatted_text.strip():
                 # Split into lines
                 for line in formatted_text.strip().split('\n'):
@@ -265,15 +281,15 @@ def convert_inline_formatting(element: Union[str, bs4.element.Tag]) -> str:
     for child in element.contents:
         if isinstance(child, str):
             output_markdown += child
-        elif child.name == 'span':
+        elif hasattr(child, 'name') and child.name == 'span':
             # Internal link to a zotero item: make it work from inside of obsidian w/ a URI substitute
-            if 'citation' in child.get('class', []):
+            if hasattr(child, 'get') and hasattr(child, 'find') and 'citation' in child.get('class', []):
                 citation_item = child.find(class_='citation-item')
                 if citation_item:
                     citation_text = citation_item.get_text(strip=True)
                     
                     # Extract Zotero ID from citation data
-                    citation_data = child.get('data-citation', '')
+                    citation_data = child.get('data-citation', '') if hasattr(child, 'get') else ''
                     if citation_data:
                         try:
                             citation_json = json.loads(urllib.parse.unquote(citation_data))
@@ -282,21 +298,21 @@ def convert_inline_formatting(element: Union[str, bs4.element.Tag]) -> str:
                                 zotero_id = uri.split('/')[-1]
                                 output_markdown += f"([{citation_text}](zotero://select/library/items/{zotero_id}))"
                                 continue
-                        except:
+                        except Exception:
                             pass
                 
                 # Fallback for citation
-                output_markdown += f"({child.get_text(strip=True)})"
+                output_markdown += f"({child.get_text(strip=True) if hasattr(child, 'get_text') else str(child)})"
                 
             # Highlights
-            elif child.get('style') and ('background-color' in child.get('style') or 'highlight' in child.get('style')):
-                highlighted_text = convert_inline_formatting(child)
+            elif hasattr(child, 'get') and child.get('style') and ('background-color' in child.get('style') or 'highlight' in child.get('style')):
+                highlighted_text = convert_inline_formatting(child) if isinstance(child, bs4.element.Tag) else str(child)
                 output_markdown += f"=={highlighted_text}=="
                 
             # Bold/Italic handling via style
-            elif child.get('style'):
+            elif hasattr(child, 'get') and child.get('style'):
                 style = child.get('style')
-                text = convert_inline_formatting(child)
+                text = convert_inline_formatting(child) if isinstance(child, bs4.element.Tag) else str(child)
                 
                 is_bold = 'bold' in style or 'font-weight' in style
                 is_italic = 'italic' in style or 'font-style' in style
@@ -311,27 +327,30 @@ def convert_inline_formatting(element: Union[str, bs4.element.Tag]) -> str:
                     output_markdown += text
             else:
                 # Regular span
-                output_markdown += convert_inline_formatting(child)
+                output_markdown += convert_inline_formatting(child) if isinstance(child, bs4.element.Tag) else str(child)
 
         # Bold
-        elif child.name in ['strong', 'b']:
-            text = convert_inline_formatting(child)
+        elif hasattr(child, 'name') and child.name in ['strong', 'b']:
+            text = convert_inline_formatting(child) if isinstance(child, bs4.element.Tag) else str(child)
             output_markdown += f"**{text}**"
             
         # Italic
-        elif child.name in ['em', 'i']:
-            text = convert_inline_formatting(child)
+        elif hasattr(child, 'name') and child.name in ['em', 'i']:
+            text = convert_inline_formatting(child) if isinstance(child, bs4.element.Tag) else str(child)
             output_markdown += f"*{text}*"
             
         # Web Links
-        elif child.name == 'a':
-            text = convert_inline_formatting(child)
-            href = child.get('href', '')
+        elif hasattr(child, 'name') and child.name == 'a':
+            text = convert_inline_formatting(child) if isinstance(child, bs4.element.Tag) else str(child)
+            href = child.get('href', '') if hasattr(child, 'get') else ''
             output_markdown += f"[{text}]({href})"
             
         # Other elements
         else:
-            output_markdown += convert_inline_formatting(child)
+            if isinstance(child, bs4.element.Tag):
+                output_markdown += convert_inline_formatting(child)
+            else:
+                output_markdown += str(child)
     
     return output_markdown
 
@@ -352,6 +371,8 @@ logger = logging.getLogger(__name__)
 dir_lock = threading.Lock() # lock needed for reliable existence detect
 
 # Dictionary to store overwrite/skip/skipall dialog results
+dialog_events: dict[str, dict] = {}
+dialog_answers: dict[str, str] = {}
 
 # HTML template for the dialog
 def ensure_storage_dir(request_id: str) -> bool:
@@ -613,14 +634,14 @@ def status():
 
 if __name__ == '__main__':
     log_file = Path(RECEIVER_LOG_FILE)
-    logger.info(f"Starting Zotero Item Receiver")
+    logger.info("Starting Zotero Item Receiver")
     logger.info(f"Storage directory path: {NOTES_OS_PATH}")
     logger.info(f"Log file: {log_file.resolve()}")
     
     # Create storage directory at startup
     try:
         NOTES_OS_PATH.mkdir(parents=True, exist_ok=True)
-        logger.info(f"Storage directory exists or was created successfully")
+        logger.info("Storage directory exists or was created successfully")
     except Exception as e:
         logger.warning(f"Note: Could not create storage directory at startup: {e}")
     
