@@ -36,10 +36,67 @@ this.ZoteroObsidianExporter = class {
         }
     }
 
-    async processItem(item) {
+    async exportNew() {
+        const items = Zotero.getActiveZoteroPane().getSelectedItems();
+        if (!items.length) {
+            return Zotero.alert(null, "No Items Selected", "Please select at least one item to create a note for.");
+        }
+        for (const item of items) {
+            await this.createNote(item);
+        }
+    }
+
+    async exportOpen() {
+        const items = Zotero.getActiveZoteroPane().getSelectedItems();
+        if (!items.length) {
+            return Zotero.alert(null, "No Items Selected", "Please select at least one item to open the note for.");
+        }
+        for (const item of items) {
+            await this.openNote(item);
+        }
+    }
+
+    async createNote(item) {
         const itemData = await this.getItemData(item);
         if (!itemData.citekey) {
             return Zotero.alert(null, "Citekey Not Found", `A Better BibTeX citekey was not found for the item \"${itemData.title}\". Please ensure BBT is installed and the item has a citekey.`);
+        }
+
+        const filenameTemplate = await this.getPref('filename-template') || '{{citekey}}.md';
+        const fileName = this.nunjucks.renderString(filenameTemplate, itemData);
+
+        const vaultName = await this.getPref('vault-name');
+        const noteTemplate = await this.getPref('note-template');
+        const noteContent = this.nunjucks.renderString(noteTemplate, itemData);
+        const newURI = `obsidian://new?vault=${encodeURIComponent(vaultName)}&file=${encodeURIComponent(fileName)}&content=${encodeURIComponent(noteContent)}&overwrite`;
+        
+        Zotero.Utilities.openURL(newURI);
+
+        const verificationSuccess = await this.verifyNoteCreation(fileName);
+
+        if (verificationSuccess) {
+            this.linkedItemCache.add(item.key);
+            this.refreshZoteroView();
+            log(`Successfully verified creation of ${fileName}`);
+        }
+    }
+
+    async openNote(item) {
+        if (!this.linkedItemCache.has(item.key)) {
+            return Zotero.alert(null, "Note not found", "A note for this item has not been created yet.");
+        }
+        const itemData = await this.getItemData(item);
+        const filenameTemplate = await this.getPref('filename-template') || '{{citekey}}.md';
+        const fileName = this.nunjucks.renderString(filenameTemplate, itemData);
+        const vaultName = await this.getPref('vault-name');
+        const openURI = `obsidian://open?vault=${encodeURIComponent(vaultName)}&file=${encodeURIComponent(fileName)}`;
+        return Zotero.Utilities.openURL(openURI);
+    }
+
+    async processItem(item) {
+        const itemData = await this.getItemData(item);
+        if (!itemData.citekey) {
+            return Zotero.alert(null, "Citekey Not Found", `A Better BibTeX citekey was not found for the item "${itemData.title}". Please ensure BBT is installed and the item has a citekey.`);
         }
 
         const filenameTemplate = await this.getPref('filename-template') || '{{citekey}}.md';
@@ -72,133 +129,4 @@ this.ZoteroObsidianExporter = class {
             this.refreshZoteroView();
             log(`Successfully verified creation of ${fileName}`);
         } else {
-            Zotero.alert(null, "Creation Not Verified", `The plugin attempted to create '${fileName}', but could not verify its existence. Please check your Obsidian vault.`);
-            log(`Could not verify creation of ${fileName}`);
-        }
-    }
-
-    async verifyNoteCreation(fileName) {
-        const vaultPath = await this.getPref('vault-path');
-        if (!vaultPath) return false;
-
-        const filePath = OS.Path.join(vaultPath, fileName);
-        const maxRetries = 5;
-        const delay = 500;
-
-        for (let i = 0; i < maxRetries; i++) {
-            await Zotero.Promise.delay(delay);
-            try {
-                if (await OS.File.exists(filePath)) {
-                    const stat = await OS.File.stat(filePath);
-                    if (stat.size > 0) {
-                        return true;
-                    }
-                }
-            } catch (e) {
-                 log(`Verification check ${i+1} failed: ${e.message}`);
-            }
-        }
-        return false;
-    }
-
-    async refreshLinkedItems() {
-        log("Scanning vault for linked notes...");
-        const vaultPath = await this.getPref('vault-path');
-        if (!vaultPath) {
-            log("Vault path not set, skipping scan.");
-            return;
-        }
-
-        this.linkedItemCache.clear();
-        let iterator;
-        try {
-            iterator = new OS.File.DirectoryIterator(vaultPath);
-            await iterator.forEach(async (entry) => {
-                if (entry.isDir || !entry.name.endsWith('.md')) return;
-
-                const match = entry.name.match(/^([a-zA-Z0-9_]+)/);
-                if (!match) return;
-                
-                const citekey = match[1];
-                const itemKey = await this.findItemKeyByCitekey(citekey);
-                if (itemKey) {
-                    this.linkedItemCache.add(itemKey);
-                }
-            });
-        } catch(e) {
-            log(`Error scanning vault: ${e}`);
-            Zotero.alert(null, "Vault Scan Error", `Could not read the directory: ${vaultPath}. Please check the path and permissions.`);
-        } finally {
-            if (iterator) iterator.close();
-        }
-        
-        log(`Scan complete. Found ${this.linkedItemCache.size} linked notes.`);
-        this.refreshZoteroView();
-    }
-
-    async findItemKeyByCitekey(citekey) {
-        const sds = new Zotero.Search();
-        sds.libraryID = Zotero.Libraries.userLibraryID;
-        sds.addCondition('extra', 'contains', `Citation Key: ${citekey}`);
-        const ids = await sds.search();
-        return ids.length ? Zotero.Items.get(ids[0]).key : null;
-    }
-
-    refreshZoteroView() {
-        Zotero.getActiveZoteroPane().view.refresh();
-    }
-
-    async getPref(pref) {
-        const isSynced = pref !== 'vault-path';
-        return Zotero.Prefs.get(`extensions.zotero-obsidian-exporter.${pref}`, isSynced);
-    }
-
-    async isObsidianAvailable() {
-        try {
-            const protocolService = Cc["@mozilla.org/uriloader/external-protocol-service;1"].getService(Ci.nsIExternalProtocolService);
-            return protocolService.externalProtocolHandlerExists('obsidian');
-        } catch (e) { return false; }
-    }
-
-    promptUserForAction(fileName) {
-        const ps = Cc["@mozilla.org/embedcomp/prompt-service;1"].getService(Ci.nsIPromptService);
-        const flags = ps.BUTTON_TITLE_IS_STRING * ps.BUTTON_POS_0 + ps.BUTTON_TITLE_IS_STRING * ps.BUTTON_POS_1 + ps.BUTTON_TITLE_IS_STRING * ps.BUTTON_POS_2;
-        return ps.select(null, `Note Exists: ${fileName}`, "What would you like to do?", 3, ["Overwrite", "Open", "Cancel"], {});
-    }
-
-    async getItemData(item) {
-        const itemData = item.toJSON();
-
-        let data = {
-            ...itemData,
-            creators: itemData.creators.map(c => `${c.firstName || ''} ${c.lastName || ''}`.trim()).join(", "),
-            tags: item.getTags().map(t => t.tag),
-            zotero_link: `zotero://select/library/items/${item.key}`,
-        };
-
-        const extra = item.getField('extra') || '';
-        const citekeyMatch = extra.match(/Citation Key:\s*(.+)/);
-        data.citekey = citekeyMatch ? citekeyMatch[1] : null;
-
-        let notesContent = '';
-        const noteIDs = item.getNotes();
-        for (const noteID of noteIDs) {
-            const noteItem = Zotero.Items.get(noteID);
-            if (noteItem) {
-                notesContent += this.htmlToMarkdown(noteItem.getNote()) + '\n\n';
-            }
-        }
-        data.notes = notesContent.trim();
-
-        return data;
-    }
-    
-    htmlToMarkdown(html) {
-        return html
-            .replace(/<p>/gi, '').replace(/<\/p>/gi, '\n\n')
-            .replace(/<b>/gi, '**').replace(/<\/b>/gi, '**')
-            .replace(/<i>/gi, '*').replace(/<\/i>/gi, '*')
-            .replace(/<ul>/gi, '').replace(/<\/ul>/gi, '')
-            .replace(/<li>/gi, '* ').replace(/<\/li>/gi, '\n');
-    }
-};
+//... existing code
