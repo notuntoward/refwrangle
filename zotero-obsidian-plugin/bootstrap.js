@@ -1,94 +1,112 @@
+
 var ZoteroObsidianExporter;
+var windowObserver;
 
-function log(msg) { Zotero.debug(`ZoteroObsidianExporter: ${msg}`); }
-
-async function install() { 
-    log("Installed");
-    Services.prefs.setCharPref('extensions.zotero-obsidian-exporter.create-note-shortcut', 'control+shift+c');
-    Services.prefs.setCharPref('extensions.zotero-obsidian-exporter.open-note-shortcut', 'control+shift+o');
+function log(msg) {
+  Zotero.debug(`ZoteroObsidianExporter: ${msg}`);
 }
 
-async function startup({ id, version, rootURI }) {
-    log("Starting");
-    const majorVersion = Zotero.version.split('.')[0];
-    if (majorVersion < 6) {
-        const chromeHandle = Zotero.getMainWindow().QueryInterface(Components.interfaces.nsIInterfaceRequestor)
-            .getInterface(Components.interfaces.nsIWebNavigation)
-            .QueryInterface(Components.interfaces.nsIDocShellTreeItem)
-            .rootTreeItem
-            .QueryInterface(Components.interfaces.nsIInterfaceRequestor)
-            .getInterface(Components.interfaces.nsIDOMWindow).chrome;
-        if (chromeHandle.ZoteroObsidianExporter) {
-            chromeHandle.ZoteroObsidianExporter.shutdown();
-            delete chromeHandle.ZoteroObsidianExporter;
-        }
+function addWindow(window) {
+    const doc = window.document;
+    const menu = doc.getElementById('menu_FilePopup');
+    if (!menu) {
+        return;
     }
 
-    Services.scriptloader.loadSubScript(rootURI + 'zotero-obsidian-exporter.js');
-    ZoteroObsidianExporter = new ZoteroObsidianExporter(rootURI);
-    ZoteroObsidianExporter.init();
-
-    addMenuItems();
-}
-
-function shutdown() {
-    log("Shutting down");
-    ZoteroObsidianExporter.shutdown();
-    const majorVersion = Zotero.version.split('.')[0];
-    if (majorVersion < 6) {
-        const chromeHandle = Zotero.getMainWindow().QueryInterface(Components.interfaces.nsIInterfaceRequestor)
-            .getInterface(Components.interfaces.nsIWebNavigation)
-            .QueryInterface(Components.interfaces.nsIDocShellTreeItem)
-            .rootTreeItem
-            .QueryInterface(Components.interfaces.nsIInterfaceRequestor)
-            .getInterface(Components.interfaces.nsIDOMWindow).chrome;
-        delete chromeHandle.ZoteroObsidianExporter;
-    }
-}
-
-function uninstall() { log("Uninstalled"); }
-
-function addMenuItems() {
-    const menu = Zotero.getMainWindow().document.getElementById('menu_FilePopup');
-    
-    const createNoteMenuItem = Zotero.getMainWindow().document.createElement('menuitem');
+    const createNoteMenuItem = doc.createElement('menuitem');
     createNoteMenuItem.id = 'zotero-obsidian-create-note';
     createNoteMenuItem.setAttribute('label', 'Create Obsidian Note');
-    createNoteMenuItem.addEventListener('command', onMenuItemCommand);
+    createNoteMenuItem.addEventListener('command', () => ZoteroObsidianExporter.exportNew());
     menu.appendChild(createNoteMenuItem);
 
-    const openNoteMenuItem = Zotero.getMainWindow().document.createElement('menuitem');
+    const openNoteMenuItem = doc.createElement('menuitem');
     openNoteMenuItem.id = 'zotero-obsidian-open-note';
     openNoteMenuItem.setAttribute('label', 'Open Obsidian Note');
-    openNoteMenuItem.addEventListener('command', onMenuItemCommand);
+    openNoteMenuItem.addEventListener('command', () => ZoteroObsidianExporter.exportOpen());
     menu.appendChild(openNoteMenuItem);
 
-    const keyset = Zotero.getMainWindow().document.createElement('keyset');
+    const keyset = doc.createElement('keyset');
     keyset.id = 'zotero-obsidian-keyset';
-    Zotero.getMainWindow().document.documentElement.appendChild(keyset);
+    doc.documentElement.appendChild(keyset);
 
-    const createKey = Zotero.getMainWindow().document.createElement('key');
+    const createKey = doc.createElement('key');
     createKey.id = 'zotero-obsidian-create-key';
     createKey.setAttribute('key', 'c');
     createKey.setAttribute('modifiers', 'accel,shift');
-    createKey.setAttribute('oncommand', "document.getElementById('zotero-obsidian-create-note').doCommand()");
+    createKey.setAttribute('oncommand', `document.getElementById('zotero-obsidian-create-note').doCommand()`);
     keyset.appendChild(createKey);
+    createNoteMenuItem.setAttribute("key", "zotero-obsidian-create-key");
 
-    const openKey = Zotero.getMainWindow().document.createElement('key');
+    const openKey = doc.createElement('key');
     openKey.id = 'zotero-obsidian-open-key';
     openKey.setAttribute('key', 'o');
     openKey.setAttribute('modifiers', 'accel,shift');
-    openKey.setAttribute('oncommand', "document.getElementById('zotero-obsidian-open-note').doCommand()");
+    openKey.setAttribute('oncommand', `document.getElementById('zotero-obsidian-open-note').doCommand()`);
     keyset.appendChild(openKey);
-
-    createNoteMenuItem.setAttribute("key", "zotero-obsidian-create-key");
     openNoteMenuItem.setAttribute("key", "zotero-obsidian-open-key");
 }
 
-function onMenuItemCommand(event) {
-    if (event.target.id === 'zotero-obsidian-create-note') {
-        ZoteroObsidianExporter.exportNew();
-    } else if (event.target.id === 'zotero-obsidian-open-note') {
-        ZoteroObsidianExporter.exportOpen();
+function removeWindow(window) {
+    const doc = window.document;
+    const createNoteMenuItem = doc.getElementById('zotero-obsidian-create-note');
+    if (createNoteMenuItem) createNoteMenuItem.remove();
+    const openNoteMenuItem = doc.getElementById('zotero-obsidian-open-note');
+    if (openNoteMenuItem) openNoteMenuItem.remove();
+    const keyset = doc.getElementById('zotero-obsidian-keyset');
+    if (keyset) keyset.remove();
+}
+
+async function install() {
+  log('Installed');
+  Services.prefs.setCharPref('extensions.zotero-obsidian-exporter.create-note-shortcut', 'control+shift+c');
+  Services.prefs.setCharPref('extensions.zotero-obsidian-exporter.open-note-shortcut', 'control+shift+o');
+}
+
+async function startup({ id, version, rootURI }) {
+  log('Starting');
+
+  Services.scriptloader.loadSubScript(rootURI + 'zotero-obsidian-exporter.js');
+  
+  ZoteroObsidianExporter = new ZoteroObsidianExporter(rootURI);
+  ZoteroObsidianExporter.init();
+
+  windowObserver = {
+    observe(subject, topic) {
+      if (topic === 'domwindowopened') {
+        const window = subject.window;
+        if (window.ZoteroPane) {
+          addWindow(window);
+        }
+      }
     }
+  };
+
+  Services.ww.registerNotification(windowObserver);
+
+  for (const win of Zotero.getMainWindows()) {
+    addWindow(win);
+  }
+}
+
+function shutdown() {
+  log('Shutting down');
+
+  if (windowObserver) {
+    Services.ww.unregisterNotification(windowObserver);
+  }
+
+  for (const win of Zotero.getMainWindows()) {
+    removeWindow(win);
+  }
+
+  if (ZoteroObsidianExporter) {
+    ZoteroObsidianExporter.shutdown();
+    ZoteroObsidianExporter = undefined;
+  }
+}
+
+function uninstall() {
+  log('Uninstalled');
+  Services.prefs.clearUserPref('extensions.zotero-obsidian-exporter.create-note-shortcut');
+  Services.prefs.clearUserPref('extensions.zotero-obsidian-exporter.open-note-shortcut');
 }
