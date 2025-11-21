@@ -1,11 +1,19 @@
 import zipfile
 import os
 
-with zipfile.ZipFile('zotero-obsidian-exporter.xpi', 'w', zipfile.ZIP_DEFLATED) as xpi:
-    xpi.write('zotero-obsidian-plugin/README.md', 'README.md')
-    xpi.write('zotero-obsidian-plugin/bootstrap.js', 'bootstrap.js')
-    xpi.write('zotero-obsidian-plugin/zotero-obsidian-exporter.js', 'zotero-obsidian-exporter.js')
-    xpi.write('zotero-obsidian-plugin/icons/icon-16.png', 'icons/icon-16.png')
-    xpi.write('zotero-obsidian-plugin/icons/icon-48.png', 'icons/icon-48.png')
-    xpi.write('zotero-obsidian-plugin/lib/nunjucks.min.js', 'lib/nunjucks.min.js')
-    xpi.write('manifest.json', 'manifest.json')
+# The directory containing the add-on files
+source_dir = 'zotero-obsidian-plugin'
+
+# The name of the output XPI file
+xpi_name = 'zotero-obsidian-exporter.xpi'
+
+with zipfile.ZipFile(xpi_name, 'w', zipfile.ZIP_DEFLATED) as xpi:
+    for root, dirs, files in os.walk(source_dir):
+        for file in files:
+            # The path of the file to be added to the zip
+            file_path = os.path.join(root, file)
+            # The path of the file within the zip (relative to the source_dir)
+            archive_path = os.path.relpath(file_path, source_dir)
+            xpi.write(file_path, archive_path)
+
+print(f"Successfully created {xpi_name}")
