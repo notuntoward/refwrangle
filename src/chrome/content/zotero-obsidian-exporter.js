@@ -1,21 +1,60 @@
+
 var ZoteroObsidianExporter = {
+    rootURI: null,
+    nunjucks: null,
+    linkedItemCache: null,
+    scanInterval: null,
+
+    log: function(msg) {
+        Zotero.debug('ZoteroObsidianExporter: ' + msg);
+    },
+
     init: function(props) {
+        this.log('Initializing...');
         this.rootURI = props.rootURI;
-        this.nunjucks = null;
         this.linkedItemCache = new Set();
-        this.scanInterval = null;
 
-        Services.scriptloader.loadSubScript(this.rootURI + 'chrome/content/lib/nunjucks.min.js', (obj) => {
+        Services.scriptloader.loadSubScript(this.rootURI + 'chrome/content/lib/nunjucks.min.js', () => {
             this.nunjucks = nunjucks;
+            this.log('Nunjucks templating engine loaded.');
         });
-
-        log("Initializing background scanner...");
+        
+        this.log('Starting background scanner (using placeholder implementation)...');
         this.refreshLinkedItems();
         this.scanInterval = setInterval(() => this.refreshLinkedItems(), 5 * 60 * 1000);
+        this.log('Initialization complete.');
     },
 
     shutdown: function() {
-        if (this.scanInterval) clearInterval(this.scanInterval);
+        this.log('Shutting down...');
+        if (this.scanInterval) {
+            clearInterval(this.scanInterval);
+        }
+    },
+
+    refreshLinkedItems: function() {
+        this.log('Placeholder: refreshLinkedItems() called. No action taken.');
+    },
+
+    refreshZoteroView: function() {
+        try {
+            Zotero.getActiveZoteroPane().view.refresh();
+        } catch (e) {
+            this.log('Could not refresh Zotero view: ' + e);
+        }
+    },
+
+    getItemData: async function(item) {
+        const citekey = Zotero.BetterBibTeX?.API?.get(item.id)?.citekey;
+        return {
+            title: item.getField('title') || 'No Title',
+            citekey: citekey || null,
+        };
+    },
+
+    verifyNoteCreation: async function(fileName) {
+        this.log(`Placeholder: verifyNoteCreation() for "${fileName}" called. Assuming success.`);
+        return true;
     },
 
     addToWindow: function(window) {
@@ -88,12 +127,15 @@ var ZoteroObsidianExporter = {
     },
 
     createNote: async function(item) {
+        if (!this.nunjucks) {
+            return Zotero.alert(null, "Template Engine Not Ready", "The Nunjucks template engine is still loading. Please try again in a moment.");
+        }
         const itemData = await this.getItemData(item);
         if (!itemData.citekey) {
-            return Zotero.alert(null, "Citekey Not Found", `A Better BibTeX citekey was not found for the item \"${itemData.title}\". Please ensure BBT is installed and the item has a citekey.`);
+            return Zotero.alert(null, "Citekey Not Found", `A Better BibTeX citekey was not found for the item \"${itemData.title}\"". Please ensure BBT is installed and the item has a citekey.`);
         }
 
-        const filenameTemplate = await this.getPref('filename-template') || '{{citekey}}.md';
+        const filenameTemplate = Zotero.Prefs.get('extensions.zotero-obsidian-exporter.filename-template') || '{{citekey}}.md';
         const fileName = this.nunjucks.renderString(filenameTemplate, itemData);
 
         if (this.linkedItemCache.has(item.key)) {
@@ -117,8 +159,8 @@ var ZoteroObsidianExporter = {
             }
         }
 
-        const vaultName = await this.getPref('vault-name');
-        const noteTemplate = await this.getPref('note-template');
+        const vaultName = Zotero.Prefs.get('extensions.zotero-obsidian-exporter.vault-name');
+        const noteTemplate = Zotero.Prefs.get('extensions.zotero-obsidian-exporter.note-template');
         const noteContent = this.nunjucks.renderString(noteTemplate, itemData);
         const newURI = `obsidian://new?vault=${encodeURIComponent(vaultName)}&file=${encodeURIComponent(fileName)}&content=${encodeURIComponent(noteContent)}&overwrite`;
         
@@ -129,7 +171,7 @@ var ZoteroObsidianExporter = {
         if (verificationSuccess) {
             this.linkedItemCache.add(item.key);
             this.refreshZoteroView();
-            log(`Successfully verified creation of ${fileName}`);
+            this.log(`Successfully verified creation of ${fileName}`);
         }
     },
 
@@ -137,10 +179,13 @@ var ZoteroObsidianExporter = {
         if (!this.linkedItemCache.has(item.key)) {
             return Zotero.alert(null, "Note not found", "A note for this item has not been created yet.");
         }
+        if (!this.nunjucks) {
+            return Zotero.alert(null, "Template Engine Not Ready", "The Nunjucks template engine is still loading. Please try again in a moment.");
+        }
         const itemData = await this.getItemData(item);
-        const filenameTemplate = await this.getPref('filename-template') || '{{citekey}}.md';
+        const filenameTemplate = Zotero.Prefs.get('extensions.zotero-obsidian-exporter.filename-template') || '{{citekey}}.md';
         const fileName = this.nunjucks.renderString(filenameTemplate, itemData);
-        const vaultName = await this.getPref('vault-name');
+        const vaultName = Zotero.Prefs.get('extensions.zotero-obsidian-exporter.vault-name');
         const openURI = `obsidian://open?vault=${encodeURIComponent(vaultName)}&file=${encodeURIComponent(fileName)}`;
         return Zotero.Utilities.openURL(openURI);
     },
