@@ -1,14 +1,14 @@
 {
   "manifest_version": 3,
+  "name": "MarkDB-Connect",
+  "version": "0.4.1",
+  "description": "Zotero plugin that marks exported files in a local database, and thereby allows to track and update files in e.g., an Obsidian Vault.",
+  "author": "Dennis Oesterle",
   "applications": {
     "zotero": {
       "id": "markdb-connect@da-oe.github.io",
       "strict_min_version": "7.0.0-beta.1"
     }
   },
-  "name": "MarkDB-Connect",
-  "version": "0.4.1",
-  "description": "Zotero plugin that marks exported files in a local database, and thereby allows to track and update files in e.g., an Obsidian Vault.",
-  "author": "Dennis Oesterle",
   "homepage_url": "https://github.com/da-oe/zotero-markdb-connect"
 }
