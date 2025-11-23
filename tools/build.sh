@@ -9,7 +9,7 @@ PROJECT_ROOT=$(pwd)
 FILES_TO_INCLUDE=(
   "manifest.json"
   "bootstrap.js"
-  "chrome.manifest"
+  "chrome/chrome.manifest"
   "chrome/content/lib/nunjucks.min.js"
   "chrome/content/zotero-obsidian-exporter.js"
   "chrome/skin/default/icons/icon.png"

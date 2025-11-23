@@ -1,4 +1,2 @@
 content zotero-obsidian-exporter chrome/content/
-locale  zotero-obsidian-exporter en-US chrome/locale/en-US/
-skin    zotero-obsidian-exporter classic/1.0 chrome/skin/classic/
 skin    zotero-obsidian-exporter default/1.0 chrome/skin/default/
