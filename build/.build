@@ -1,0 +1,15 @@
+{
+    "root": "src",
+    "api": "6.9.95",
+    "dist": "build/dist/zotero-obsidian-exporter.xpi",
+    "build": "../tools/build.sh",
+    "post_build": "../tools/sign.sh",
+    "files": [
+        "bootstrap.js",
+        "chrome.manifest",
+        "manifest.json",
+        "chrome/content/zotero-obsidian-exporter.js",
+        "chrome/content/lib/nunjucks.min.js",
+        "chrome/skin/default/icons/icon.png"
+    ]
+}

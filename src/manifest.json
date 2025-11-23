@@ -1,14 +1,14 @@
 {
     "manifest_version": 2,
     "name": "Zotero Obsidian Exporter",
-    "version": "1.0",
+    "version": "1.0.0",
     "description": "A Zotero plugin to export notes to Obsidian.",
     "applications": {
         "zotero": {
             "id": "zotero-obsidian-exporter@example.com",
-            "strict_min_version": "7.0",
-            "update_url": "https://example.com/update.json"
+            "strict_min_version": "7.0.0-beta.1"
         }
     },
-    "bootstrap": "bootstrap.js"
+    "bootstrap": "bootstrap.js",
+    "chrome_manifest": "chrome/chrome.manifest"
 }
