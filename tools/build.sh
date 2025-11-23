@@ -1,40 +1,41 @@
 #!/bin/bash
 
-# Read configuration from .build file
-BUILD_CONFIG="build/.build"
-
-if [ ! -f "$BUILD_CONFIG" ]; then
-    echo "Build configuration file not found!" C
-    exit 1
-fi
-
-# Extract values using a simple parser
-DIST=$(grep '"dist"' $BUILD_CONFIG | sed 's/.*: "\(.*\)",/\1/')
-ROOT=$(grep '"root"' $BUILD_CONFIG | sed 's/.*: "\(.*\)",/\1/')
-FILES=$(grep -E '"(bootstrap.js|chrome.manifest|manifest.json|chrome/.*)"' $BUILD_CONFIG | sed 's/.*"\(.*\)".*/\1/')
-
-# Get the absolute path to the project root
+# Define source and destination
+SRC_DIR="src"
+DIST_FILE="build/dist/zotero-obsidian-exporter.xpi"
 PROJECT_ROOT=$(pwd)
+
+# List of files to include in the XPI
+FILES_TO_INCLUDE=(
+  "manifest.json"
+  "bootstrap.js"
+  "chrome.manifest"
+  "chrome/content/lib/nunjucks.min.js"
+  "chrome/content/zotero-obsidian-exporter.js"
+  "chrome/skin/default/icons/icon.png"
+)
+
+# Ensure the dist directory exists
+mkdir -p "$(dirname "$DIST_FILE")"
 
 # Create a temporary directory for packaging
 TMP_DIR=$(mktemp -d)
 
-# Copy files to the temporary directory
-for file in $FILES; do
-    # Check if the source file exists before copying
-    if [ -f "$ROOT/$file" ]; then
-        mkdir -p "$TMP_DIR/$(dirname "$file")"
-        cp "$ROOT/$file" "$TMP_DIR/$file"
-    else
-        echo "Warning: Source file not found, skipping: $ROOT/$file"
-    fi
-
+# Copy only the specified files to the temporary directory
+for file in "${FILES_TO_INCLUDE[@]}"; do
+  if [ -f "$SRC_DIR/$file" ]; then
+    mkdir -p "$TMP_DIR/$(dirname "$file")"
+    cp "$SRC_DIR/$file" "$TMP_DIR/$file"
+  else
+    echo "Warning: Source file not found, skipping: $SRC_DIR/$file"
+  fi
 done
 
-# Create the XPI file
-(cd "$TMP_DIR" && zip -r "$PROJECT_ROOT/$DIST" .)
+# Navigate to the temporary directory and create the zip file
+echo "Creating XPI file..."
+(cd "$TMP_DIR" && zip -r "$PROJECT_ROOT/$DIST_FILE" . -x "*.DS_Store")
 
 # Clean up the temporary directory
 rm -rf "$TMP_DIR"
 
-echo "Successfully built $DIST"
+echo "Successfully built $DIST_FILE"
