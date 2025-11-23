@@ -1,14 +1,16 @@
 {
-    "manifest_version": 2,
-    "name": "Zotero Obsidian Exporter",
-    "version": "1.0.2",
-    "description": "A Zotero plugin to export notes to Obsidian.",
-    "applications": {
-        "zotero": {
-            "id": "zotero-obsidian-exporter@scottschiller.com",
-            "strict_min_version": "7.0.0"
-        }
-    },
-    "bootstrap": "bootstrap.js",
-    "chrome_manifest": "chrome/chrome.manifest"
+  "manifest_version": 2,
+  "applications": {
+    "zotero": {
+      "id": "markdb-connect@da-oe.github.io",
+      "strict_min_version": "7.0.0-beta.1",
+      "strict_max_version": "7.0.*",
+      "update_url": "https://github.com/da-oe/zotero-markdb-connect/releases/latest/download/update.json"
+    }
+  },
+  "name": "MarkDB-Connect",
+  "version": "0.4.1",
+  "description": "Zotero plugin that marks exported files in a local database, and thereby allows to track and update files in e.g., an Obsidian Vault.",
+  "author": "Dennis Oesterle",
+  "homepage_url": "https://github.com/da-oe/zotero-markdb-connect"
 }

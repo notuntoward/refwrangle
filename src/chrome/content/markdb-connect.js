@@ -1,40 +1,63 @@
-"use strict";
 
-function startup({ id, version, rootURI }) {
-    var Zotero2 = window.Zotero;
-    var PromptFactory = class {
-      constructor(promptService) {
-        this.promptService = promptService;
+var MarkDBConnect = (() => {
+  var __defProp = Object.defineProperty;
+  var __getOwnPropDesc = Object.getOwnPropertyDescriptor;
+  var __getOwnPropNames = Object.getOwnPropertyNames;
+  var __hasOwnProp = Object.prototype.hasOwnProperty;
+  var __export = (target, all) => {
+    for (var name in all)
+      __defProp(target, name, { get: all[name], enumerable: true });
+  };
+  var __copyProps = (to, from, except, desc) => {
+    if (from && typeof from === "object" || typeof from === "function") {
+      for (let key of __getOwnPropNames(from))
+        if (!__hasOwnProp.call(to, key) && key !== except)
+          __defProp(to, key, { get: () => from[key], enumerable: !(desc = __getOwnPropDesc(from, key)) || desc.enumerable });
+    }
+    return to;
+  };
+  var __toCommonJS = (mod) => __copyProps(__defProp({}, "__esModule", { value: true }), mod);
+
+  // MarkDB-Connect.ts
+  var MarkDBConnect_exports = {};
+  __export(MarkDBConnect_exports, {
+    startup: () => startup
+  });
+  var Zotero2 = window.Zotero;
+  var PromptFactory = class {
+    constructor(promptService) {
+      this.promptService = promptService;
+    }
+    confirm(title, text) {
+      const confirmed = this.promptService.confirm(null, title, text);
+      return confirmed;
+    }
+  };
+  var Notifier = class {
+    constructor(notifierID, window) {
+      this.notifierID = notifierID;
+      this.window = window;
+    }
+    async anounce(message, progress) {
+      let notifier = this.window.document.getElementById(this.notifierID);
+      if (!notifier) {
+        const ZoteroPane = this.window.ZoteroPane;
+        notifier = ZoteroPane.createProgressNotifier(message);
+        notifier.id = this.notifierID;
       }
-      confirm(title, text) {
-        const confirmed = this.promptService.confirm(null, title, text);
-        return confirmed;
+      notifier.setText(message);
+      if (progress) {
+        notifier.setProgress(progress);
       }
-    };
-    var Notifier = class {
-      constructor(notifierID, window) {
-        this.notifierID = notifierID;
-        this.window = window;
+    }
+    close() {
+      const notifier = this.window.document.getElementById(this.notifierID);
+      if (notifier) {
+        notifier.close();
       }
-      async anounce(message, progress) {
-        let notifier = this.window.document.getElementById(this.notifierID);
-        if (!notifier) {
-          const ZoteroPane = this.window.ZoteroPane;
-          notifier = ZoteroPane.createProgressNotifier(message);
-          notifier.id = this.notifierID;
-        }
-        notifier.setText(message);
-        if (progress) {
-          notifier.setProgress(progress);
-        }
-      }
-      close() {
-        const notifier = this.window.document.getElementById(this.notifierID);
-        if (notifier) {
-          notifier.close();
-        }
-      }
-    };
+    }
+  };
+  var startup = ({ id, version, rootURI }) => {
     log("Starting MarkDB-Connect");
     const window = Zotero2.getMainWindow();
     const prompt = new PromptFactory(window.Services.prompt);
@@ -121,8 +144,6 @@ function startup({ id, version, rootURI }) {
     function createHElement(type) {
       return window.document.createXULElement(type);
     }
-}
-
-function shutdown() {}
-function install() {}
-function uninstall() {}
+  };
+  return __toCommonJS(MarkDBConnect_exports);
+})();
