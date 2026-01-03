@@ -470,9 +470,10 @@ def ask_overwrite_popup(
     citekey: str, is_last_item: bool, total_items: int, request_id: str
 ) -> str:
     root = tk.Tk()
+    root.wm_attributes("-topmost", 1)
     root.withdraw()
     result = messagebox.askyesno(
-        "File Exists", f"File '{citekey}.md' already exists. Overwrite?"
+        "File Exists", f"File '{citekey}.md' already exists. Overwrite?", parent=root
     )
     root.destroy()
     answer = "overwrite" if result else "skip"
@@ -564,10 +565,11 @@ def nonexistent_note_popup(citekey: str, request_id: str) -> None:
         None
     """
     root = tk.Tk()
+    root.wm_attributes("-topmost", 1)
     root.withdraw()
 
     messagebox.showwarning(
-        "Note Does Not Exist", f"Note '{citekey}.md' does not exist."
+        "Note Does Not Exist", f"Note '{citekey}.md' does not exist.", parent=root
     )
 
     root.destroy()
