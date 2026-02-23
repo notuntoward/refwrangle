@@ -62,13 +62,22 @@ try {
     for (let item of selectedItems) {
         let itemkey = item.key; // zotero item key
 
-        const extraField = item.getField('extra') || '';
-        let citekeyMatch = extraField.match(/Citation Key:\s*(.+)/);
-        if (!citekeyMatch) {
-            Zotero.debug(`Better Bibtex Citation Key not found in 'extra' field of selected zotero item key: ${itemkey}`);
+        // Try Zotero 8.0+ native citationKey field first
+        let citekey = item.getField('citationKey');
+
+        // Fallback to parsing 'extra' field for pre-8.0 items
+        if (!citekey) {
+            const extraField = item.getField('extra') || '';
+            let citekeyMatch = extraField.match(/Citation Key:\s*(.+)/);
+            if (citekeyMatch) {
+                citekey = citekeyMatch[1];
+            }
+        }
+
+        if (!citekey) {
+            Zotero.debug(`Citation Key not found for zotero item key: ${itemkey}`);
             continue;
         }
-        let citekey = citekeyMatch[1];
         itemDataArray.push(citekey)
     }
     
