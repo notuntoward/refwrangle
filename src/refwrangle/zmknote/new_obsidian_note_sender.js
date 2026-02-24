@@ -1,13 +1,13 @@
 /* This is the zotero side of a webhook interface between zotero items and a python webhook message receiver, 
 which writes one or more obsidian literature notes. The job here is to get and send the necessary item data.
 
-The companion python script for this one is zotero_to_obsidian_note_receiver_test.py */
+The companion python script for this one is zotero_to_obsidian_note_receiver.py */
 
 // The webhook sendtoing port, match the Python side's LISTEN_PORT
 const SEND_PORT = 5050;
 
 // this ID tells the receiver who sent the message (and what to do wih it)
-const SENDER_ID_ZOTERO_TO_OBSIDIAN_NOTE  = 'zotero_to_obsidian_note'
+const SENDER_ID_NEW_OBSIDIAN_NOTE  = 'new_obsidian_note_from_zotero'
 
 // how long the webhook interface will wait before a zotero popup error
 // s/b a fair amount longer than python's RECEIVER_BUTTON_WAIT_SECS  
@@ -229,7 +229,7 @@ function sendToWebhook(itemDataArray, requestId) {
         }
     }, RECEIVER_RESPONSE_WAIT_TIMEOUT_SECS * 1000);
     
-    const payload = {sender_id: SENDER_ID_ZOTERO_TO_OBSIDIAN_NOTE,
+    const payload = {sender_id: SENDER_ID_NEW_OBSIDIAN_NOTE,
                      data: itemDataArray};
 
     fetch(webhookUrl, {
