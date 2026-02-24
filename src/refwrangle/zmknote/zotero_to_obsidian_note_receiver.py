@@ -3,7 +3,7 @@ the corresponding obsidian notes.  Dialog buttons that popup if the file the rec
 
 https://www.perplexity.ai/search/the-javascript-below-is-intend-Tic7.jP4TQiZ6R9CAl9EBQ
 
-The companion javascript for this, zotero_to_obsidian_note_sender.js, goes into the zotero action and tags plugin."""
+The companion javascript for this, new_obsidian_note_sender.js, goes into the zotero action and tags plugin."""
 
 import json
 import logging
@@ -43,7 +43,7 @@ LISTEN_PORT = 5050
 # TODO: just move this to onu.* so it's in one central file?
 RECEIVER_LOG_FILE = "zotero_item_receiver.log"
 
-SENDER_ID_ZOTERO_TO_OBSIDIAN_NOTE = "zotero_to_obsidian_note"
+SENDER_ID_NEW_OBSIDIAN_NOTE = "new_obsidian_note_from_zotero"
 SENDER_ID_OPEN_OBSIDIAN_NOTE = "open_obsidian_note"
 
 # Jinja2 template for output obsidian literature note.
@@ -523,7 +523,7 @@ def webhook() -> tuple:
             logger.error(f"[{request_id}] Payload missing sender_id")
             return jsonify({"status": "error", "message": "Missing sender_id"}), 400
 
-        if sender_id == SENDER_ID_ZOTERO_TO_OBSIDIAN_NOTE:
+        if sender_id == SENDER_ID_NEW_OBSIDIAN_NOTE:
             results = write_obsidian_md_note(webhook_item_list, request_id)
         elif sender_id == SENDER_ID_OPEN_OBSIDIAN_NOTE:
             # TODO: add dialog asking if want to write the note, since item should already be in zotero if here

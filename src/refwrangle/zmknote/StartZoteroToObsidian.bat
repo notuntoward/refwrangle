@@ -6,7 +6,7 @@
 :: TODO? Kick this, or just the .exe from inside my Zotero javascript.  It seems possible.
 
 @echo off
-cd /d C:\Users\scott\OneDrive\share\ref\refwrangle\zmknote\dist
+cd /d "%~dp0dist"
 start "" zotero_to_obsidian_note_receiver.exe
 powershell -command "& {Add-Type -TypeDefinition '[DllImport(\"user32.dll\")] public static extern bool ShowWindow(System.IntPtr hWnd, int nCmdShow); [DllImport(\"kernel32.dll\")] public static extern IntPtr GetConsoleWindow(); public static void Minimize() { ShowWindow(GetConsoleWindow(), 6); }' -Name 'WinAPI' -Namespace 'WinAPI'; [WinAPI.WinAPI]::Minimize();}"
 

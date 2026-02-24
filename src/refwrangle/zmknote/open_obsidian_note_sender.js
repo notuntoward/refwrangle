@@ -1,7 +1,7 @@
 /* This is the zotero side of a webhook interface between zotero items and a python webhook message receiver, 
 which opens one or more obsidian literature notes. The job here is to get and send the necessary item data.
 
-The companion python script for this one is zotero_to_obsidian_note_receiver_test.py */
+The companion python script for this one is zotero_to_obsidian_note_receiver.py */
 
 // The webhook sending port, match the Python side's LISTEN_PORT
 const SEND_PORT = 5050;

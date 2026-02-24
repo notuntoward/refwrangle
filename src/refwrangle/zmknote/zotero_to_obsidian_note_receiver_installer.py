@@ -36,8 +36,8 @@ import subprocess
 from pathlib import Path
 import logging
 
-# Path to receiver executable
-RECEIVER_EXECUTABLE = Path(r'C:\Users\scott\OneDrive\share\ref\refwrangle\zmknote\dist\zotero_to_obsidian_note_receiver.exe')
+# Path to receiver executable (relative to project root)
+RECEIVER_EXECUTABLE = Path(__file__).parent / 'dist' / 'zotero_to_obsidian_note_receiver.exe'
 
 # logfile shared with the receiver script
 RECEIVER_LOG_FILE = "zotero_item_receiver.log"
