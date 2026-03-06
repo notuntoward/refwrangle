@@ -81,11 +81,48 @@ try {
             Zotero.debug(`Citation Key not found for zotero item key: ${itemkey}`);
             continue;
         }
-    
-        // Fetch bibliography using Better BibTeX's JSON-RPC API
+
+        // Fetch bibliography using Better BibTeX's JSON-RPC API.
+        // In Zotero 8, item.getField('citationKey') returns the native key, but BBT's
+        // KeyManager may have indexed a different form of the key (e.g. from a prior
+        // 'extra' field migration).  We first ask BBT which citekey it knows for this
+        // item via item.citationkey, then use that confirmed key for item.bibliography.
+        // Without this step, BBT silently returns an RPC error ("zero matches") and
+        // bibliography ends up empty.
         let bibliography = '';
         if (citekey) {
             try {
+                // Step 1: resolve the citekey that BBT actually has indexed for this item
+                let bbtCitekey = citekey;
+                try {
+                    const ckResponse = await fetch("http://localhost:23119/better-bibtex/json-rpc", {
+                        method: "POST",
+                        headers: {
+                            "Content-Type": "application/json",
+                            "Accept": "application/json"
+                        },
+                        body: JSON.stringify({
+                            jsonrpc: "2.0",
+                            method: "item.citationkey",
+                            params: [[`${item.libraryID}:${itemkey}`]]
+                        })
+                    });
+                    const ckResult = await ckResponse.json();
+                    if (ckResult && ckResult.result) {
+                        // result shape: { "libraryID:itemKey": "citekey" }
+                        const ckValue = Object.values(ckResult.result)[0];
+                        if (ckValue) {
+                            bbtCitekey = ckValue;
+                            Zotero.debug(`BBT resolved citekey for ${itemkey}: ${bbtCitekey}`);
+                        }
+                    } else if (ckResult && ckResult.error) {
+                        Zotero.debug(`BBT item.citationkey error for ${itemkey}: ${JSON.stringify(ckResult.error)}`);
+                    }
+                } catch (ckError) {
+                    Zotero.debug(`item.citationkey lookup failed, falling back to original citekey: ${ckError}`);
+                }
+
+                // Step 2: fetch the bibliography using the confirmed BBT citekey
                 const response = await fetch("http://localhost:23119/better-bibtex/json-rpc", {
                     method: "POST",
                     headers: {
@@ -96,7 +133,7 @@ try {
                         jsonrpc: "2.0",
                         method: "item.bibliography",
                         params: [
-                            [citekey],
+                            [bbtCitekey],
                             { contentType: "text", id: "modern-language-association", locale: "en-US", quickCopy: false }
                         ]
                     })
@@ -124,9 +161,12 @@ try {
                     // Remove orphaned commas
                     bibliography = bibliography.replace(/,\s+,/g, ',');
                     bibliography = bibliography.replace(/,\s*\./g, '.');
-                    
+
                     // Clean up multiple spaces
                     bibliography = bibliography.replace(/\s+/g, ' ').trim();
+                } else if (result && result.error) {
+                    // Log the actual RPC error so it appears in Zotero debug output
+                    Zotero.debug(`BBT item.bibliography RPC error for citekey "${bbtCitekey}": ${JSON.stringify(result.error)}`);
                 }
             } catch (error) {
                 Zotero.debug(`Failed to fetch bibliography for citekey ${citekey}: ${error}`);
