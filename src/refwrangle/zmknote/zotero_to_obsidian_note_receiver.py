@@ -23,7 +23,12 @@ import bs4
 from flask import Flask, jsonify, request
 from jinja2 import Template
 from waitress import serve  # type: ignore
-import open_obsidian_note_by_uri as onu
+import open_obsidian_note as onu
+
+# Cached result of CLI availability check performed at startup.
+# Populated in __main__; used by open_note_in_new_tab() to avoid re-running
+# per-note subprocess checks on every request.
+_startup_cli_check: dict | None = None
 
 
 def validate_filepath(filepath: str) -> dict:
@@ -687,9 +692,13 @@ def webhook() -> tuple:
         if sender_id == SENDER_ID_NEW_OBSIDIAN_NOTE:
             results = write_obsidian_md_note(webhook_item_list, request_id)
         elif sender_id == SENDER_ID_OPEN_OBSIDIAN_NOTE:
+            # Use new_tab=False so Obsidian focuses an already-open tab for the note
+            # rather than duplicating it. If the note is not open, obsidian://open
+            # will open it in the current active pane (acceptable fallback).
             # TODO: add dialog asking if want to write the note, since item should already be in zotero if here
             results = open_note_in_new_tab(
-                webhook_item_list, request_id, items_data=webhook_item_list
+                webhook_item_list, request_id, items_data=webhook_item_list,
+                new_tab=False, prefer_uri=True,
             )
         else:
             logger.error(f"[{request_id}] Unknown sender_id, got {sender_id}")
@@ -789,15 +798,25 @@ def open_note_in_new_tab(
     citekey_or_keys: Union[str, list],
     request_id: str,
     items_data: Union[dict, list, None] = None,
+    cli_check: dict | None = None,
+    new_tab: bool = True,
+    prefer_uri: bool = False,
 ) -> list:
-    """Opens existing note(s) in new obsidian tab(s).
-    If a note doesn't exist, shows a popup asking user to cancel or create the note.
+    """Opens existing note(s) in Obsidian.
+    If a note doesn't exist, shows a popup warning.
 
     Args:
         citekey_or_keys: Single citekey string or list of citekeys
         request_id: Unique ID for this request
         items_data: Optional dict or list of dicts containing item data for note creation
                     (needed if user chooses to create a non-existent note)
+        cli_check: Optional pre-computed CLI availability dict to avoid re-checking per call
+        new_tab: If True (default), open in a new Obsidian tab.
+                 If False, reuse the existing tab if the note is already open.
+        prefer_uri: If True, skip the CLI and use the URI method directly.
+                    Useful when overwriting an existing note, since the standard
+                    obsidian://open URI reliably focuses the already-open tab
+                    rather than duplicating it.
 
     Return value is list of attempted citekeys, for now.
     """
@@ -832,18 +851,22 @@ def open_note_in_new_tab(
                 continue
 
             # Note exists, proceed to open it
-            # Try CLI first (more reliable), fall back to URI method
-            cli_check = onu.check_obsidian_cli_available(OS_PATH_TO_VAULT_ROOT)
+            # Try CLI first (more reliable), fall back to URI method.
+            # Reuse startup check if available to avoid per-note subprocess overhead.
+            effective_cli_check = cli_check if cli_check is not None else (
+                _startup_cli_check if _startup_cli_check is not None
+                else onu.check_obsidian_cli_available(OS_PATH_TO_VAULT_ROOT)
+            )
 
-            if cli_check["cli_enabled"]:
-                cli_result = onu.open_note_via_cli(notepath_vault, OS_PATH_TO_VAULT_ROOT)
+            if effective_cli_check["cli_enabled"] and not prefer_uri:
+                cli_result = onu.open_note_via_cli(notepath_vault, OS_PATH_TO_VAULT_ROOT, new_tab=new_tab)
                 if cli_result["success"]:
-                    logger.info(f"[{request_id}] CLI opened note in new tab: {notepath_vault}")
+                    logger.info(f"[{request_id}] CLI opened note (new_tab={new_tab}): {notepath_vault}")
                 else:
                     logger.warning(f"[{request_id}] CLI open failed: {cli_result['error']} — "
                                    f"falling back to URI method.")
                     # Fallback: original URI method
-                    status = onu.open_obsidian_note(notepath_vault, OS_PATH_TO_VAULT_ROOT)
+                    status = onu.open_obsidian_note(notepath_vault, OS_PATH_TO_VAULT_ROOT, new_tab=new_tab)
                     message_tail = f"({citekey}): {status=})"
                     if not (
                         status["note_found"]
@@ -858,9 +881,10 @@ def open_note_in_new_tab(
                             f"[{request_id}] Couldn't open note in NEW Obsidian tab due to Obsidian config problem {message_tail}"
                         )
             else:
-                # CLI not available — use original URI method
-                logger.info(f"[{request_id}] CLI not available ({cli_check['failure_reason']}), using URI method.")
-                status = onu.open_obsidian_note(notepath_vault, OS_PATH_TO_VAULT_ROOT)
+                # CLI not available or URI preferred — use URI method
+                reason = "prefer_uri=True" if prefer_uri else f"CLI not available ({effective_cli_check['failure_reason']})"
+                logger.info(f"[{request_id}] Using URI method ({reason}).")
+                status = onu.open_obsidian_note(notepath_vault, OS_PATH_TO_VAULT_ROOT, new_tab=new_tab)
                 message_tail = f"({citekey}): {status=})"
                 if not (
                     status["note_found"]
@@ -875,8 +899,9 @@ def open_note_in_new_tab(
                         f"[{request_id}] Couldn't open note in NEW Obsidian tab due to Obsidian config problem {message_tail}"
                     )
         except Exception as e:
-            logger.info(
-                f"[{request_id}] Problem opening Obsidian note for item {citekey}: ", e
+            logger.warning(
+                f"[{request_id}] Problem opening Obsidian note for item {citekey}: {e}",
+                exc_info=True,
             )
 
         results.append(f"Tried to open note at {notepath_vault}")
@@ -976,7 +1001,16 @@ def write_obsidian_md_note(items: list, request_id: str) -> list:
                 )
             )
 
-            open_note_in_new_tab(citekey, request_id)
+            if not overwrite:
+                # New note: open in a fresh tab via CLI (reliable, no file-watcher lag).
+                open_note_in_new_tab(citekey, request_id, new_tab=True)
+            else:
+                # Overwrite: Obsidian auto-reloads the existing tab from the file
+                # change on disk. We still need to focus that tab for the user.
+                # Use the standard obsidian://open URI (prefer_uri=True, new_tab=False):
+                # this navigates Obsidian to the file, focusing the already-open tab
+                # without duplicating it, and without going through the file-watcher.
+                open_note_in_new_tab(citekey, request_id, new_tab=False, prefer_uri=True)
 
             logger.info(f"[{request_id}] Completed item: {citekey=}, {itemkey=}")
 
@@ -995,10 +1029,6 @@ def write_obsidian_md_note(items: list, request_id: str) -> list:
             logger.info(f"[{request_id}] File already exists: {note_path_in_vault}")
 
             answer = ask_overwrite_popup(citekey, is_last_item, total_items, request_id)
-            if answer == "open":
-                logger.info(f"[{request_id}] Opening file: {note_path_in_vault}")
-                open_note_in_new_tab(citekey, request_id)
-                continue
             if answer == "skip":
                 logger.info(f"[{request_id}] Skipping file: {note_path_in_vault}")
                 continue
@@ -1068,15 +1098,24 @@ if __name__ == "__main__":
     except Exception as e:
         logger.warning(f"Note: Could not create storage directory at startup: {e}")
 
-    # Check CLI availability once at startup; result stored for use in request handlers
-    cli_check = onu.check_obsidian_cli_available(OS_PATH_TO_VAULT_ROOT)
-    if cli_check["cli_enabled"]:
-        logger.info("Obsidian CLI is available and enabled.")
-    else:
-        logger.warning(f"Obsidian CLI not available: {cli_check['failure_reason']} — "
-                       f"will fall back to URI method for opening notes.")
-        show_cli_unavailable_popup(cli_check["failure_reason"])
+    # Check CLI availability in the background so the server starts immediately
+    # and can accept requests while the check (up to 15 s) is still in progress.
+    logger.info("Starting background Obsidian CLI availability check …")
+    def _background_cli_check() -> None:
+        global _startup_cli_check
+        result = onu.check_obsidian_cli_available(OS_PATH_TO_VAULT_ROOT)
+        _startup_cli_check = result
+        if result["cli_enabled"]:
+            logger.info("Obsidian CLI is available and enabled.")
+        else:
+            logger.warning(
+                f"Obsidian CLI not available: {result['failure_reason']} — "
+                f"will fall back to URI method for opening notes."
+            )
+            show_cli_unavailable_popup(result["failure_reason"])
 
-    # Start waitress server, intead of flask, as it's more "production ready"
+    threading.Thread(target=_background_cli_check, daemon=True, name="cli-check").start()
+
+    # Start waitress server, instead of flask, as it's more "production ready"
     logger.info(f"Starting server on port {LISTEN_PORT}")
     serve(app, host="0.0.0.0", port=LISTEN_PORT)

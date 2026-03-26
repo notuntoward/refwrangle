@@ -1,7 +1,13 @@
-"""For opening a note in a new obsidian tab.
+"""For opening an Obsidian note in Obsidian.
 
-NOTE: It won't open the note in a NEW tab unless Obsidian's Advanced URI plugin is installed and has the right options.  
-Without that, it will back off to the default obsidian URI mechanism, which REUSES an existing tab."""
+Three strategies are supported (tried in order by the caller):
+  1. Obsidian CLI (preferred for new notes) — doesn't require any plugin and is
+     immune to file-watcher / OneDrive lag.
+  2. Advanced URI plugin, open mode — used when a note is already open and needs
+     to be focused without duplication:
+       • new_tab=True  + newpane setting on  → obsidian://adv-uri?…&newpane=true
+       • new_tab=False + plugin installed    → obsidian://adv-uri?…  (focus existing tab)
+  3. Standard obsidian:// URI — fallback when the Advanced URI plugin is absent."""
 
 import os
 import json
@@ -124,18 +130,26 @@ def check_obsidian_cli_available(vault_path: Path) -> dict:
         status["cli_enabled"] = False
         status["obsidian_running"] = False
         status["failure_reason"] = "obsidian_not_running"
+    except Exception:
+        # Any other unexpected error (e.g. OSError, PermissionError) —
+        # treat as CLI disabled so callers always get a definite bool.
+        status["cli_enabled"] = False
+        status["failure_reason"] = "cli_disabled"
 
     return status
 
 
-def open_note_via_cli(note_path: str, vault_path: Path) -> dict:
+def open_note_via_cli(note_path: str, vault_path: Path, new_tab: bool = True) -> dict:
     """
-    Opens an existing Obsidian note in a new tab using the Obsidian CLI.
+    Opens an existing Obsidian note using the Obsidian CLI.
     Does not depend on Obsidian's file watcher — uses Obsidian's internal API.
 
     note_path: vault-relative path WITH .md extension,
                e.g. "lit/lit_notes/Smith24someTitle.md"
     vault_path: full Path to the vault root (same convention as open_obsidian_note())
+    new_tab:   If True (default), open in a new tab.
+               If False, reuse the existing tab if the note is already open;
+               otherwise open in the most-recently-used pane.
 
     Returns a dict with keys:
         success:       bool
@@ -145,9 +159,11 @@ def open_note_via_cli(note_path: str, vault_path: Path) -> dict:
     vault_name = vault_path.name
     result_dict = {"success": False, "cli_output": "", "error": None}
     try:
+        cmd = ["obsidian", f"vault={vault_name}", "open", f"path={note_path}"]
+        if new_tab:
+            cmd.append("newtab")
         result = subprocess.run(
-            ["obsidian", f"vault={vault_name}", "open",
-             f"path={note_path}", "newtab"],
+            cmd,
             capture_output=True, text=True, timeout=10
         )
         result_dict["cli_output"] = result.stdout.strip()
@@ -205,22 +221,33 @@ def open_obsidian_note(note_path: str, vault_path: Path | str | None = None, new
         newpane_enabled = check_newpane_setting(vault_path)
         status["plugin_newpane_setting_enabled"] = newpane_enabled
         status["new_tab_possible"] = new_tab and newpane_enabled
+        if new_tab and newpane_enabled:
+            status["method_used"] = "advanced-uri-newtab"
+        else:
+            # Plugin present but new_tab=False or newpane setting off:
+            # use Advanced URI without newpane — this focuses the existing tab
+            # if the file is already open, which obsidian://open does NOT do.
+            status["method_used"] = "advanced-uri-focus"
     else:
         status["new_tab_possible"] = False
-    
-    if new_tab and status["new_tab_possible"]:
-        status["method_used"] = "advanced-uri"
-    else:
         status["method_used"] = "standard"
     
     try:
         vault_name_quoted = urllib.parse.quote(vault_name)
-        note_path_quoted = urllib.parse.quote(note_path)
+        # Advanced URI plugin's `filepath` parameter requires the path separators
+        # to be encoded as %2F — use safe='' to encode forward slashes.
+        note_path_quoted_filepath = urllib.parse.quote(note_path, safe='')
+        # Standard obsidian:// `file` parameter accepts unencoded slashes.
+        note_path_quoted_file = urllib.parse.quote(note_path)
         
-        if status["method_used"] == "advanced-uri":
-            uri = f"obsidian://adv-uri?vault={vault_name_quoted}&filepath={note_path_quoted}&newpane=true"
-        else:  # standard
-            uri = f"obsidian://open?vault={vault_name_quoted}&file={note_path_quoted}"
+        if status["method_used"] == "advanced-uri-newtab":
+            uri = f"obsidian://adv-uri?vault={vault_name_quoted}&filepath={note_path_quoted_filepath}&newpane=true"
+        elif status["method_used"] == "advanced-uri-focus":
+            # Focuses the existing open tab for this file, or opens in the current pane.
+            # Does NOT create a duplicate tab.
+            uri = f"obsidian://adv-uri?vault={vault_name_quoted}&filepath={note_path_quoted_filepath}"
+        else:  # standard — fallback when Advanced URI plugin is not installed
+            uri = f"obsidian://open?vault={vault_name_quoted}&file={note_path_quoted_file}"
         
         status["uri_used"] = uri
     except Exception as e:
@@ -229,17 +256,16 @@ def open_obsidian_note(note_path: str, vault_path: Path | str | None = None, new
     if status["note_found"] and status["uri_used"]:
         try:
             uri = status["uri_used"]
+            print(f'Firing URI ({status["method_used"]}): {uri}')
             if os.name == 'nt':  # Windows
-                # Use subprocess for more reliable execution than os.system
-                subprocess.run(
-                    ['cmd', '/c', 'start', '', uri],
-                    shell=False,
-                    check=False,
-                    capture_output=True
-                )
+                # os.startfile is the most reliable way to open a custom URI
+                # handler on Windows — it goes through the ShellExecute API
+                # directly, which is what Explorer uses and avoids the
+                # intermediate cmd.exe process that can silently drop the call.
+                os.startfile(uri)
             elif os.name == 'posix':  # macOS or Linux
                 if Path('/proc/version').exists() and 'microsoft' in Path('/proc/version').read_text().lower():
-                    subprocess.run(['cmd.exe', '/c', 'start', '', uri]) # it's Linux but WSL
+                    subprocess.run(['cmd.exe', '/c', 'start', '', uri], capture_output=True, check=False)  # it's Linux but WSL
                 elif Path('/System').exists():  # macOS
                     subprocess.run(['open', uri])
                 else:  # Linux

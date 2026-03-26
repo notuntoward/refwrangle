@@ -39,10 +39,11 @@ function validateCitationKey(citekey) {
     if (windowsInvalidChars.test(citekey)) {
         const invalidChars = citekey.match(/[<>:"\/\\|?*\x00-\x1F]/g);
         const uniqueChars = [...new Set(invalidChars)].map(c => {
-            if (c === '\x00') return 'NULL';
+            // Named labels for common control characters (all fall within \x00-\x1F)
             if (c === '\t') return 'TAB';
             if (c === '\n') return 'NEWLINE';
             if (c === '\r') return 'CR';
+            if (c.charCodeAt(0) < 0x20) return `CTRL-${c.charCodeAt(0).toString(16).toUpperCase().padStart(2,'0')}`;
             return `'${c}'`;
         });
         return { 

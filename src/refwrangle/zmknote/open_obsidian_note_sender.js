@@ -25,6 +25,9 @@ if (typeof Zotero.ZoteroWebhookLock === 'undefined') {
     };
 }
 
+Zotero.debug("=== OPEN_OBSIDIAN_NOTE_SENDER SCRIPT STARTING ===");
+Zotero.debug(`Lock state: inProgress=${Zotero.ZoteroWebhookLock.inProgress}, lastRequestTime=${Zotero.ZoteroWebhookLock.lastRequestTime}`);
+
 // Ensure the script uses `item` or `items` variables passed by Zotero
 // Prevent duplicate processing using a global lock mechanism
 if (Zotero.ZoteroWebhookLock.inProgress) {
@@ -38,6 +41,8 @@ if (now - Zotero.ZoteroWebhookLock.lastRequestTime < 1000) {
     Zotero.debug("Request too soon after previous request, ignoring to prevent duplicates");
     return;
 }
+
+Zotero.debug("Passed throttling checks, proceeding with open note script");
 
 // Set processing lock, again to avoid duplicates, which were a stubborn problem.
 Zotero.ZoteroWebhookLock.inProgress = true;
