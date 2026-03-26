@@ -7,6 +7,8 @@ The companion javascript for this, new_obsidian_note_sender.js, goes into the zo
 
 import json
 import logging
+import os
+import re
 import threading
 import time
 import uuid
@@ -22,6 +24,107 @@ from flask import Flask, jsonify, request
 from jinja2 import Template
 from waitress import serve  # type: ignore
 import open_obsidian_note_by_uri as onu
+
+
+def validate_filepath(filepath: str) -> dict:
+    """Validate a filepath for cross-platform compatibility (Windows, macOS, Linux).
+    
+    Args:
+        filepath: The full filepath to validate (e.g., "lit/lit_notes/Smith2024.md")
+        
+    Returns:
+        dict with 'valid' boolean and 'reason' string if invalid
+    """
+    if not filepath or not isinstance(filepath, str):
+        return {"valid": False, "reason": "Filepath is empty or not a string"}
+    
+    # Get the filename (last component)
+    filename = Path(filepath).name
+    
+    if not filename:
+        return {"valid": False, "reason": "Filepath has no filename component"}
+    
+    # Check for empty filename
+    if filename.strip() == '':
+        return {"valid": False, "reason": "Filename is empty"}
+    
+    # Characters invalid on Windows (most restrictive)
+    # Windows forbids: < > : " / \ | ? * and control chars (0-31)
+    # Note: / and \ are path separators, but we're checking the filename part
+    windows_invalid_chars = r'[<>:"|?*\x00-\x1F]'
+    if re.search(windows_invalid_chars, filename):
+        invalid_chars = re.findall(windows_invalid_chars, filename)
+        unique_chars = []
+        for c in invalid_chars:
+            if c == '\x00':
+                unique_chars.append('NULL')
+            elif c == '\t':
+                unique_chars.append('TAB')
+            elif c == '\n':
+                unique_chars.append('NEWLINE')
+            elif c == '\r':
+                unique_chars.append('CR')
+            elif c not in unique_chars:
+                unique_chars.append(f"'{c}'")
+        return {
+            "valid": False,
+            "reason": f"Filename contains invalid character(s): {', '.join(unique_chars)}. These characters cannot be used in filenames on Windows."
+        }
+    
+    # Check for backslash in filename (shouldn't happen but check anyway)
+    if '\\' in filename:
+        return {"valid": False, "reason": "Filename contains backslash '\\\\' which is invalid in filenames"}
+    
+    # Check for forward slash in filename (path separator, shouldn't be in filename)
+    if '/' in filename:
+        return {"valid": False, "reason": "Filename contains forward slash '/' which is invalid in filenames"}
+    
+    # Windows reserved names (CON, PRN, AUX, NUL, COM1-COM9, LPT1-LPT9)
+    # Strip extension for this check
+    name_without_ext = Path(filename).stem
+    reserved_pattern = re.compile(r'^(CON|PRN|AUX|NUL|COM[1-9]|LPT[1-9])$', re.IGNORECASE)
+    if reserved_pattern.match(name_without_ext):
+        return {"valid": False, "reason": f"'{name_without_ext}' is a reserved Windows device name and cannot be used as a filename"}
+    
+    # Check for leading/trailing spaces or periods (Windows issue)
+    if filename != filename.strip():
+        return {"valid": False, "reason": "Filename has leading or trailing spaces"}
+    if filename.endswith('.'):
+        return {"valid": False, "reason": "Filename ends with a period, which is not allowed in Windows filenames"}
+    
+    # Check maximum filepath length (Windows limit is 260 for full path, 255 for filename)
+    if len(filename) > 255:
+        return {"valid": False, "reason": f"Filename is too long ({len(filename)} chars). Maximum is 255 characters."}
+    
+    # Check full path length
+    if len(filepath) > 260:
+        return {"valid": False, "reason": f"Full filepath is too long ({len(filepath)} chars). Maximum is 260 characters on Windows."}
+    
+    return {"valid": True, "reason": None}
+
+
+def invalid_filepath_popup(filepath: str, reason: str, citekey: str) -> None:
+    """Show a popup when the filepath is invalid.
+    
+    Args:
+        filepath: The invalid filepath
+        reason: The reason why it's invalid
+        citekey: The citekey that caused the issue
+    """
+    root = tk.Tk()
+    root.wm_attributes("-topmost", 1)
+    root.withdraw()
+    
+    messagebox.showerror(
+        "Invalid File Path",
+        f"Cannot create note for citation key '{citekey}'.\n\n"
+        f"File path: {filepath}\n\n"
+        f"Reason: {reason}\n\n"
+        f"Please edit the citation key in Zotero to fix this issue.",
+        parent=root
+    )
+    
+    root.destroy()
 
 # Operating system path Obsidian Vault the top directory (includes the vault name)
 OS_PATH_TO_VAULT_ROOT = Path(
@@ -469,14 +572,72 @@ def dialog_response(dialog_id: str) -> tuple:
 def ask_overwrite_popup(
     citekey: str, is_last_item: bool, total_items: int, request_id: str
 ) -> str:
+    """Show overwrite/skip dialog for an existing note.
+    
+    For single items or the last item in a batch, shows Yes/No (Overwrite/Skip).
+    For multi-item batches (not the last), shows Yes/No/Cancel (Overwrite/Skip/Skip All).
+    
+    Returns: 'overwrite', 'skip', or 'skip_all'
+    """
     root = tk.Tk()
     root.wm_attributes("-topmost", 1)
     root.withdraw()
-    result = messagebox.askyesno(
-        "File Exists", f"File '{citekey}.md' already exists. Overwrite?", parent=root
-    )
+    
+    if total_items > 1 and not is_last_item:
+        # Multi-item: offer Overwrite / Skip / Skip All
+        # Use a custom dialog with three buttons
+        dialog = tk.Toplevel(root)
+        dialog.wm_attributes("-topmost", 1)
+        dialog.title("File Exists")
+        dialog.resizable(False, False)
+        
+        answer_holder = {"answer": "skip"}
+        
+        msg = tk.Label(
+            dialog,
+            text=f"File '{citekey}.md' already exists.\n\nWhat would you like to do?",
+            padx=20, pady=10, justify="left"
+        )
+        msg.pack()
+        
+        btn_frame = tk.Frame(dialog)
+        btn_frame.pack(pady=10)
+        
+        def on_overwrite():
+            answer_holder["answer"] = "overwrite"
+            dialog.destroy()
+        
+        def on_skip():
+            answer_holder["answer"] = "skip"
+            dialog.destroy()
+        
+        def on_skip_all():
+            answer_holder["answer"] = "skip_all"
+            dialog.destroy()
+        
+        tk.Button(btn_frame, text="Overwrite", command=on_overwrite, width=10).pack(side=tk.LEFT, padx=5)
+        tk.Button(btn_frame, text="Skip", command=on_skip, width=10).pack(side=tk.LEFT, padx=5)
+        tk.Button(btn_frame, text="Skip All", command=on_skip_all, width=10).pack(side=tk.LEFT, padx=5)
+        
+        # Center dialog on screen
+        dialog.update_idletasks()
+        x = (dialog.winfo_screenwidth() - dialog.winfo_reqwidth()) // 2
+        y = (dialog.winfo_screenheight() - dialog.winfo_reqheight()) // 2
+        dialog.geometry(f"+{x}+{y}")
+        
+        dialog.grab_set()
+        root.wait_window(dialog)
+        answer = answer_holder["answer"]
+    else:
+        # Single item or last item: just Yes/No
+        result = messagebox.askyesno(
+            "File Exists",
+            f"File '{citekey}.md' already exists. Overwrite?",
+            parent=root
+        )
+        answer = "overwrite" if result else "skip"
+    
     root.destroy()
-    answer = "overwrite" if result else "skip"
     logger.info(f"User selected '{answer}' for {citekey}")
     return answer
 
@@ -579,6 +740,51 @@ def nonexistent_note_popup(citekey: str, request_id: str) -> None:
     )
 
 
+def show_cli_unavailable_popup(failure_reason: str) -> None:
+    """Show a specific error popup based on why the Obsidian CLI is unavailable."""
+    messages = {
+        "not_on_path": (
+            "Obsidian CLI Not Found",
+            "The Obsidian CLI executable was not found on PATH.\n\n"
+            "To fix this:\n"
+            "  1. Download and run a fresh Obsidian installer (v1.12.4+).\n"
+            "     In-app update is NOT sufficient.\n"
+            "  2. In Obsidian: Settings → General → enable 'Command line\n"
+            "     interface' → click 'Register CLI'.\n"
+            "  3. Restart this receiver script."
+        ),
+        "binary_broken": (
+            "Obsidian CLI Not Responding",
+            "The Obsidian CLI was found but is not responding.\n\n"
+            "To fix this:\n"
+            "  In Obsidian: Settings → General → click 'Register CLI' again.\n"
+            "  Then restart this receiver script."
+        ),
+        "obsidian_not_running": (
+            "Obsidian Is Not Running",
+            "The Obsidian CLI is installed, but Obsidian is not running\n"
+            "or the vault is not open.\n\n"
+            "Please open Obsidian and load your vault, then try again."
+        ),
+        "cli_disabled": (
+            "Obsidian CLI Disabled",
+            "Obsidian is running but the CLI is disabled in Settings.\n\n"
+            "To fix this:\n"
+            "  In Obsidian: Settings → General → enable\n"
+            "  'Command line interface'."
+        ),
+    }
+    title, message = messages.get(
+        failure_reason,
+        ("Obsidian CLI Unavailable", "The Obsidian CLI is not available. Check Obsidian settings.")
+    )
+    root = tk.Tk()
+    root.wm_attributes("-topmost", 1)
+    root.withdraw()
+    messagebox.showerror(title, message, parent=root)
+    root.destroy()
+
+
 def open_note_in_new_tab(
     citekey_or_keys: Union[str, list],
     request_id: str,
@@ -626,21 +832,48 @@ def open_note_in_new_tab(
                 continue
 
             # Note exists, proceed to open it
-            status = onu.open_obsidian_note(notepath_vault, OS_PATH_TO_VAULT_ROOT)
+            # Try CLI first (more reliable), fall back to URI method
+            cli_check = onu.check_obsidian_cli_available(OS_PATH_TO_VAULT_ROOT)
 
-            message_tail = f"({citekey}): {status=})"
-            if not (
-                status["note_found"]
-                and status["vault_found"]
-                and status["uri_used"] != ""
-            ):
-                logger.info(
-                    f"[{request_id}] Couldn't open note in Obsidian due to path or URI problem {message_tail}"
-                )
-            elif status["new_tab_requested"] and status["new_tab_possible"] is not True:
-                logger.info(
-                    f"[{request_id}] Couldn't open note in NEW Obsidian tab due to Obsidian config problem {message_tail}"
-                )
+            if cli_check["cli_enabled"]:
+                cli_result = onu.open_note_via_cli(notepath_vault, OS_PATH_TO_VAULT_ROOT)
+                if cli_result["success"]:
+                    logger.info(f"[{request_id}] CLI opened note in new tab: {notepath_vault}")
+                else:
+                    logger.warning(f"[{request_id}] CLI open failed: {cli_result['error']} — "
+                                   f"falling back to URI method.")
+                    # Fallback: original URI method
+                    status = onu.open_obsidian_note(notepath_vault, OS_PATH_TO_VAULT_ROOT)
+                    message_tail = f"({citekey}): {status=})"
+                    if not (
+                        status["note_found"]
+                        and status["vault_found"]
+                        and status["uri_used"] != ""
+                    ):
+                        logger.info(
+                            f"[{request_id}] Couldn't open note in Obsidian due to path or URI problem {message_tail}"
+                        )
+                    elif status["new_tab_requested"] and status["new_tab_possible"] is not True:
+                        logger.info(
+                            f"[{request_id}] Couldn't open note in NEW Obsidian tab due to Obsidian config problem {message_tail}"
+                        )
+            else:
+                # CLI not available — use original URI method
+                logger.info(f"[{request_id}] CLI not available ({cli_check['failure_reason']}), using URI method.")
+                status = onu.open_obsidian_note(notepath_vault, OS_PATH_TO_VAULT_ROOT)
+                message_tail = f"({citekey}): {status=})"
+                if not (
+                    status["note_found"]
+                    and status["vault_found"]
+                    and status["uri_used"] != ""
+                ):
+                    logger.info(
+                        f"[{request_id}] Couldn't open note in Obsidian due to path or URI problem {message_tail}"
+                    )
+                elif status["new_tab_requested"] and status["new_tab_possible"] is not True:
+                    logger.info(
+                        f"[{request_id}] Couldn't open note in NEW Obsidian tab due to Obsidian config problem {message_tail}"
+                    )
         except Exception as e:
             logger.info(
                 f"[{request_id}] Problem opening Obsidian note for item {citekey}: ", e
@@ -675,6 +908,15 @@ def write_obsidian_md_note(items: list, request_id: str) -> list:
             logger.warning(f"[{request_id}] Missing required keys in item: {item}")
             continue
 
+        # Validate the full filepath before attempting to write
+        note_basename = f"{citekey}.md"
+        note_path_in_vault = f"{VAULT_PATH_NOTES}/{note_basename}"
+        validation = validate_filepath(note_path_in_vault)
+        if not validation["valid"]:
+            logger.warning(f"[{request_id}] Invalid filepath for citekey '{citekey}': {validation['reason']}")
+            invalid_filepath_popup(note_path_in_vault, validation["reason"], citekey)
+            continue
+
         logger.info(
             f"[{request_id}] Working on item {index + 1}/{total_items}: {citekey}"
         )
@@ -701,18 +943,25 @@ def write_obsidian_md_note(items: list, request_id: str) -> list:
                 if overwrite:
                     with open(filepath_os, "w", encoding="utf-8") as f:
                         f.write(obs_note_markdown)
-                        logger.info(
-                            f"[{request_id}] Successfully overwrote file: {filepath_os}"
-                        )
+                        f.flush()  # Ensure data is written to disk
+                        os.fsync(f.fileno())  # Force write to storage
+                    logger.info(
+                        f"[{request_id}] Successfully overwrote file: {filepath_os}"
+                    )
                 else:
                     # EAFP atomic file create approach:  Try to open the file in 'x' mode which fails if file exists
                     with open(filepath_os, "x", encoding="utf-8") as f:
                         f.write(obs_note_markdown)
-                        logger.info(
-                            f"[{request_id}] Successfully created file: {filepath_os}"
-                        )
+                        f.flush()  # Ensure data is written to disk
+                        os.fsync(f.fileno())  # Force write to storage
+                    logger.info(
+                        f"[{request_id}] Successfully created file: {filepath_os}"
+                    )
             except FileExistsError:
                 return "exists"
+            
+            # Small delay to allow file system and OneDrive sync to catch up
+            time.sleep(0.3)
 
             logger.debug(
                 f"[{request_id}] Checking existence of: {filepath_os.resolve()}"
@@ -818,6 +1067,15 @@ if __name__ == "__main__":
         logger.info("Storage directory exists or was created successfully")
     except Exception as e:
         logger.warning(f"Note: Could not create storage directory at startup: {e}")
+
+    # Check CLI availability once at startup; result stored for use in request handlers
+    cli_check = onu.check_obsidian_cli_available(OS_PATH_TO_VAULT_ROOT)
+    if cli_check["cli_enabled"]:
+        logger.info("Obsidian CLI is available and enabled.")
+    else:
+        logger.warning(f"Obsidian CLI not available: {cli_check['failure_reason']} — "
+                       f"will fall back to URI method for opening notes.")
+        show_cli_unavailable_popup(cli_check["failure_reason"])
 
     # Start waitress server, intead of flask, as it's more "production ready"
     logger.info(f"Starting server on port {LISTEN_PORT}")

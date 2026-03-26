@@ -5,6 +5,7 @@ Without that, it will back off to the default obsidian URI mechanism, which REUS
 
 import os
 import json
+import shutil
 import urllib.parse
 import subprocess
 from pathlib import Path
@@ -55,6 +56,110 @@ def check_newpane_setting(vault_path: Path) -> bool:
     except Exception as e:
         print(f"Error reading Advanced URI plugin settings: {e}")
         return False
+
+
+def check_obsidian_cli_available(vault_path: Path) -> dict:
+    """
+    Checks whether the Obsidian CLI is installed, reachable, and enabled in Settings.
+    vault_path: full Path to the vault root (same as used elsewhere in this module).
+
+    Returns a dict with keys:
+        binary_on_path:      bool — CLI executable found via PATH
+        binary_responds:     bool or None — 'obsidian version' succeeded
+        cli_enabled:         bool or None — vault status command succeeded
+        obsidian_running:    bool or None — whether Obsidian process appears to be running
+        failure_reason:      str or None — one of: 'not_on_path', 'binary_broken',
+                                           'obsidian_not_running', 'cli_disabled', None
+    """
+    status: dict[str, bool | str | None] = {
+        "binary_on_path": False,
+        "binary_responds": None,
+        "cli_enabled": None,
+        "obsidian_running": None,
+        "failure_reason": None,
+    }
+
+    # Stage 1: Is the binary on PATH?
+    if shutil.which("obsidian") is None:
+        status["failure_reason"] = "not_on_path"
+        return status
+    status["binary_on_path"] = True
+
+    # Stage 2: Does the binary respond?
+    try:
+        result = subprocess.run(
+            ["obsidian", "version"],
+            capture_output=True, text=True, timeout=5
+        )
+        if result.returncode != 0:
+            status["binary_responds"] = False
+            status["failure_reason"] = "binary_broken"
+            return status
+        status["binary_responds"] = True
+    except (FileNotFoundError, subprocess.TimeoutExpired):
+        status["binary_responds"] = False
+        status["failure_reason"] = "binary_broken"
+        return status
+
+    # Stage 3: Is the CLI enabled in Settings and the vault reachable?
+    vault_name = vault_path.name
+    try:
+        result = subprocess.run(
+            ["obsidian", f"vault={vault_name}", "status"],
+            capture_output=True, text=True, timeout=10
+        )
+        if result.returncode == 0:
+            status["cli_enabled"] = True
+            status["obsidian_running"] = True
+        else:
+            status["cli_enabled"] = False
+            combined = (result.stdout + result.stderr).lower()
+            if "not running" in combined or "not open" in combined:
+                status["obsidian_running"] = False
+                status["failure_reason"] = "obsidian_not_running"
+            else:
+                status["obsidian_running"] = True
+                status["failure_reason"] = "cli_disabled"
+    except subprocess.TimeoutExpired:
+        status["cli_enabled"] = False
+        status["obsidian_running"] = False
+        status["failure_reason"] = "obsidian_not_running"
+
+    return status
+
+
+def open_note_via_cli(note_path: str, vault_path: Path) -> dict:
+    """
+    Opens an existing Obsidian note in a new tab using the Obsidian CLI.
+    Does not depend on Obsidian's file watcher — uses Obsidian's internal API.
+
+    note_path: vault-relative path WITH .md extension,
+               e.g. "lit/lit_notes/Smith24someTitle.md"
+    vault_path: full Path to the vault root (same convention as open_obsidian_note())
+
+    Returns a dict with keys:
+        success:       bool
+        cli_output:    str — stdout from CLI call
+        error:         str or None — stderr or exception message
+    """
+    vault_name = vault_path.name
+    result_dict = {"success": False, "cli_output": "", "error": None}
+    try:
+        result = subprocess.run(
+            ["obsidian", f"vault={vault_name}", "open",
+             f"path={note_path}", "newtab"],
+            capture_output=True, text=True, timeout=10
+        )
+        result_dict["cli_output"] = result.stdout.strip()
+        if result.returncode == 0:
+            result_dict["success"] = True
+        else:
+            result_dict["error"] = result.stderr.strip() or result.stdout.strip()
+    except subprocess.TimeoutExpired:
+        result_dict["error"] = "CLI open timed out"
+    except Exception as e:
+        result_dict["error"] = str(e)
+    return result_dict
     
 def open_obsidian_note(note_path: str, vault_path: Path | str | None = None, new_tab: bool = True) -> dict:
     """ Opens an Obsidian note in a new tab, if possible and requested.
@@ -125,10 +230,16 @@ def open_obsidian_note(note_path: str, vault_path: Path | str | None = None, new
         try:
             uri = status["uri_used"]
             if os.name == 'nt':  # Windows
-                os.system(f'start "" "{uri}"')
+                # Use subprocess for more reliable execution than os.system
+                subprocess.run(
+                    ['cmd', '/c', 'start', '', uri],
+                    shell=False,
+                    check=False,
+                    capture_output=True
+                )
             elif os.name == 'posix':  # macOS or Linux
                 if Path('/proc/version').exists() and 'microsoft' in Path('/proc/version').read_text().lower():
-                    os.system(f'cmd.exe /c start "" "{uri}"') # it's Linux but WSL
+                    subprocess.run(['cmd.exe', '/c', 'start', '', uri]) # it's Linux but WSL
                 elif Path('/System').exists():  # macOS
                     subprocess.run(['open', uri])
                 else:  # Linux
