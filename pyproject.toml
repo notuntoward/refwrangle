@@ -88,6 +88,17 @@ dev = [
 # [tool.setuptools.packages.find] section. The default is where = ["."].
 
 
+# ---------------------------------------------------------------------------
+# pytest: run ONLY the automated regression tests in test/ by default.
+# Manual/integration tests that require Zotero/Obsidian live in test_manual/
+# and must be run explicitly.
+# ---------------------------------------------------------------------------
+[tool.pytest.ini_options]
+testpaths = ["src/refwrangle/zmknote/test"]
+# Exclude test_manual/ (integration tests that need live services)
+norecursedirs = ["test_manual", ".git", "__pycache__", ".venv", "node_modules"]
+
+
 # --- Optional: Add project URLs for PyPI ---
 # [project.urls]
 # "Homepage" = "https://github.com/yourusername/refwrangle"

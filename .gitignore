@@ -1,3 +1,6 @@
+src/refwrangle/zmknote/node_modules/
+src/refwrangle/zmknote/package-lock.json
+
 old/
 bin/
 dat/
