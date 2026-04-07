@@ -21,7 +21,20 @@ from typing import Union
 
 import bs4
 from flask import Flask, jsonify, request
-from jinja2 import Template
+from jinja2 import Environment, Template
+
+
+def yaml_escape(value: str) -> str:
+    """Escape a string for safe inclusion in YAML double-quoted strings.
+    
+    Handles backslashes, double quotes, and other special characters
+    that would break YAML quoting.
+    """
+    if not isinstance(value, str):
+        return value
+    escaped = value.replace("\\", "\\\\")
+    escaped = escaped.replace('"', '\\"')
+    return escaped
 from waitress import serve  # type: ignore
 import open_obsidian_note as onu
 
@@ -176,18 +189,18 @@ read: false
 in-progress: false
 linked: false
 aliases:
-- "{{ title }}"
-- "{{ truncateTitle(title, 5) }}"
-citekey: {{ citekey }}
+- "{{ title | yaml_escape }}"
+- "{{ truncateTitle(title, 5) | yaml_escape }}"
+citekey: {{ citekey | yaml_escape }}
 ZoteroTags: 
 {% for tag in tags %}
-- {{ tag | lower | replace(" ", "_") }}
+- {{ (tag | lower | replace(" ", "_")) | yaml_escape }}
 {% endfor %}
 ZoteroCollections: 
 {% for collection in collections %}
-- {{ collection | lower | replace(" ", "_") }}
+- {{ (collection | lower | replace(" ", "_")) | yaml_escape }}
 {% endfor %}
-created date: {{ exportDate }}
+created date: {{ exportDate | yaml_escape }}
 modified date:
 ---
 
@@ -954,7 +967,9 @@ def write_obsidian_md_note(items: list, request_id: str) -> list:
         item["notes"] = notes_md
 
         # all item data to markdown
-        template = Template(template_str, trim_blocks=True, lstrip_blocks=True)
+        env = Environment(trim_blocks=True, lstrip_blocks=True)
+        env.filters['yaml_escape'] = yaml_escape
+        template = env.from_string(template_str)
         obs_note_markdown = template.render(**item)
 
         def write_note(
