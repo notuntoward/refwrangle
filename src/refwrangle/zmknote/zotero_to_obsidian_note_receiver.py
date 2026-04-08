@@ -211,6 +211,11 @@ modified date:
 > {{ abstractNote.replace("\\n"," ") }}
 >
 {% endif %}
+
+{% for type, creators in creators|groupby("creatorType") %}
+> **{{ type.capitalize() }}**::{% for creator in creators %}{% if creator.name %} {{ creator.name }}{% else %} {{ creator.lastName }}, {{ creator.firstName }}{% endif %}{% if not loop.last %}, {% endif %}{% endfor %}
+{% endfor %}
+
 > **Title**:: "{{ title }}"
 > **Date**:: {{ date }}
 > **Citekey**:: {{ citekey }}
