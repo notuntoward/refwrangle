@@ -205,19 +205,12 @@ modified date:
 ---
 
 > [!info]- &nbsp;[**Zotero**]({{ desktopURI }}) {% if DOI %} | [**DOI**](https://doi.org/{{ DOI }}){% endif %}{% if url %} | [**URL**]({{ url }}){% endif %}{% for attachment in attachments if attachment.path.endswith(".pdf") %} | **[[{{ basename(attachment.path) }}|PDF]]**{% endfor %}{% for attachment in attachments if attachment.path.endswith(".html") %} | **[[{{ basename(attachment.path) }}|HTM]]**{% endfor %}{% for attachment in attachments if attachment.path.endswith(".docx") %} | **[[{{ basename(attachment.path) }}|DOC]]**{% endfor %}{% for attachment in attachments if attachment.path.endswith(".pptx") %} | **[[{{ basename(attachment.path) }}|PPT]]**{% endfor %}{% for attachment in attachments if attachment.path.endswith(".epub") %} | **[[{{ basename(attachment.path) }}|EPUB]]**{% endfor %}{% for attachment in attachments if attachment.path.endswith(".txt") %} | **[[{{ basename(attachment.path) }}|TXT]]**{% endfor %}
-
-> {%- if abstractNote %}
+{{ "" }}
+{% if abstractNote %}
 > **Abstract**
 > {{ abstractNote.replace("\\n"," ") }}
-> {% endif %}
-{{ "" }}
-{%- for type, creators in creators|groupby("creatorType") %}
-> **{{ type.capitalize() }}**::
-{%- for creator in creators %}
-    {%- if creator.name %} {{ creator.name }}{% else %} {{ creator.lastName }}, {{ creator.firstName }}{% endif %}{% if not loop.last %}, {% endif %}
-{%- endfor -%}
-{%- endfor -%}
-
+>
+{% endif %}
 > **Title**:: "{{ title }}"
 > **Date**:: {{ date }}
 > **Citekey**:: {{ citekey }}
@@ -238,7 +231,9 @@ modified date:
 > **Related**::{% for relation in relations if relation.citekey %} [[@{{ relation.citekey }}]]{% if not loop.last %}, {% endif %}{% endfor %}
 
 
->{%- if bibliography %} {{ bibliography }}{% endif %}
+{% if bibliography %}
+> {{ bibliography }}
+{% endif %}
 
 
 
