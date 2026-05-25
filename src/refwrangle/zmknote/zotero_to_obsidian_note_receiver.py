@@ -791,7 +791,7 @@ def webhook() -> tuple:
             # TODO: add dialog asking if want to write the note, since item should already be in zotero if here
             results = open_note_in_new_tab(
                 webhook_item_list, request_id, items_data=webhook_item_list,
-                new_tab=False, prefer_uri=True,
+                new_tab=True, prefer_uri=False,
             )
         else:
             logger.error(f"[{request_id}] Unknown sender_id, got {sender_id}")
