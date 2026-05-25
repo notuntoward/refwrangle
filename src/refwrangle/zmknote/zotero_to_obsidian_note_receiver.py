@@ -13,6 +13,7 @@ import threading
 import time
 import uuid
 import urllib.parse
+import requests
 import tkinter as tk
 from tkinter import messagebox
 from datetime import datetime
@@ -143,6 +144,87 @@ def invalid_filepath_popup(filepath: str, reason: str, citekey: str) -> None:
     )
     
     root.destroy()
+
+# Better BibTeX local JSON-RPC endpoint
+BBT_JSON_RPC_URL = "http://localhost:23119/better-bibtex/json-rpc"
+BBT_TIMEOUT_SECS = 10
+
+
+def cleanup_bibliography_text(bibliography: str) -> str:
+    """Clean returned bibliography text to match the existing JS-side behavior."""
+    if not bibliography:
+        return ""
+
+    # Remove URLs (http://, https://)
+    bibliography = re.sub(r'https?://\S+', '', bibliography)
+
+    # Remove other URLs (www.something.com style)
+    bibliography = re.sub(r'www\.\S+', '', bibliography)
+
+    # Remove DOIs (doi.org pattern)
+    bibliography = re.sub(r'doi\.org/\S+', '', bibliography)
+
+    # Remove trailing commas and spaces before a period
+    bibliography = re.sub(r',\s*\.', '.', bibliography)
+
+    # Remove trailing comma at end of string and replace with period
+    bibliography = re.sub(r',\s*$', '.', bibliography)
+
+    # Remove orphaned commas
+    bibliography = re.sub(r',\s+,', ',', bibliography)
+    bibliography = re.sub(r',\s*\.', '.', bibliography)
+
+    # Clean up multiple spaces
+    bibliography = re.sub(r'\s+', ' ', bibliography).strip()
+
+    return bibliography
+
+
+def fetch_bbt_bibliography(citekey: str) -> str:
+    """Ask Better BibTeX to format a bibliography string for one citekey."""
+    payload = {
+        "jsonrpc": "2.0",
+        "method": "item.bibliography",
+        "params": [
+            [citekey],
+            {
+                "contentType": "text",
+                "id": "modern-language-association",
+                "locale": "en-US",
+                "quickCopy": False
+            }
+        ]
+    }
+
+    response = requests.post(
+        BBT_JSON_RPC_URL,
+        json=payload,
+        headers={
+            "Content-Type": "application/json",
+            "Accept": "application/json"
+        },
+        timeout=BBT_TIMEOUT_SECS
+    )
+    response.raise_for_status()
+
+    result = response.json()
+
+    if result.get("error"):
+        error_msg = result["error"].get("message", "Unknown Better BibTeX JSON-RPC error")
+        raise RuntimeError(error_msg)
+
+    bibliography = result.get("result", "") or ""
+    return cleanup_bibliography_text(bibliography)
+
+
+def bibliography_warning_popup(message: str) -> None:
+    """Show a user-understandable warning when bibliography generation fails."""
+    root = tk.Tk()
+    root.wm_attributes("-topmost", 1)
+    root.withdraw()
+    messagebox.showwarning("Bibliography Warning", message, parent=root)
+    root.destroy()
+    
 
 # Operating system path Obsidian Vault the top directory (includes the vault name)
 OS_PATH_TO_VAULT_ROOT = Path(
@@ -957,6 +1039,32 @@ def write_obsidian_md_note(items: list, request_id: str) -> list:
             f"[{request_id}] Working on item {index + 1}/{total_items}: {citekey}"
         )
 
+        # If Zotero-side bib fetch failed, try calling Better BibTeX from Python.
+        if not item.get("bibliography", "").strip() and citekey:
+            try:
+                item["bibliography"] = fetch_bbt_bibliography(citekey)
+                logging.info(f"Fetched bibliography from Better BibTeX in Python for {citekey}")
+            except requests.exceptions.ConnectionError:
+                logging.warning(f"Could not reach Better BibTeX for {citekey}")
+                bibliography_warning_popup(
+                    "Could not reach Better BibTeX in Zotero to generate the bibliography.\n\n"
+                    "Please make sure Zotero is running and the Better BibTeX add-on is installed.\n\n"
+                    "The note will still be created, but without bibliography text."
+                )
+            except requests.exceptions.Timeout:
+                logging.warning(f"Timed out talking to Better BibTeX for {citekey}")
+                bibliography_warning_popup(
+                    "Timed out while asking Better BibTeX for bibliography text.\n\n"
+                    "The note will still be created, but without bibliography text."
+                )
+            except Exception as e:
+                logging.warning(f"Failed to fetch bibliography from Better BibTeX for {citekey}: {e}")
+                bibliography_warning_popup(
+                    "Better BibTeX returned an error while generating bibliography text.\n\n"
+                    f"Details: {e}\n\n"
+                    "The note will still be created, but without bibliography text."
+                )
+        
         # zotero item note(s) to obsidian markdown
         notes_md = []
         for note_html in item["notes"]:
