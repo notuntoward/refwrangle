@@ -65,6 +65,9 @@ to launch.
 ### `zotero_to_obsidian_note_receiver_installer.py`
 One-time setup script. Installs Python dependencies and registers the receiver.
 
+### `toggle_left_pane.js` and `toggle_right_pane.js`
+Zotero Actions & Tags plugin actions to install.
+
 ---
 
 ## Installation
@@ -121,7 +124,12 @@ uv run pyinstaller --runtime-tmpdir=. \
 3. Create a new rule for "Open Obsidian Note":
    - **Shortcut**: `Ctrl+O`
    - **Script**: paste the full contents of `open_obsidian_note_sender.js`
-4. Save both rules
+3. Install toggle left/right pane actions and shortcuts
+   - **Shortcut**: `alt+,`
+   - **Script**: paste the full contents of `toggle_left_pane.js`
+   - **Shortcut**: `alt+.`
+   - **Script**: paste the full contents of `toggle_right_pane.js`
+4. Save all rules
 
 > **Important**: the Actions and Tags plugin stores script content inline in
 > Zotero's preferences database. When you update either `.js` file, you must
