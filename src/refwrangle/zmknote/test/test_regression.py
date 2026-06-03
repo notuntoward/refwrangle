@@ -75,10 +75,11 @@ def _ensure_stubs():
         sys.modules["bs4"] = bs4_mod
         sys.modules["bs4.element"] = element_mod
 
-    # jinja2
+# jinja2
     if "jinja2" not in sys.modules:
         jinja2_mod = types.ModuleType("jinja2")
-        jinja2_mod.Template = MagicMock()
+        jinja2_mod.Environment = MagicMock
+        jinja2_mod.Template = MagicMock
         sys.modules["jinja2"] = jinja2_mod
 
 
@@ -230,8 +231,11 @@ class TestOpenObsidianNoteURI:
     # --- new_tab=True: should use adv-uri with newpane=true ---
 
     def _open(self, new_tab: bool):
-        """Call open_obsidian_note with os.startfile patched out."""
-        with patch("os.startfile"):
+        """Call open_obsidian_note with os.startfile patched out and CLI mocked as unavailable."""
+        with patch("os.startfile"), \
+             patch("open_obsidian_note.check_obsidian_cli_available") as mock_cli:
+            # Make CLI appear unavailable so URI path is tested
+            mock_cli.return_value = {"binary_on_path": False, "binary_responds": False, "cli_enabled": False, "obsidian_running": False, "failure_reason": "not_on_path"}
             return self.onu.open_obsidian_note(
                 "lit/lit_notes/Smith2024.md",
                 vault_path=self.vault,
@@ -296,7 +300,9 @@ class TestOpenObsidianNoteURI:
         note_file = vault_no_plugin / "note.md"
         note_file.touch()
 
-        with patch("os.startfile"):
+        with patch("os.startfile"), \
+             patch("open_obsidian_note.check_obsidian_cli_available") as mock_cli:
+            mock_cli.return_value = {"binary_on_path": False, "binary_responds": False, "cli_enabled": False, "obsidian_running": False, "failure_reason": "not_on_path"}
             status = self.onu.open_obsidian_note(
                 "note.md",
                 vault_path=vault_no_plugin,
@@ -462,24 +468,90 @@ class TestOpenNoteViaCli:
     def test_timeout_returns_error_dict(self):
         import subprocess as sp
         with patch("open_obsidian_note.subprocess.run",
-                   side_effect=sp.TimeoutExpired(cmd="obsidian", timeout=10)):
-            result = self.onu.open_note_via_cli("lit/note.md", self.vault)
+                   side_effect=sp.TimeoutExpired(cmd="obsidian", timeout=10)), \
+             patch("open_obsidian_note.time.sleep"):
+            result = self.onu.open_note_via_cli("lit/note.md", self.vault, timeout=0.5, interval=0.1)
         assert result["success"] is False
         assert result["error"] is not None
 
     def test_non_zero_return_code_returns_error(self):
-        with patch("open_obsidian_note.subprocess.run") as mock_run:
-            mock_run.return_value = MagicMock(returncode=1, stdout="", stderr="not found")
-            result = self.onu.open_note_via_cli("lit/note.md", self.vault)
+        def mock_run_side_effect(*args, **kwargs):
+            cmd = args[0]
+            cmd_str = " ".join(cmd)
+            if "status" in cmd:
+                return MagicMock(returncode=0, stdout="ok", stderr="")
+            elif "open" in cmd and "path=" in cmd_str:
+                return MagicMock(returncode=1, stdout="", stderr="not found")
+            else:
+                return MagicMock(returncode=0, stdout="", stderr="")
+        
+        with patch("open_obsidian_note.subprocess.run", side_effect=mock_run_side_effect), \
+             patch("open_obsidian_note.time.sleep"):
+            result = self.onu.open_note_via_cli("lit/note.md", self.vault, timeout=0.5, interval=0.1)
         assert result["success"] is False
         assert "not found" in result["error"]
 
     def test_success_returns_success_dict(self):
-        with patch("open_obsidian_note.subprocess.run") as mock_run:
-            mock_run.return_value = MagicMock(returncode=0, stdout="opened", stderr="")
-            result = self.onu.open_note_via_cli("lit/note.md", self.vault)
+        def mock_run_side_effect(*args, **kwargs):
+            cmd = args[0]
+            cmd_str = " ".join(cmd)
+            if "status" in cmd:
+                return MagicMock(returncode=0, stdout="ok", stderr="")
+            elif "open" in cmd and "path=" in cmd_str:
+                return MagicMock(returncode=0, stdout="opened", stderr="")
+            else:
+                return MagicMock(returncode=0, stdout="", stderr="")
+        
+        with patch("open_obsidian_note.subprocess.run", side_effect=mock_run_side_effect), \
+             patch("open_obsidian_note.time.sleep"):
+            result = self.onu.open_note_via_cli("lit/note.md", self.vault, timeout=0.5, interval=0.1)
         assert result["success"] is True
         assert result["error"] is None
+
+    # --- Vault not open: wait for vault to be ready before opening note ---
+
+    def test_waits_for_vault_ready_before_opening_note(self):
+        """When vault is not open, should poll status until vault is ready before opening note."""
+        call_count = {"status": 0, "open": 0}
+        
+        def mock_run_side_effect(*args, **kwargs):
+            cmd = args[0]
+            cmd_str = " ".join(cmd)
+            if "open" in cmd and "path=" in cmd_str:
+                call_count["open"] += 1
+                return MagicMock(returncode=0, stdout="opened", stderr="")
+            elif "status" in cmd:
+                call_count["status"] += 1
+                # First TWO status checks fail (initial + first poll), third succeeds
+                if call_count["status"] <= 2:
+                    return MagicMock(returncode=1, stdout="", stderr="not running")
+                return MagicMock(returncode=0, stdout="ok", stderr="")
+            else:
+                return MagicMock(returncode=0, stdout="", stderr="")
+        
+        with patch("open_obsidian_note.subprocess.run", side_effect=mock_run_side_effect), \
+             patch("open_obsidian_note.time.sleep"):
+            result = self.onu.open_note_via_cli("lit/note.md", self.vault, timeout=10, interval=0.1)
+        
+        assert result["success"] is True
+        assert call_count["status"] >= 3, "Should have polled status until vault ready"
+        assert call_count["open"] == 1, "Open should be called exactly once after vault ready"
+
+    def test_returns_failure_if_vault_never_becomes_ready(self):
+        """When vault fails to open within timeout, should return failure."""
+        def mock_run_side_effect(*args, **kwargs):
+            cmd = args[0]
+            if "status" in cmd:
+                return MagicMock(returncode=1, stdout="", stderr="not running")
+            else:
+                return MagicMock(returncode=0, stdout="", stderr="")
+        
+        with patch("open_obsidian_note.subprocess.run", side_effect=mock_run_side_effect), \
+             patch("open_obsidian_note.time.sleep"):
+            result = self.onu.open_note_via_cli("lit/note.md", self.vault, timeout=0.5, interval=0.1)
+        
+        assert result["success"] is False
+        assert "Timed out waiting for vault" in result["error"]
 
 
 # ===========================================================================

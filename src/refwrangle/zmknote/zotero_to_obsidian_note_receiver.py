@@ -950,7 +950,9 @@ def open_note_in_new_tab(
                 else onu.check_obsidian_cli_available(OS_PATH_TO_VAULT_ROOT)
             )
 
-            if effective_cli_check["cli_enabled"] and not prefer_uri:
+            # Attempt CLI method if the Obsidian binary is available and responsive
+            # (regardless of whether the specific vault is currently open)
+            if effective_cli_check["binary_on_path"] and effective_cli_check["binary_responds"] and not prefer_uri:
                 cli_result = onu.open_note_via_cli(notepath_vault, OS_PATH_TO_VAULT_ROOT, new_tab=new_tab)
                 if cli_result["success"]:
                     logger.info(f"[{request_id}] CLI opened note (new_tab={new_tab}): {notepath_vault}")

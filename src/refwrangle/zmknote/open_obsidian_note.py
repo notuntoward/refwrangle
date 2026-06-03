@@ -12,8 +12,9 @@ Three strategies are supported (tried in order by the caller):
 import os
 import json
 import shutil
-import urllib.parse
 import subprocess
+import time
+import urllib.parse
 from pathlib import Path
 
 def check_advanced_uri_plugin(vault_path: Path) -> tuple[bool, bool]:
@@ -139,17 +140,20 @@ def check_obsidian_cli_available(vault_path: Path) -> dict:
     return status
 
 
-def open_note_via_cli(note_path: str, vault_path: Path, new_tab: bool = True) -> dict:
+def open_note_via_cli(note_path: str, vault_path: Path, new_tab: bool = True, timeout: float = 10.0, interval: float = 1.5) -> dict:
     """
     Opens an existing Obsidian note using the Obsidian CLI.
+    Assumes the vault is already open and ready.
     Does not depend on Obsidian's file watcher — uses Obsidian's internal API.
 
     note_path: vault-relative path WITH .md extension,
-               e.g. "lit/lit_notes/Smith24someTitle.md"
+                e.g. "lit/lit_notes/Smith24someTitle.md"
     vault_path: full Path to the vault root (same convention as open_obsidian_note())
     new_tab:   If True (default), open in a new tab.
-               If False, reuse the existing tab if the note is already open;
-               otherwise open in the most-recently-used pane.
+                If False, reuse the existing tab if the note is already open;
+                otherwise open in the most-recently-used pane.
+    timeout:   Maximum seconds to wait for note-open (default 10)
+    interval:  Seconds to wait between retry attempts (default 1.5)
 
     Returns a dict with keys:
         success:       bool
@@ -158,23 +162,29 @@ def open_note_via_cli(note_path: str, vault_path: Path, new_tab: bool = True) ->
     """
     vault_name = vault_path.name
     result_dict = {"success": False, "cli_output": "", "error": None}
-    try:
-        cmd = ["obsidian", f"vault={vault_name}", "open", f"path={note_path}"]
-        if new_tab:
-            cmd.append("newtab")
-        result = subprocess.run(
-            cmd,
-            capture_output=True, text=True, timeout=10
-        )
-        result_dict["cli_output"] = result.stdout.strip()
-        if result.returncode == 0:
-            result_dict["success"] = True
-        else:
+    
+    # Open the note - retry in case of transient issues
+    deadline = time.time() + timeout
+    while time.time() < deadline:
+        try:
+            cmd = ["obsidian", f"vault={vault_name}", "open", f"path={note_path}"]
+            if new_tab:
+                cmd.append("newtab")
+            result = subprocess.run(
+                cmd,
+                capture_output=True, text=True, timeout=10
+            )
+            result_dict["cli_output"] = result.stdout.strip()
+            if result.returncode == 0:
+                result_dict["success"] = True
+                return result_dict
             result_dict["error"] = result.stderr.strip() or result.stdout.strip()
-    except subprocess.TimeoutExpired:
-        result_dict["error"] = "CLI open timed out"
-    except Exception as e:
-        result_dict["error"] = str(e)
+        except subprocess.TimeoutExpired:
+            result_dict["error"] = "CLI open timed out"
+        except Exception as e:
+            result_dict["error"] = str(e)
+        time.sleep(interval)
+    
     return result_dict
     
 def open_obsidian_note(note_path: str, vault_path: Path | str | None = None, new_tab: bool = True) -> dict:
@@ -182,8 +192,8 @@ def open_obsidian_note(note_path: str, vault_path: Path | str | None = None, new
           note_path: internal obsidian path from the vault root to the note (without .md)
           vault_path: Full path to the vault directory (Path object or string)
           new_tab: Whether to open in a new tab (requires Obsidian's Advanced URI plugin, 
-                   with its "Open file without write in new pane" option enabled)
-    
+                    with its "Open file without write in new pane" option enabled)
+      
           Returns: dict: Status information about the operation (see comments)"""
     
     status = {"vault_found": False,          # vault_path works
@@ -213,65 +223,109 @@ def open_obsidian_note(note_path: str, vault_path: Path | str | None = None, new
         note_path += '.md'
     status["note_found"] = (vault_path / note_path).exists()
     
-    is_installed, is_enabled = check_advanced_uri_plugin(vault_path)
-    status["advanced_uri_plugin_installed"] = is_installed
-    status["advanced_uri_plugin_enabled"] = is_enabled
+    # If vault is found, try the CLI method first if available and responsive.
+    # We try CLI even if note doesn't exist on disk yet, as CLI can create/open new notes.
+    # We try CLI whenever the binary is available and responsive (binary_on_path and binary_responds),
+    # regardless of whether the specific vault's CLI is enabled, since the act of opening a note
+    # might cause the vault to open.
+    if status["vault_found"]:
+        cli_status = check_obsidian_cli_available(vault_path)
+        if cli_status["binary_on_path"] and cli_status["binary_responds"]:
+            # Check if the vault is already open
+            vault_already_open = False
+            try:
+                status_result = subprocess.run(
+                    ["obsidian", f"vault={vault_name}", "status"],
+                    capture_output=True, text=True, timeout=10
+                )
+                vault_already_open = status_result.returncode == 0
+            except Exception:
+                pass
+            
+            if vault_already_open:
+                # Try to open via CLI (only when vault is already open)
+                cli_result = open_note_via_cli(note_path, vault_path, new_tab)
+                if cli_result["success"]:
+                    # Build a status dict for CLI success
+                    status["method_used"] = "cli"
+                    status["cli_output"] = cli_result["cli_output"]
+                    status["error"] = cli_result["error"]
+                    status["uri_used"] = ""  # No URI used in CLI method
+                    # Leave other fields as initialized (None/False) since we didn't check URI-specific conditions
+                    return status
+                # If CLI method fails, fall through to URI method below
     
-    if is_installed and is_enabled:
-        newpane_enabled = check_newpane_setting(vault_path)
-        status["plugin_newpane_setting_enabled"] = newpane_enabled
-        status["new_tab_possible"] = new_tab and newpane_enabled
-        if new_tab and newpane_enabled:
-            status["method_used"] = "advanced-uri-newtab"
+    # If we get here, either vault not found, CLI not available/responsive, 
+    # vault not open, or CLI method failed.
+    # Proceed with URI method (original logic)
+    # Reset URI-specific status fields
+    status["advanced_uri_plugin_installed"] = None
+    status["advanced_uri_plugin_enabled"] = None
+    status["plugin_newpane_setting_enabled"] = None
+    status["new_tab_possible"] = None
+    status["method_used"] = None
+    status["uri_used"] = ""
+    
+    if status["vault_found"] and status["note_found"]:
+        is_installed, is_enabled = check_advanced_uri_plugin(vault_path)
+        status["advanced_uri_plugin_installed"] = is_installed
+        status["advanced_uri_plugin_enabled"] = is_enabled
+        
+        if is_installed and is_enabled:
+            newpane_enabled = check_newpane_setting(vault_path)
+            status["plugin_newpane_setting_enabled"] = newpane_enabled
+            status["new_tab_possible"] = new_tab and newpane_enabled
+            if new_tab and newpane_enabled:
+                status["method_used"] = "advanced-uri-newtab"
+            else:
+                # Plugin present but new_tab=False or newpane setting off:
+                # use Advanced URI without newpane — this focuses the existing tab
+                # if the file is already open, which obsidian://open does NOT do.
+                status["method_used"] = "advanced-uri-focus"
         else:
-            # Plugin present but new_tab=False or newpane setting off:
-            # use Advanced URI without newpane — this focuses the existing tab
-            # if the file is already open, which obsidian://open does NOT do.
-            status["method_used"] = "advanced-uri-focus"
-    else:
-        status["new_tab_possible"] = False
-        status["method_used"] = "standard"
-    
-    try:
-        vault_name_quoted = urllib.parse.quote(vault_name)
-        # Advanced URI plugin's `filepath` parameter requires the path separators
-        # to be encoded as %2F — use safe='' to encode forward slashes.
-        note_path_quoted_filepath = urllib.parse.quote(note_path, safe='')
-        # Standard obsidian:// `file` parameter accepts unencoded slashes.
-        note_path_quoted_file = urllib.parse.quote(note_path)
+            status["new_tab_possible"] = False
+            status["method_used"] = "standard"
         
-        if status["method_used"] == "advanced-uri-newtab":
-            uri = f"obsidian://adv-uri?vault={vault_name_quoted}&filepath={note_path_quoted_filepath}&newpane=true"
-        elif status["method_used"] == "advanced-uri-focus":
-            # Focuses the existing open tab for this file, or opens in the current pane.
-            # Does NOT create a duplicate tab.
-            uri = f"obsidian://adv-uri?vault={vault_name_quoted}&filepath={note_path_quoted_filepath}"
-        else:  # standard — fallback when Advanced URI plugin is not installed
-            uri = f"obsidian://open?vault={vault_name_quoted}&file={note_path_quoted_file}"
-        
-        status["uri_used"] = uri
-    except Exception as e:
-        print(f"Error building URI: {e}")
-    
-    if status["note_found"] and status["uri_used"]:
         try:
-            uri = status["uri_used"]
-            print(f'Firing URI ({status["method_used"]}): {uri}')
-            if os.name == 'nt':  # Windows
-                # os.startfile is the most reliable way to open a custom URI
-                # handler on Windows — it goes through the ShellExecute API
-                # directly, which is what Explorer uses and avoids the
-                # intermediate cmd.exe process that can silently drop the call.
-                os.startfile(uri)
-            elif os.name == 'posix':  # macOS or Linux
-                if Path('/proc/version').exists() and 'microsoft' in Path('/proc/version').read_text().lower():
-                    subprocess.run(['cmd.exe', '/c', 'start', '', uri], capture_output=True, check=False)  # it's Linux but WSL
-                elif Path('/System').exists():  # macOS
-                    subprocess.run(['open', uri])
-                else:  # Linux
-                    subprocess.run(['xdg-open', uri])
+            vault_name_quoted = urllib.parse.quote(vault_name)
+            # Advanced URI plugin's `filepath` parameter requires the path separators
+            # to be encoded as %2F — use safe='' to encode forward slashes.
+            note_path_quoted_filepath = urllib.parse.quote(note_path, safe='')
+            # Standard obsidian:// `file` parameter accepts unencoded slashes.
+            note_path_quoted_file = urllib.parse.quote(note_path)
+            
+            if status["method_used"] == "advanced-uri-newtab":
+                uri = f"obsidian://adv-uri?vault={vault_name_quoted}&filepath={note_path_quoted_filepath}&newpane=true"
+            elif status["method_used"] == "advanced-uri-focus":
+                # Focuses the existing open tab for this file, or opens in the current pane.
+                # Does NOT create a duplicate tab.
+                uri = f"obsidian://adv-uri?vault={vault_name_quoted}&filepath={note_path_quoted_filepath}"
+            else:  # standard — fallback when Advanced URI plugin is not installed
+                uri = f"obsidian://open?vault={vault_name_quoted}&file={note_path_quoted_file}"
+            
+            status["uri_used"] = uri
         except Exception as e:
-            print(f"Error opening URI: {e}")
+            print(f"Error building URI: {e}")
+        
+        if status["note_found"] and status["uri_used"]:
+            try:
+                uri = status["uri_used"]
+                print(f'Firing URI ({status["method_used"]}): {uri}')
+                if os.name == 'nt':  # Windows
+                    # os.startfile is the most reliable way to open a custom URI
+                    # handler on Windows — it goes through the ShellExecute API
+                    # directly, which is what Explorer uses and avoids the
+                    # intermediate cmd.exe process that can silently drop the call.
+                    os.startfile(uri)
+                elif os.name == 'posix':  # macOS or Linux
+                    if Path('/proc/version').exists() and 'microsoft' in Path('/proc/version').read_text().lower():
+                        subprocess.run(['cmd.exe', '/c', 'start', '', uri], capture_output=True, check=False)  # it's Linux but WSL
+                    elif Path('/System').exists():  # macOS
+                        subprocess.run(['open', uri])
+                    else:  # Linux
+                        subprocess.run(['xdg-open', uri])
+            except Exception as e:
+                print(f"Error opening URI: {e}")
     
     return status
 
