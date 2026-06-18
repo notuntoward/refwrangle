@@ -36,6 +36,97 @@ def yaml_escape(value: str) -> str:
     escaped = value.replace("\\", "\\\\")
     escaped = escaped.replace('"', '\\"')
     return escaped
+
+
+def attachment_path_value(attachment: object) -> str:
+    """Return the path field from a Zotero attachment dict/object."""
+    if isinstance(attachment, dict):
+        return str(attachment.get("path", "") or "")
+    return str(getattr(attachment, "path", "") or "")
+
+
+def basename_for_markdown_link(file_path: str) -> str:
+    """Return the basename used in Obsidian attachment links.
+
+    Matches the existing Jinja basename macro behavior by normalizing Windows
+    separators to forward slashes and taking the final path component.
+    """
+    return file_path.replace("\\", "/").split("/")[-1]
+
+
+def build_info_callout_links(item: dict) -> str:
+    """Build the [!info] callout title links outside Jinja.
+
+    Keeping loops/conditionals off the callout title line avoids Jinja
+    trim_blocks/lstrip_blocks whitespace collapsing, which can concatenate the
+    next blockquote line into the callout title (for example, making
+    "Abstract" visible in the title instead of hidden in the folded body).
+    """
+    links = [f"[**Zotero**]({item.get('desktopURI', '')})"]
+
+    doi = item.get("DOI")
+    if doi:
+        links.append(f"[**DOI**](https://doi.org/{doi})")
+
+    url = item.get("url")
+    if url:
+        links.append(f"[**URL**]({url})")
+
+    attachment_labels = {
+        ".pdf": "PDF",
+        ".html": "HTM",
+        ".docx": "DOC",
+        ".pptx": "PPT",
+        ".epub": "EPUB",
+        ".txt": "TXT",
+    }
+    for attachment in item.get("attachments", []) or []:
+        attachment_path = attachment_path_value(attachment)
+        attachment_path_lower = attachment_path.lower()
+        for suffix, label in attachment_labels.items():
+            if attachment_path_lower.endswith(suffix):
+                basename = basename_for_markdown_link(attachment_path)
+                links.append(f"**[[{basename}|{label}]]**")
+                break
+
+    return " | ".join(links)
+
+
+def creator_display_name(creator: dict) -> str:
+    """Return the display name for one Zotero creator dict."""
+    if creator.get("name"):
+        return str(creator["name"])
+    last_name = str(creator.get("lastName", "") or "").strip()
+    first_name = str(creator.get("firstName", "") or "").strip()
+    if last_name and first_name:
+        return f"{last_name}, {first_name}"
+    return last_name or first_name
+
+
+def build_info_callout_prefix(item: dict) -> str:
+    """Build optional quoted lines before standard metadata in the info callout."""
+    lines: list[str] = []
+
+    abstract = str(item.get("abstractNote", "") or "").strip()
+    if abstract:
+        abstract = abstract.replace("\\n", " ").replace("\n", " ")
+        lines.extend([">", "> **Abstract**", f"> {abstract}", ">"])
+
+    creators = item.get("creators", []) or []
+    grouped_creators: dict[str, list[str]] = {}
+    for creator in creators:
+        creator_type = str(creator.get("creatorType", "creator") or "creator")
+        display_name = creator_display_name(creator)
+        if display_name:
+            grouped_creators.setdefault(creator_type, []).append(display_name)
+
+    if grouped_creators:
+        lines.append(">")
+        for creator_type, names in grouped_creators.items():
+            lines.append(f"> **{creator_type.capitalize()}**:: {', '.join(names)}")
+        lines.append(">")
+
+    return "\n".join(lines) + ("\n" if lines else "")
 from waitress import serve  # type: ignore
 import open_obsidian_note as onu
 
@@ -286,16 +377,8 @@ created date: {{ exportDate | yaml_escape }}
 modified date:
 ---
 
-> [!info]- &nbsp;[**Zotero**]({{ desktopURI }}) {% if DOI %} | [**DOI**](https://doi.org/{{ DOI }}){% endif %}{% if url %} | [**URL**]({{ url }}){% endif %}{% for attachment in attachments if attachment.path.endswith(".pdf") %} | **[[{{ basename(attachment.path) }}|PDF]]**{% endfor %}{% for attachment in attachments if attachment.path.endswith(".html") %} | **[[{{ basename(attachment.path) }}|HTM]]**{% endfor %}{% for attachment in attachments if attachment.path.endswith(".docx") %} | **[[{{ basename(attachment.path) }}|DOC]]**{% endfor %}{% for attachment in attachments if attachment.path.endswith(".pptx") %} | **[[{{ basename(attachment.path) }}|PPT]]**{% endfor %}{% for attachment in attachments if attachment.path.endswith(".epub") %} | **[[{{ basename(attachment.path) }}|EPUB]]**{% endfor %}{% for attachment in attachments if attachment.path.endswith(".txt") %} | **[[{{ basename(attachment.path) }}|TXT]]**{% endfor %}
-{% if abstractNote %}
-> **Abstract**
-> {{ abstractNote.replace("\\n"," ") }}{% endif %}
-
-{% for type, creators in creators|groupby("creatorType") %}
-> **{{ type.capitalize() }}**::{% for creator in creators %}{% if creator.name %} {{ creator.name }}{% else %} {{ creator.lastName }}, {{ creator.firstName }}{% endif %}{% if not loop.last %}, {% endif %}{% endfor %}
-{% endfor %}
-{{ "" }}
-> **Title**:: "{{ title }}"
+> [!info]- &nbsp;{{ infoCalloutLinks }}
+{{ infoCalloutPrefix }}> **Title**:: "{{ title }}"
 > **Date**:: {{ date }}
 > **Citekey**:: {{ citekey }}
 > **ZoteroItemKey**:: {{ itemkey }}
@@ -325,11 +408,9 @@ ___
 {% if notes|length > 0 %}
 > [!note]- &nbsp;Zotero Note ({{ notes|length }})
 >
-{%- for note in notes -%}
->{{ note.replace("# ", "### ").replace("\\n", "\\n> ")}}
->{{ note.tags | map(attribute='tag') | join(', ') }}
----
-{%- endfor -%}
+{% for note in notes %}
+> {{ note.replace("# ", "### ").replace("\n", "\n> ") }}
+{% endfor %}
 {% endif %}
 """
 
@@ -1072,6 +1153,8 @@ def write_obsidian_md_note(items: list, request_id: str) -> list:
             md_note = zotero_note_html_to_md(note_html)
             notes_md.append(md_note)
         item["notes"] = notes_md
+        item["infoCalloutLinks"] = build_info_callout_links(item)
+        item["infoCalloutPrefix"] = build_info_callout_prefix(item)
 
         # all item data to markdown
         env = Environment(trim_blocks=True, lstrip_blocks=True)
