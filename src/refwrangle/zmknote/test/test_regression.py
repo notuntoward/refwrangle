@@ -691,3 +691,408 @@ class TestStartupCliCheckNonBlocking:
             f"serve() (line {min(serve_lines)}) must appear after Thread.start() "
             f"(line {min(thread_start_lines)})"
         )
+
+
+# ===========================================================================
+# 7. Callout builders + template rendering for the Zotero literature note.
+#
+# These tests guard against the bug where the [!info] callout's title line
+# was concatenated with the "Abstract" / "Author" lines (because Jinja
+# trim_blocks stripped the newline between them), causing "Abstract" to show
+# up in the folded callout title instead of inside the hidden body.
+#
+# They also guard the [!note] callout where Zotero note content used to
+# leak outside the callout because {%- for note in notes -%} ate the
+# surrounding newlines and the broken `note.tags` reference would crash.
+# ===========================================================================
+
+def _import_receiver_with_real_jinja():
+    """Import the receiver module with the real jinja2 available.
+
+    The default `_import_receiver()` helper installs a MagicMock `jinja2`
+    stub so the module can be imported without the real dependency. For
+    template-rendering tests we need jinja2 to actually parse, render, and
+    apply trim_blocks/lstrip_blocks — so we install stubs for every other
+    heavy side-effect (flask, waitress, tkinter, bs4) but leave the real
+    jinja2 in place.
+    """
+    import importlib
+
+    # Drop any stubbed modules so we can install fresh, minimal stubs.
+    for name in (
+        "flask", "waitress", "tkinter", "tkinter.messagebox",
+        "bs4", "bs4.element",
+        "zotero_to_obsidian_note_receiver", "open_obsidian_note",
+    ):
+        sys.modules.pop(name, None)
+
+    _ensure_stubs()
+
+    # Re-stub bs4 as a MagicMock (the _ensure_stubs default stubs bs4).
+    # We need the *real* jinja2 to be importable, so make sure it's not
+    # replaced with a MagicMock stub.
+    sys.modules.pop("jinja2", None)
+    import jinja2 as _real_jinja2  # noqa: F401  (real package import)
+
+    # open_obsidian_note must be the *real* module.
+    import open_obsidian_note  # noqa: F401
+    return importlib.import_module("zotero_to_obsidian_note_receiver")
+
+
+class TestCalloutBuilders:
+    """Unit tests for the pure-Python callout builder helpers.
+
+    These functions were added when the Jinja template stopped building the
+    [!info] callout title/body inline, to keep callout whitespace safe from
+    trim_blocks / lstrip_blocks collapse bugs.
+    """
+
+    @pytest.fixture(autouse=True)
+    def _receiver(self):
+        self.r = _import_receiver_with_real_jinja()
+
+    # --- creator_display_name -------------------------------------------------
+
+    def test_creator_uses_name_field_when_present(self):
+        assert self.r.creator_display_name(
+            {"creatorType": "author", "name": "Some Institution"}
+        ) == "Some Institution"
+
+    def test_creator_combines_last_and_first(self):
+        assert self.r.creator_display_name(
+            {"creatorType": "author", "lastName": "Rowland", "firstName": "Christopher"}
+        ) == "Rowland, Christopher"
+
+    def test_creator_handles_missing_first_name(self):
+        assert self.r.creator_display_name(
+            {"creatorType": "editor", "lastName": "Smith"}
+        ) == "Smith"
+
+    def test_creator_handles_missing_last_name(self):
+        assert self.r.creator_display_name(
+            {"creatorType": "editor", "firstName": "Bob"}
+        ) == "Bob"
+
+    def test_creator_handles_empty_fields(self):
+        assert self.r.creator_display_name(
+            {"creatorType": "editor", "lastName": "", "firstName": ""}
+        ) == ""
+
+    # --- build_info_callout_links --------------------------------------------
+
+    def test_links_only_contains_zotero_when_nothing_else(self):
+        out = self.r.build_info_callout_links(
+            {"desktopURI": "zotero://select/library/items/X", "DOI": "", "url": "", "attachments": []}
+        )
+        assert out == "[**Zotero**](zotero://select/library/items/X)"
+
+    def test_links_includes_doi_when_present(self):
+        out = self.r.build_info_callout_links(
+            {"desktopURI": "zotero://x", "DOI": "10.1234/abc", "url": "", "attachments": []}
+        )
+        assert "[**DOI**](https://doi.org/10.1234/abc)" in out
+
+    def test_links_includes_url_when_present(self):
+        out = self.r.build_info_callout_links(
+            {"desktopURI": "zotero://x", "DOI": "", "url": "https://example.com", "attachments": []}
+        )
+        assert "[**URL**](https://example.com)" in out
+
+    def test_links_joins_with_pipe_separator(self):
+        out = self.r.build_info_callout_links(
+            {"desktopURI": "zotero://x", "DOI": "10.1/x", "url": "https://e.com", "attachments": []}
+        )
+        assert out.count(" | ") == 2  # Zotero | DOI | URL
+
+    @pytest.mark.parametrize("suffix,label", [
+        (".pdf", "PDF"), (".html", "HTM"), (".docx", "DOC"),
+        (".pptx", "PPT"), (".epub", "EPUB"), (".txt", "TXT"),
+    ])
+    def test_links_includes_attachment_for_known_suffix(self, suffix, label):
+        item = {
+            "desktopURI": "zotero://x", "DOI": "", "url": "",
+            "attachments": [{"path": f"MyPaper{suffix}"}],
+        }
+        out = self.r.build_info_callout_links(item)
+        assert f"[[MyPaper{suffix}|{label}]]" in out, f"Missing {label} link in: {out!r}"
+
+    def test_links_ignores_unknown_attachment_suffix(self):
+        item = {
+            "desktopURI": "zotero://x", "DOI": "", "url": "",
+            "attachments": [{"path": "MyPaper.xyz"}],
+        }
+        out = self.r.build_info_callout_links(item)
+        assert "xyz" not in out
+        assert "MyPaper" not in out
+
+    def test_links_handles_attachment_with_object_attrs(self):
+        """Attachments can arrive as dicts or objects; both must work."""
+        class Att:
+            path = "Foo.html"
+        item = {
+            "desktopURI": "zotero://x", "DOI": "", "url": "", "attachments": [Att()],
+        }
+        out = self.r.build_info_callout_links(item)
+        assert "[[Foo.html|HTM]]" in out
+
+    def test_links_basename_strips_windows_separators(self):
+        item = {
+            "desktopURI": "zotero://x", "DOI": "", "url": "",
+            "attachments": [{"path": "C:\\foo\\bar.html"}],
+        }
+        out = self.r.build_info_callout_links(item)
+        assert "[[bar.html|HTM]]" in out
+        # No backslash or forward slash from the path inside the link
+        assert "[[bar.html|HTM]]**" in out
+
+    # --- build_info_callout_prefix -------------------------------------------
+
+    def test_prefix_empty_when_no_abstract_no_creators(self):
+        out = self.r.build_info_callout_prefix({"abstractNote": "", "creators": []})
+        assert out == ""
+
+    def test_prefix_empty_when_abstract_whitespace_only(self):
+        out = self.r.build_info_callout_prefix({"abstractNote": "   \n  ", "creators": []})
+        assert out == ""
+
+    def test_prefix_contains_abstract_block(self):
+        out = self.r.build_info_callout_prefix({"abstractNote": "An abstract.", "creators": []})
+        # Must include the Abstract label and the abstract text, each on a
+        # quoted line, with bare-quoted spacer lines around them.
+        assert "> **Abstract**" in out
+        assert "> An abstract." in out
+        # Spacer quoted-blank lines around the block
+        assert out.startswith(">\n")
+        assert out.endswith(">\n")
+
+    def test_prefix_groups_creators_by_type(self):
+        item = {"abstractNote": "", "creators": [
+            {"creatorType": "author", "lastName": "Smith", "firstName": "A"},
+            {"creatorType": "author", "lastName": "Jones", "firstName": "B"},
+            {"creatorType": "editor", "lastName": "Ed", "firstName": None},
+        ]}
+        out = self.r.build_info_callout_prefix(item)
+        assert "> **Author**:: Smith, A, Jones, B" in out
+        assert "> **Editor**:: Ed" in out
+
+    def test_prefix_strips_embedded_newlines_from_abstract(self):
+        out = self.r.build_info_callout_prefix({
+            "abstractNote": "Line 1.\nLine 2.\nLine 3.", "creators": [],
+        })
+        # Newlines in the abstract must be replaced with spaces so they
+        # don't break the callout body.
+        assert "Line 1. Line 2. Line 3." in out
+        assert "\nLine 2." not in out  # no unquoted continuation lines
+
+    def test_prefix_combines_abstract_then_creators_with_separator(self):
+        out = self.r.build_info_callout_prefix({
+            "abstractNote": "An abstract.",
+            "creators": [{"creatorType": "author", "lastName": "Smith", "firstName": "A"}],
+        })
+        # Abstract block first, then a quoted blank, then the creator block,
+        # then a trailing quoted blank.
+        assert "> **Abstract**" in out
+        assert "> An abstract." in out
+        assert "> **Author**:: Smith, A" in out
+        # Abstract section must come before the author section
+        assert out.index("> **Abstract**") < out.index("> **Author**")
+
+
+class TestCalloutTemplateRendering:
+    """Render the real template and assert the markdown is correctly quoted.
+
+    These are the regressions that motivated moving callout construction out
+    of Jinja. They would have failed against the previous template.
+    """
+
+    @pytest.fixture(autouse=True)
+    def _receiver(self):
+        self.r = _import_receiver_with_real_jinja()
+
+    def _render(self, **overrides):
+        """Render the template with a minimal valid item context."""
+        import jinja2 as real_jinja2
+        env = real_jinja2.Environment(trim_blocks=True, lstrip_blocks=True)
+        env.filters["yaml_escape"] = self.r.yaml_escape
+        template = env.from_string(self.r.template_str)
+        item = dict(
+            title="A test title",
+            citekey="test24",
+            tags=[],
+            collections=[],
+            exportDate="2024-01-01",
+            desktopURI="zotero://select/library/items/X",
+            DOI="",
+            url="",
+            attachments=[],
+            abstractNote="",
+            creators=[],
+            date="2024",
+            itemkey="X",
+            itemType="book",
+            publicationTitle="",
+            volume="",
+            issue="",
+            publisher="",
+            place="",
+            pages="",
+            ISBN="",
+            allTags=[],
+            relations=[],
+            bibliography="",
+            notes=[],
+        )
+        item.update(overrides)
+        # Build the prefix/links exactly the way write_obsidian_md_note does.
+        item["infoCalloutLinks"] = self.r.build_info_callout_links(item)
+        item["infoCalloutPrefix"] = self.r.build_info_callout_prefix(item)
+        return template.render(**item)
+
+    def _info_callout_block(self, rendered):
+        """Extract the [!info] callout lines from rendered markdown."""
+        lines = rendered.splitlines()
+        start = next(i for i, ln in enumerate(lines) if "[!info]-" in ln)
+        end = next(
+            i for i in range(start + 1, len(lines))
+            if lines[i].strip() == "" and (i + 1 >= len(lines) or not lines[i + 1].startswith(">"))
+        )
+        return lines[start:end]
+
+    # --- [!info] title line ---------------------------------------------------
+
+    def test_info_title_line_is_a_single_line(self):
+        """The [!info] title must be a single line; no Abstract/Author bleed-in."""
+        out = self._render(abstractNote="Abstract body here.")
+        info = self._info_callout_block(out)
+        title_line = next(ln for ln in info if ln.startswith("> [!info]-"))
+        # Must NOT contain Abstract label
+        assert "Abstract" not in title_line, (
+            f"Abstract leaked into title line: {title_line!r}"
+        )
+        # Must NOT contain Author label
+        assert "**Author**" not in title_line
+
+    def test_info_title_line_does_not_end_with_quote_marker(self):
+        """The title line must not end with a stray '>' that would merge
+        with the next body line if a renderer is line-blind."""
+        out = self._render(abstractNote="Abstract body here.")
+        info = self._info_callout_block(out)
+        title_line = next(ln for ln in info if ln.startswith("> [!info]-"))
+        assert not title_line.rstrip().endswith(">"), (
+            f"Title line ends with '>': {title_line!r}"
+        )
+
+    def test_info_title_does_not_have_double_blockquote_marker(self):
+        """No '>>' anywhere on the title line (the old '>> **Abstract**' bug)."""
+        out = self._render(
+            abstractNote="Abstract body here.",
+            creators=[{"creatorType": "author", "lastName": "S", "firstName": "A"}],
+        )
+        info = self._info_callout_block(out)
+        title_line = next(ln for ln in info if ln.startswith("> [!info]-"))
+        assert ">>" not in title_line, f"Double blockquote in title: {title_line!r}"
+
+    def test_info_body_lines_are_quoted_until_metadata_starts(self):
+        """Every line between the title and the metadata block must start with '> '."""
+        out = self._render(abstractNote="Abstract body here.")
+        info = self._info_callout_block(out)
+        for line in info:
+            assert line.startswith(">"), (
+                f"Unquoted line inside callout: {line!r}"
+            )
+
+    # --- abstract body --------------------------------------------------------
+
+    def test_abstract_appears_on_its_own_quoted_line(self):
+        out = self._render(abstractNote="The abstract content.")
+        info = self._info_callout_block(out)
+        assert "> **Abstract**" in info
+        assert "> The abstract content." in info
+
+    def test_abstract_is_separate_line_from_title(self):
+        """Regression: previously Abstract was concatenated onto the title line."""
+        out = self._render(abstractNote="The abstract content.")
+        info = self._info_callout_block(out)
+        title_idx = next(i for i, ln in enumerate(info) if "[!info]-" in ln)
+        abstract_idx = info.index("> **Abstract**")
+        assert abstract_idx > title_idx
+        assert abstract_idx == title_idx + 2, (
+            f"Abstract must be exactly 2 lines after title (with blank quoted line); "
+            f"got indices {title_idx} -> {abstract_idx}"
+        )
+
+    # --- creator body ---------------------------------------------------------
+
+    def test_creator_appears_on_its_own_quoted_line(self):
+        out = self._render(
+            creators=[{"creatorType": "author", "lastName": "Smith", "firstName": "A"}]
+        )
+        info = self._info_callout_block(out)
+        assert any("**Author**:: Smith, A" in ln for ln in info)
+
+    def test_creator_not_concatenated_with_metadata(self):
+        """Regression: Author used to get joined with the Title metadata line."""
+        out = self._render(
+            creators=[{"creatorType": "author", "lastName": "Smith", "firstName": "A"}]
+        )
+        for line in out.splitlines():
+            assert ":: Smith, A> **Title**" not in line, (
+                f"Creator concatenated with metadata: {line!r}"
+            )
+
+    # --- no abstract / no creator (minimal item) ------------------------------
+
+    def test_no_abstract_no_creators_still_properly_quoted(self):
+        out = self._render()
+        info = self._info_callout_block(out)
+        title_idx = next(i for i, ln in enumerate(info) if "[!info]-" in ln)
+        # The next line in the callout should be the Title metadata line
+        # (no unquoted blank line in between).
+        assert info[title_idx + 1] == "> **Title**:: \"A test title\"", (
+            f"Expected Title on line right after title; got: {info[title_idx + 1]!r}"
+        )
+
+    # --- attachment links in title -------------------------------------------
+
+    def test_attachment_html_link_is_in_title(self):
+        out = self._render(attachments=[{"path": "MyPaper.html"}])
+        info = self._info_callout_block(out)
+        title_line = next(ln for ln in info if "[!info]-" in ln)
+        assert "[[MyPaper.html|HTM]]" in title_line
+
+    # --- notes callout --------------------------------------------------------
+
+    def test_notes_callout_title_does_not_include_note_text(self):
+        out = self._render(notes=["Some note content.\nLine two."])
+        # The [!note] title line should be clean
+        lines = out.splitlines()
+        note_title_idx = next(i for i, ln in enumerate(lines) if "[!note]-" in ln)
+        title_line = lines[note_title_idx]
+        assert "Some note content" not in title_line
+        assert "Line two" not in title_line
+
+    def test_notes_callout_body_lines_are_quoted(self):
+        out = self._render(notes=["Some note content.\nLine two.", "Second note."])
+        lines = out.splitlines()
+        note_title_idx = next(i for i, ln in enumerate(lines) if "[!note]-" in ln)
+        # Collect consecutive lines starting with '>' after the title
+        body = []
+        for ln in lines[note_title_idx + 1:]:
+            if not ln.startswith(">"):
+                break
+            body.append(ln)
+        assert "> Some note content." in body
+        assert "> Line two." in body
+        assert "> Second note." in body
+
+    def test_notes_callout_no_external_horizontal_rule_after_title(self):
+        """A bare '---' after the [!note] title would close the callout and
+        render as a horizontal rule. Verify the line right after the title
+        is a quoted blank, not an unquoted '---'."""
+        out = self._render(notes=["Some note."])
+        lines = out.splitlines()
+        note_title_idx = next(i for i, ln in enumerate(lines) if "[!note]-" in ln)
+        # Next line should be ">", not "---"
+        assert lines[note_title_idx + 1] == ">", (
+            f"Expected '>' after notes title, got: {lines[note_title_idx + 1]!r}"
+        )
