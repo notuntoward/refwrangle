@@ -1,15 +1,28 @@
 // Regenerate BibTeX keys for all selected items in Zotero.
-// Requires the Better BibTeX plugin.
+// Requires the Better BibTeX. plugin.
 // Will overwrite pinned keys.
-// Selected items are passed via the `items` variable by the host plugin.
 
+// Regenerate BibTeX key for selected items (Better BibTeX)
 await Zotero.BetterBibTeX.ready;
 
-if (!items || !items.length) {
+const items = Zotero.getActiveZoteroPane().getSelectedItems();
+if (!items.length) {
   return;
 }
 
-// Pass concrete IDs to avoid BBT's internal call that triggers the warning
-const ids = Array.isArray(items) ? items.map(i => i.id) : [items.id];
-await Zotero.BetterBibTeX.KeyManager.fill(ids, { replace: true });
+for (const item of items) {
+  if (!item.isRegularItem()) continue;
 
+  // Remove any pinned citation key from the Extra field
+  const extra = item.getField('extra') || '';
+  const newExtra = extra
+    .split('\n')
+    .filter(line => !/^citation key\s*:/i.test(line))
+    .join('\n')
+    .trim();
+  item.setField('extra', newExtra);
+  await item.saveTx();
+}
+
+// Now trigger BBT to regenerate keys for selected items
+Zotero.BetterBibTeX.KeyManager.refresh('selected', true);
