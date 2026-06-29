@@ -17,6 +17,24 @@ const RECEIVER_RESPONSE_WAIT_TIMEOUT_SECS = 60 // seconds
 const RECEIVER_PROGRAM_NAME = "'zotero_to_obsidian_note_receiver'"
 
 /**
+ * Returns an ISO 8601-like string for a date in the local system timezone.
+ * Unlike Date.prototype.toISOString(), this preserves local time and appends
+ * the actual timezone offset rather than converting to UTC.
+ *
+ * @param {Date} [date=new Date()] - The date to format
+ * @returns {string}
+ */
+function localISOString(date = new Date()) {
+    const pad = n => String(n).padStart(2, '0');
+    const offset = -date.getTimezoneOffset();
+    const sign = offset >= 0 ? '+' : '-';
+    const abs = Math.abs(offset);
+    return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}` +
+           `T${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}` +
+           `${sign}${pad(Math.floor(abs / 60))}:${pad(abs % 60)}`;
+}
+
+/**
  * Validates a citation key for use as a filename across Windows, macOS, and Linux.
  * Returns an object with 'valid' boolean and 'reason' string if invalid.
  * 
@@ -364,7 +382,7 @@ try {
             bibliography: bibliography,
             tags: tags,
             collections: collectionNames,
-            exportDate: new Date().toLocaleString(),
+            exportDate: localISOString(),
             desktopURI: `zotero://select/library/items/${itemkey}`,
             DOI: itemData.DOI || '',
             url: itemData.url || '',

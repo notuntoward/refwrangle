@@ -65,10 +65,12 @@ function extractFunction(source, fnName) {
 // ---------------------------------------------------------------------------
 let newSenderSource
 let validateCitationKey
+let localISOString
 
 beforeAll(() => {
   newSenderSource = readFileSync(resolve(SRC_DIR, 'new_obsidian_note_sender.js'), 'utf8')
   validateCitationKey = extractFunction(newSenderSource, 'validateCitationKey')
+  localISOString = extractFunction(newSenderSource, 'localISOString')
 })
 
 // ===========================================================================
@@ -213,6 +215,55 @@ describe('validateCitationKey', () => {
     expect(result.reason).toMatch(/CTRL-00/i)
     // Must NOT use the old hardcoded label
     expect(result.reason).not.toContain('NULL')
+  })
+})
+
+// ===========================================================================
+// localISOString — new_obsidian_note_sender.js
+// ===========================================================================
+
+describe('localISOString', () => {
+  // Helper to compute the expected local-ISO string using the same source of
+  // truth as the implementation (the Date object's local getters and offset).
+  function expectedLocalISOString(date) {
+    const pad = n => String(n).padStart(2, '0')
+    const offset = -date.getTimezoneOffset()
+    const sign = offset >= 0 ? '+' : '-'
+    const abs = Math.abs(offset)
+    return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}` +
+           `T${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}` +
+           `${sign}${pad(Math.floor(abs / 60))}:${pad(abs % 60)}`
+  }
+
+  it('formats a date in local time with the correct offset', () => {
+    const date = new Date('2024-06-15T10:30:45-07:00')
+    expect(localISOString(date)).toBe(expectedLocalISOString(date))
+  })
+
+  it('pads single-digit month/day/hour/minute/second', () => {
+    const date = new Date(2024, 0, 5, 8, 5, 9)
+    expect(localISOString(date)).toBe(expectedLocalISOString(date))
+  })
+
+  it('defaults to the current date when called with no arguments', () => {
+    const before = Date.now()
+    const result = localISOString()
+    const after = Date.now()
+    expect(result).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}[+-]\d{2}:\d{2}$/)
+    const parsed = Date.parse(result)
+    // Allow one second of slack because the result is truncated to whole seconds.
+    expect(parsed).toBeGreaterThanOrEqual(before - 1000)
+    expect(parsed).toBeLessThanOrEqual(after)
+  })
+
+  it('formats a date that is east of UTC relative to the local offset', () => {
+    const date = new Date('2024-12-25T15:00:00+09:00')
+    expect(localISOString(date)).toBe(expectedLocalISOString(date))
+  })
+
+  it('formats a date that is west of UTC relative to the local offset', () => {
+    const date = new Date('2024-12-25T15:00:00-03:00')
+    expect(localISOString(date)).toBe(expectedLocalISOString(date))
   })
 })
 
