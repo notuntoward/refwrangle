@@ -1211,8 +1211,25 @@ def write_obsidian_md_note(items: list, request_id: str) -> list:
                 # New note: open in a fresh tab via CLI (reliable, no file-watcher lag).
                 open_note_in_new_tab(citekey, request_id, new_tab=True)
             else:
-                # Overwrite: focus the existing tab if the note is already open;
-                # otherwise open the note in a new tab.
+                # Overwrite: focus the existing tab if the note is already open,
+                # otherwise open it in a new tab.
+                #
+                # These two cases need different methods:
+                # - Already open -> use the Advanced URI plugin (prefer_uri=True),
+                #   which explicitly searches leaves for the file and focuses it
+                #   without duplicating. The raw CLI `open` (without newtab) does
+                #   NOT search existing tabs; it just reuses the most-recently-used
+                #   pane, which is unreliable for "focus the tab that already has
+                #   this file".
+                # - Not open -> use the CLI's `newtab` flag (prefer_uri=False),
+                #   which reliably creates an actual new tab regardless of the
+                #   Advanced URI plugin's "Open file without write in new pane"
+                #   setting. When that setting is off (e.g. plugin never
+                #   configured), Advanced URI's new-tab mode silently falls back
+                #   to its focus mode, which hijacks whatever pane is currently
+                #   active instead of creating a new tab — this caused notes to
+                #   overwrite each other's tabs in a chain when opening multiple
+                #   notes that were not already open.
                 note_already_open = onu.is_note_open_in_obsidian(
                     str(notepath_in_vault), OS_PATH_TO_VAULT_ROOT
                 )
@@ -1220,7 +1237,7 @@ def write_obsidian_md_note(items: list, request_id: str) -> list:
                     citekey,
                     request_id,
                     new_tab=not note_already_open,
-                    prefer_uri=True,
+                    prefer_uri=note_already_open,
                 )
 
             logger.info(f"[{request_id}] Completed item: {citekey=}, {itemkey=}")
