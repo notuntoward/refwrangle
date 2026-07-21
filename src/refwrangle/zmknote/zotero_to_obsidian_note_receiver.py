@@ -939,7 +939,8 @@ def show_cli_unavailable_popup(failure_reason: str) -> None:
             "Obsidian CLI Not Responding",
             "The Obsidian CLI was found but is not responding.\n\n"
             "To fix this:\n"
-            "  In Obsidian: Settings → General → click 'Register CLI' again.\n"
+            "  In Obsidian: Settings → General → toggle 'Command line interface'" 
+            "→ click 'Register' again.\n"
             "  Then restart this receiver script."
         ),
         "obsidian_not_running": (
@@ -1040,8 +1041,8 @@ def open_note_in_new_tab(
                 else:
                     logger.warning(f"[{request_id}] CLI open failed: {cli_result['error']} — "
                                    f"falling back to URI method.")
-                    # Fallback: original URI method
-                    status = onu.open_obsidian_note(notepath_vault, OS_PATH_TO_VAULT_ROOT, new_tab=new_tab)
+                    # Fallback: original URI method (skip CLI, already tried it above)
+                    status = onu.open_obsidian_note(notepath_vault, OS_PATH_TO_VAULT_ROOT, new_tab=new_tab, prefer_uri=True)
                     message_tail = f"({citekey}): {status=})"
                     if not (
                         status["note_found"]
@@ -1059,12 +1060,12 @@ def open_note_in_new_tab(
                 # CLI not available or URI preferred — use URI method
                 reason = "prefer_uri=True" if prefer_uri else f"CLI not available ({effective_cli_check['failure_reason']})"
                 logger.info(f"[{request_id}] Using URI method ({reason}).")
-                status = onu.open_obsidian_note(notepath_vault, OS_PATH_TO_VAULT_ROOT, new_tab=new_tab)
+                status = onu.open_obsidian_note(notepath_vault, OS_PATH_TO_VAULT_ROOT, new_tab=new_tab, prefer_uri=prefer_uri)
                 message_tail = f"({citekey}): {status=})"
                 if not (
                     status["note_found"]
                     and status["vault_found"]
-                    and status["uri_used"] != ""
+                    and (status["uri_used"] != "" or status["method_used"] == "cli")
                 ):
                     logger.info(
                         f"[{request_id}] Couldn't open note in Obsidian due to path or URI problem {message_tail}"
@@ -1210,12 +1211,17 @@ def write_obsidian_md_note(items: list, request_id: str) -> list:
                 # New note: open in a fresh tab via CLI (reliable, no file-watcher lag).
                 open_note_in_new_tab(citekey, request_id, new_tab=True)
             else:
-                # Overwrite: Obsidian auto-reloads the existing tab from the file
-                # change on disk. We still need to focus that tab for the user.
-                # Use the standard obsidian://open URI (prefer_uri=True, new_tab=False):
-                # this navigates Obsidian to the file, focusing the already-open tab
-                # without duplicating it, and without going through the file-watcher.
-                open_note_in_new_tab(citekey, request_id, new_tab=False, prefer_uri=True)
+                # Overwrite: focus the existing tab if the note is already open;
+                # otherwise open the note in a new tab.
+                note_already_open = onu.is_note_open_in_obsidian(
+                    str(notepath_in_vault), OS_PATH_TO_VAULT_ROOT
+                )
+                open_note_in_new_tab(
+                    citekey,
+                    request_id,
+                    new_tab=not note_already_open,
+                    prefer_uri=True,
+                )
 
             logger.info(f"[{request_id}] Completed item: {citekey=}, {itemkey=}")
 

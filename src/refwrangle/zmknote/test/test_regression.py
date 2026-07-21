@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import ast
 import importlib
+import json
 import sys
 import types
 import urllib.parse
@@ -341,6 +342,93 @@ class TestOpenObsidianNoteURI:
 
 
 # ===========================================================================
+# 2b. open_obsidian_note — prefer_uri skips the CLI entirely
+# ===========================================================================
+
+class TestPreferUriSkipsCli:
+    """Regression tests for open_obsidian_note(prefer_uri=True).
+
+    Bug guarded against:
+    - prefer_uri=True was accepted as a caller-side intent but silently ignored
+      by open_obsidian_note(), which always tried the CLI first when available.
+      The raw CLI `open` command does not search existing tabs for the target
+      file, so using it to "focus if already open" can produce a duplicate tab
+      instead of focusing the existing one. prefer_uri=True must skip the CLI
+      branch and go straight to the Advanced URI / standard URI method.
+    """
+
+    @pytest.fixture(autouse=True)
+    def _setup(self, tmp_path):
+        self.vault = tmp_path / "My Vault"
+        self.vault.mkdir()
+        obsidian_dir = self.vault / ".obsidian"
+        obsidian_dir.mkdir()
+        plugins_dir = obsidian_dir / "plugins" / "obsidian-advanced-uri"
+        plugins_dir.mkdir(parents=True)
+        (plugins_dir / "data.json").write_text(
+            '{"openFileWithoutWriteInNewPane": true}', encoding="utf-8"
+        )
+        (obsidian_dir / "community-plugins.json").write_text(
+            '["obsidian-advanced-uri"]', encoding="utf-8"
+        )
+        note_dir = self.vault / "lit" / "lit_notes"
+        note_dir.mkdir(parents=True)
+        (note_dir / "Smith2024.md").touch()
+        self.onu = _import_onu()
+
+    def test_prefer_uri_never_calls_check_obsidian_cli_available(self):
+        """When prefer_uri=True, the CLI availability check must not even run."""
+        with patch("os.startfile"), \
+             patch("open_obsidian_note.check_obsidian_cli_available") as mock_cli:
+            self.onu.open_obsidian_note(
+                "lit/lit_notes/Smith2024.md",
+                vault_path=self.vault,
+                new_tab=False,
+                prefer_uri=True,
+            )
+        assert not mock_cli.called, "prefer_uri=True must skip check_obsidian_cli_available entirely"
+
+    def test_prefer_uri_uses_advanced_uri_focus_even_when_cli_available(self):
+        """Even if the CLI is fully available/responsive, prefer_uri=True must use the URI method."""
+        with patch("os.startfile"), \
+             patch("open_obsidian_note.check_obsidian_cli_available") as mock_cli, \
+             patch("open_obsidian_note.open_note_via_cli") as mock_open_via_cli:
+            mock_cli.return_value = {
+                "binary_on_path": True, "binary_responds": True,
+                "cli_enabled": True, "obsidian_running": True, "failure_reason": None,
+            }
+            status = self.onu.open_obsidian_note(
+                "lit/lit_notes/Smith2024.md",
+                vault_path=self.vault,
+                new_tab=False,
+                prefer_uri=True,
+            )
+        assert not mock_open_via_cli.called, "prefer_uri=True must not call open_note_via_cli"
+        assert status["method_used"] == "advanced-uri-focus"
+        assert status["uri_used"] != ""
+
+    def test_without_prefer_uri_cli_is_used_when_available(self):
+        """Sanity check: default behavior (prefer_uri=False) still tries CLI first."""
+        with patch("open_obsidian_note.check_obsidian_cli_available") as mock_cli, \
+             patch("open_obsidian_note.subprocess.run") as mock_run, \
+             patch("open_obsidian_note.open_note_via_cli") as mock_open_via_cli:
+            mock_cli.return_value = {
+                "binary_on_path": True, "binary_responds": True,
+                "cli_enabled": True, "obsidian_running": True, "failure_reason": None,
+            }
+            mock_run.return_value = MagicMock(returncode=0, stdout="ok", stderr="")
+            mock_open_via_cli.return_value = {"success": True, "cli_output": "opened", "error": None}
+            status = self.onu.open_obsidian_note(
+                "lit/lit_notes/Smith2024.md",
+                vault_path=self.vault,
+                new_tab=False,
+                prefer_uri=False,
+            )
+        assert mock_open_via_cli.called, "Default prefer_uri=False should still try CLI"
+        assert status["method_used"] == "cli"
+
+
+# ===========================================================================
 # 3. check_obsidian_cli_available — Stage 3 broad except coverage
 # ===========================================================================
 
@@ -366,12 +454,53 @@ class TestCliAvailability:
         # cli_enabled starts as None and is never set (returned early)
         assert result["cli_enabled"] is None
 
-    def test_stage2_version_fails_returns_binary_broken(self):
+    def test_version_fails_but_status_succeeds_still_enabled(self):
+        """Obsidian 1.12.x may return non-zero for `obsidian version` even though the CLI works."""
         with patch("open_obsidian_note.shutil.which", return_value="/usr/bin/obsidian"), \
              patch("open_obsidian_note.subprocess.run") as mock_run:
-            mock_run.return_value = MagicMock(returncode=1, stdout="", stderr="error")
+            mock_run.side_effect = [
+                MagicMock(returncode=1, stdout="", stderr="unknown command"),  # version
+                MagicMock(returncode=0, stdout="ok", stderr=""),                # status
+            ]
+            result = self.onu.check_obsidian_cli_available(self.vault)
+        assert result["binary_responds"] is True
+        assert result["cli_enabled"] is True
+        assert result["failure_reason"] is None
+
+    def test_version_fails_and_status_reports_not_running(self):
+        with patch("open_obsidian_note.shutil.which", return_value="/usr/bin/obsidian"), \
+             patch("open_obsidian_note.subprocess.run") as mock_run:
+            mock_run.side_effect = [
+                MagicMock(returncode=1, stdout="", stderr="unknown command"),  # version
+                MagicMock(returncode=1, stdout="", stderr="obsidian not running"),  # status
+            ]
+            result = self.onu.check_obsidian_cli_available(self.vault)
+        assert result["binary_responds"] is True
+        assert result["cli_enabled"] is False
+        assert result["failure_reason"] == "obsidian_not_running"
+
+    def test_version_fails_and_status_fails_disabled(self):
+        with patch("open_obsidian_note.shutil.which", return_value="/usr/bin/obsidian"), \
+             patch("open_obsidian_note.subprocess.run") as mock_run:
+            mock_run.side_effect = [
+                MagicMock(returncode=1, stdout="", stderr="unknown command"),  # version
+                MagicMock(returncode=1, stdout="", stderr="command line interface disabled"),  # status
+            ]
+            result = self.onu.check_obsidian_cli_available(self.vault)
+        assert result["binary_responds"] is True
+        assert result["cli_enabled"] is False
+        assert result["failure_reason"] == "cli_disabled"
+
+    def test_version_fails_and_status_raises_returns_binary_broken(self):
+        with patch("open_obsidian_note.shutil.which", return_value="/usr/bin/obsidian"), \
+             patch("open_obsidian_note.subprocess.run") as mock_run:
+            mock_run.side_effect = [
+                MagicMock(returncode=1, stdout="", stderr="unknown command"),  # version
+                OSError("broken pipe"),  # status — unexpected
+            ]
             result = self.onu.check_obsidian_cli_available(self.vault)
         assert result["binary_responds"] is False
+        assert result["cli_enabled"] is False
         assert result["failure_reason"] == "binary_broken"
 
     def test_stage3_timeout_sets_cli_enabled_false(self):
@@ -421,6 +550,89 @@ class TestCliAvailability:
             result = self.onu.check_obsidian_cli_available(self.vault)
         assert result["cli_enabled"] is False
         assert result["failure_reason"] == "obsidian_not_running"
+
+
+# ===========================================================================
+# 3b. is_note_open_in_obsidian — workspace file parsing
+# ===========================================================================
+
+class TestIsNoteOpenInObsidian:
+    """Tests for is_note_open_in_obsidian()."""
+
+    @pytest.fixture(autouse=True)
+    def _setup(self, tmp_path):
+        self.vault = tmp_path / "Vault"
+        self.vault.mkdir()
+        self.obsidian_dir = self.vault / ".obsidian"
+        self.obsidian_dir.mkdir()
+        self.onu = _import_onu()
+
+    def _write_workspace(self, data: dict) -> None:
+        workspace_file = self.obsidian_dir / "workspace.json"
+        with workspace_file.open("w", encoding="utf-8") as f:
+            json.dump(data, f)
+
+    def _workspace_with_file(self, file_path: str) -> dict:
+        return {
+            "workspace": {
+                "left": {
+                    "type": "split",
+                    "children": [
+                        {
+                            "type": "leaf",
+                            "state": {
+                                "type": "markdown",
+                                "state": {
+                                    "file": file_path,
+                                    "mode": "source",
+                                },
+                            },
+                        }
+                    ],
+                }
+            }
+        }
+
+    def test_note_open_in_leaf_returns_true(self):
+        self._write_workspace(
+            self._workspace_with_file("lit/lit_notes/Studio25mostEfficientTraveler.md")
+        )
+        result = self.onu.is_note_open_in_obsidian(
+            "lit/lit_notes/Studio25mostEfficientTraveler.md", self.vault
+        )
+        assert result is True
+
+    def test_note_not_open_returns_false(self):
+        self._write_workspace(
+            self._workspace_with_file("lit/lit_notes/OtherNote.md")
+        )
+        result = self.onu.is_note_open_in_obsidian(
+            "lit/lit_notes/Studio25mostEfficientTraveler.md", self.vault
+        )
+        assert result is False
+
+    def test_missing_workspace_file_returns_false(self):
+        result = self.onu.is_note_open_in_obsidian(
+            "lit/lit_notes/Studio25mostEfficientTraveler.md", self.vault
+        )
+        assert result is False
+
+    def test_malformed_workspace_file_returns_false(self):
+        workspace_file = self.obsidian_dir / "workspace.json"
+        workspace_file.write_text("not valid json", encoding="utf-8")
+        result = self.onu.is_note_open_in_obsidian(
+            "lit/lit_notes/Studio25mostEfficientTraveler.md", self.vault
+        )
+        assert result is False
+
+    def test_normalizes_backslashes(self):
+        self._write_workspace(
+            self._workspace_with_file("lit/lit_notes/Studio25mostEfficientTraveler.md")
+        )
+        result = self.onu.is_note_open_in_obsidian(
+            "lit\\lit_notes\\Studio25mostEfficientTraveler.md", self.vault
+        )
+        assert result is True
 
 
 # ===========================================================================

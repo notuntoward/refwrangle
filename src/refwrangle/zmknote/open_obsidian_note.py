@@ -65,6 +65,57 @@ def check_newpane_setting(vault_path: Path) -> bool:
         return False
 
 
+def _normalize_vault_path(path: str) -> str:
+    """Normalize a vault-relative path for comparison.
+    
+    Converts backslashes to forward slashes and strips leading/trailing slashes.
+    """
+    return path.replace("\\", "/").strip("/")
+
+
+def is_note_open_in_obsidian(note_path: str, vault_path: Path) -> bool:
+    """Check whether a note is already open in Obsidian by reading workspace.json.
+    
+    Args:
+        note_path: vault-relative path to the note (e.g. "lit/lit_notes/Note.md")
+        vault_path: full path to the vault root
+        
+    Returns:
+        True if the note appears as an open leaf in Obsidian's workspace file.
+    """
+    workspace_file = vault_path / ".obsidian" / "workspace.json"
+    if not workspace_file.exists():
+        return False
+
+    target = _normalize_vault_path(note_path)
+    try:
+        with workspace_file.open("r", encoding="utf-8") as f:
+            workspace = json.load(f)
+    except Exception:
+        return False
+
+    def _search(node):
+        if isinstance(node, dict):
+            if node.get("type") == "leaf":
+                state = node.get("state") or {}
+                if isinstance(state, dict):
+                    inner_state = state.get("state") or {}
+                    if isinstance(inner_state, dict):
+                        open_file = inner_state.get("file")
+                        if open_file and _normalize_vault_path(open_file) == target:
+                            return True
+            for value in node.values():
+                if _search(value):
+                    return True
+        elif isinstance(node, list):
+            for item in node:
+                if _search(item):
+                    return True
+        return False
+
+    return _search(workspace.get("workspace", workspace))
+
+
 def check_obsidian_cli_available(vault_path: Path) -> dict:
     """
     Checks whether the Obsidian CLI is installed, reachable, and enabled in Settings.
@@ -92,23 +143,22 @@ def check_obsidian_cli_available(vault_path: Path) -> dict:
         return status
     status["binary_on_path"] = True
 
-    # Stage 2: Does the binary respond?
+    # Stage 2: Probe version as a quick liveness check. Some Obsidian builds
+    # (e.g. 1.12.x) return non-zero here even when the CLI is registered and
+    # works for actual vault commands, so this is advisory only — we do not
+    # fail the whole check on it.
+    version_probe_ok = False
     try:
         result = subprocess.run(
             ["obsidian", "version"],
-            capture_output=True, text=True, timeout=5
+            capture_output=True, text=True, timeout=10
         )
-        if result.returncode != 0:
-            status["binary_responds"] = False
-            status["failure_reason"] = "binary_broken"
-            return status
-        status["binary_responds"] = True
-    except (FileNotFoundError, subprocess.TimeoutExpired):
-        status["binary_responds"] = False
-        status["failure_reason"] = "binary_broken"
-        return status
+        version_probe_ok = result.returncode == 0
+    except Exception:
+        version_probe_ok = False
 
-    # Stage 3: Is the CLI enabled in Settings and the vault reachable?
+    # Stage 3: The authoritative test is whether the CLI can talk to Obsidian
+    # about the target vault.
     vault_name = vault_path.name
     try:
         result = subprocess.run(
@@ -116,34 +166,46 @@ def check_obsidian_cli_available(vault_path: Path) -> dict:
             capture_output=True, text=True, timeout=10
         )
         if result.returncode == 0:
+            status["binary_responds"] = True
             status["cli_enabled"] = True
             status["obsidian_running"] = True
-        else:
-            status["cli_enabled"] = False
-            combined = (result.stdout + result.stderr).lower()
-            if "not running" in combined or "not open" in combined:
-                status["obsidian_running"] = False
-                status["failure_reason"] = "obsidian_not_running"
-            else:
-                status["obsidian_running"] = True
-                status["failure_reason"] = "cli_disabled"
-    except subprocess.TimeoutExpired:
-        status["cli_enabled"] = False
-        status["obsidian_running"] = False
-        status["failure_reason"] = "obsidian_not_running"
-    except Exception:
-        # Any other unexpected error (e.g. OSError, PermissionError) —
-        # treat as CLI disabled so callers always get a definite bool.
-        status["cli_enabled"] = False
-        status["failure_reason"] = "cli_disabled"
+            return status
 
-    return status
+        combined = (result.stdout + result.stderr).lower()
+        status["binary_responds"] = True  # the binary itself responded
+
+        if "not running" in combined or "not open" in combined:
+            status["obsidian_running"] = False
+            status["cli_enabled"] = False
+            status["failure_reason"] = "obsidian_not_running"
+        else:
+            # Obsidian is running but the vault status command failed. This
+            # usually means the CLI is disabled in Settings or the vault is not
+            # loaded; in either case the CLI is not usable for this vault.
+            status["obsidian_running"] = True
+            status["cli_enabled"] = False
+            status["failure_reason"] = "cli_disabled"
+        return status
+    except subprocess.TimeoutExpired:
+        # Vault status timed out. If the version probe also failed, the CLI
+        # binary itself is likely broken; otherwise Obsidian is not responding.
+        status["binary_responds"] = version_probe_ok
+        status["obsidian_running"] = False
+        status["cli_enabled"] = False
+        status["failure_reason"] = "obsidian_not_running" if version_probe_ok else "binary_broken"
+        return status
+    except Exception:
+        status["binary_responds"] = version_probe_ok
+        status["cli_enabled"] = False
+        status["failure_reason"] = "binary_broken" if not version_probe_ok else "cli_disabled"
+        return status
+
 
 
 def open_note_via_cli(note_path: str, vault_path: Path, new_tab: bool = True, timeout: float = 10.0, interval: float = 1.5) -> dict:
     """
     Opens an existing Obsidian note using the Obsidian CLI.
-    Assumes the vault is already open and ready.
+    Waits for the vault to be ready before attempting to open.
     Does not depend on Obsidian's file watcher — uses Obsidian's internal API.
 
     note_path: vault-relative path WITH .md extension,
@@ -152,8 +214,8 @@ def open_note_via_cli(note_path: str, vault_path: Path, new_tab: bool = True, ti
     new_tab:   If True (default), open in a new tab.
                 If False, reuse the existing tab if the note is already open;
                 otherwise open in the most-recently-used pane.
-    timeout:   Maximum seconds to wait for note-open (default 10)
-    interval:  Seconds to wait between retry attempts (default 1.5)
+    timeout:   Maximum seconds to wait for vault readiness (default 10)
+    interval:  Seconds to wait between status polls (default 1.5)
 
     Returns a dict with keys:
         success:       bool
@@ -163,36 +225,81 @@ def open_note_via_cli(note_path: str, vault_path: Path, new_tab: bool = True, ti
     vault_name = vault_path.name
     result_dict = {"success": False, "cli_output": "", "error": None}
     
-    # Open the note - retry in case of transient issues
+    # Wait for vault to be ready. If status reports the vault as not open but
+    # it is registered in Obsidian, try to open it via the CLI first.
     deadline = time.time() + timeout
+    vault_ready = False
+    vault_open_attempted = False
     while time.time() < deadline:
         try:
-            cmd = ["obsidian", f"vault={vault_name}", "open", f"path={note_path}"]
-            if new_tab:
-                cmd.append("newtab")
-            result = subprocess.run(
-                cmd,
+            status_result = subprocess.run(
+                ["obsidian", f"vault={vault_name}", "status"],
                 capture_output=True, text=True, timeout=10
             )
-            result_dict["cli_output"] = result.stdout.strip()
-            if result.returncode == 0:
-                result_dict["success"] = True
-                return result_dict
-            result_dict["error"] = result.stderr.strip() or result.stdout.strip()
+            if status_result.returncode == 0:
+                vault_ready = True
+                break
+            # Vault exists but is not open — try to open it (only once)
+            if not vault_open_attempted:
+                vault_open_attempted = True
+                try:
+                    subprocess.run(
+                        ["obsidian", f"vault={vault_name}", "open"],
+                        capture_output=True, text=True, timeout=10
+                    )
+                except Exception:
+                    pass
         except subprocess.TimeoutExpired:
-            result_dict["error"] = "CLI open timed out"
-        except Exception as e:
-            result_dict["error"] = str(e)
+            pass
+        except Exception:
+            pass
         time.sleep(interval)
+    
+    if not vault_ready:
+        result_dict["error"] = "Timed out waiting for vault to be ready"
+        return result_dict
+    
+    # Vault is ready, try to open the note
+    try:
+        cmd = ["obsidian", f"vault={vault_name}", "open", f"path={note_path}"]
+        if new_tab:
+            cmd.append("newtab")
+        result = subprocess.run(
+            cmd,
+            capture_output=True, text=True, timeout=10
+        )
+        result_dict["cli_output"] = result.stdout.strip()
+        if result.returncode == 0:
+            result_dict["success"] = True
+        else:
+            result_dict["error"] = result.stderr.strip() or result.stdout.strip()
+    except subprocess.TimeoutExpired:
+        result_dict["error"] = "CLI open timed out"
+    except Exception as e:
+        result_dict["error"] = str(e)
     
     return result_dict
     
-def open_obsidian_note(note_path: str, vault_path: Path | str | None = None, new_tab: bool = True) -> dict:
+def open_obsidian_note(
+    note_path: str,
+    vault_path: Path | str | None = None,
+    new_tab: bool = True,
+    prefer_uri: bool = False,
+) -> dict:
     """ Opens an Obsidian note in a new tab, if possible and requested.
           note_path: internal obsidian path from the vault root to the note (without .md)
           vault_path: Full path to the vault directory (Path object or string)
           new_tab: Whether to open in a new tab (requires Obsidian's Advanced URI plugin, 
                     with its "Open file without write in new pane" option enabled)
+          prefer_uri: If True, skip the CLI entirely and use the Advanced URI /
+                    standard obsidian:// URI method. The raw Obsidian CLI `open`
+                    command does not search existing tabs for the target file —
+                    it opens/reuses the most-recently-used pane regardless of
+                    whether the file is already displayed elsewhere, which can
+                    produce a duplicate tab. The Advanced URI plugin (without
+                    `newpane`) explicitly searches leaves for the file and
+                    focuses it, so it is the reliable way to "focus if already
+                    open, otherwise open in place" without duplicating tabs.
       
           Returns: dict: Status information about the operation (see comments)"""
     
@@ -223,12 +330,14 @@ def open_obsidian_note(note_path: str, vault_path: Path | str | None = None, new
         note_path += '.md'
     status["note_found"] = (vault_path / note_path).exists()
     
-    # If vault is found, try the CLI method first if available and responsive.
+    # If vault is found, try the CLI method first if available and responsive
+    # (unless the caller explicitly asked to skip it via prefer_uri — see the
+    # prefer_uri docstring above for why CLI is unsuitable for focus-if-open).
     # We try CLI even if note doesn't exist on disk yet, as CLI can create/open new notes.
     # We try CLI whenever the binary is available and responsive (binary_on_path and binary_responds),
     # regardless of whether the specific vault's CLI is enabled, since the act of opening a note
     # might cause the vault to open.
-    if status["vault_found"]:
+    if status["vault_found"] and not prefer_uri:
         cli_status = check_obsidian_cli_available(vault_path)
         if cli_status["binary_on_path"] and cli_status["binary_responds"]:
             # Check if the vault is already open
@@ -251,7 +360,9 @@ def open_obsidian_note(note_path: str, vault_path: Path | str | None = None, new
                     status["cli_output"] = cli_result["cli_output"]
                     status["error"] = cli_result["error"]
                     status["uri_used"] = ""  # No URI used in CLI method
-                    # Leave other fields as initialized (None/False) since we didn't check URI-specific conditions
+                    # CLI's "newtab" flag reliably adds a new tab when requested,
+                    # so treat success as fulfilling the new_tab request.
+                    status["new_tab_possible"] = True if new_tab else None
                     return status
                 # If CLI method fails, fall through to URI method below
     
